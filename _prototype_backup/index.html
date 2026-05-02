@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>Bruxelles 3D - Mapbox</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BelgMap">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
+    
+    <!-- Optimisation du chargement -->
+    <link rel="preconnect" href="https://api.mapbox.com" crossorigin>
+    <link rel="dns-prefetch" href="https://api.mapbox.com">
+    <link rel="preconnect" href="https://events.mapbox.com" crossorigin>
+    
+    <!-- Mapbox GL JS v3 -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js"></script>
+    <!-- Nipple.js pour le joystick -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            margin: 0; 
+            font-family: 'Outfit', sans-serif; 
+            background-color: #0f172a; /* Cadre sombre tout autour */
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 0;
+            height: 100vh;
+            padding: 0; /* Plus aucune distance globale */
+            box-sizing: border-box;
+        }
+
+        .dashboard-panel {
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 0;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+            color: white;
+            position: relative;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* --- STATISTIQUES --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 100%;
+        }
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #ffffff, #aaaaaa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .stat-trend {
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .stat-trend.positive { color: #10b981; }
+        .stat-trend.negative { color: #ef4444; }
+        .stat-trend.neutral { color: #f59e0b; }
+
+        /* --- LISTES (INTERVENTIONS & TECHNICIENS) --- */
+        .list-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+        }
+        .list-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        .list-item:hover {
+            transform: translateX(5px);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .item-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .item-time-avatar {
+            font-size: 14px;
+            font-weight: 600;
+            color: #3b82f6;
+            min-width: 50px;
+        }
+        .tech-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 600;
+            font-size: 18px;
+            color: white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .item-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .item-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: white;
+        }
+        .item-subtitle {
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+        }
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .badge-progress { background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .badge-pending { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-done { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+        
+        .status-dot-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .dot-green { background: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
+        .dot-yellow { background: #f59e0b; box-shadow: 0 0 10px rgba(245, 158, 11, 0.5); }
+        .dot-red { background: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+
+        /* --- MODE PLEIN ÉCRAN POUR LA CARTE --- */
+        #map-container.fullscreen-map {
+            position: fixed !important;
+            top: 24px;
+            left: 24px;
+            right: 24px;
+            bottom: 24px;
+            width: auto;
+            height: auto;
+            z-index: 9999;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        #dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 30px;
+            color: white;
+            flex-shrink: 0;
+        }
+        #dashboard-header h2 {
+            margin: 0;
+            font-size: 32px;
+            background: linear-gradient(135deg, #FACC15, #F59E0B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        #map-container {
+            position: relative;
+            border-radius: 0; /* Plus de bord arrondi pour coller aux autres */
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.1);
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        #map { 
+            position: absolute; 
+            top: 0; 
+            bottom: 0; 
+            width: 100%; 
+        }
+        
+        /* Masquer les attributions et le logo Mapbox */
+        .mapboxgl-ctrl-logo, 
+        .mapboxgl-ctrl-attrib {
+            display: none !important;
+        }
+        
+        /* Premium UI Overlay */
+        .glass-panel {
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            z-index: 10;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 30px;
+            border-radius: 24px;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.1);
+            max-width: 320px;
+            transition: all 0.3s ease;
+        }
+        
+        .glass-panel:hover {
+            background: rgba(15, 23, 42, 0.5);
+            transform: translateY(-2px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        h1 {
+            margin: 0 0 12px 0;
+            font-size: 28px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #FACC15, #F59E0B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        p {
+            margin: 0 0 20px 0;
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+            font-weight: 300;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 400;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        button.active {
+            background: rgba(250, 204, 21, 0.2);
+            border-color: rgba(250, 204, 21, 0.5);
+            color: #FACC15;
+        }
+
+        /* Customize Mapbox Controls to match dark theme */
+        .mapboxgl-ctrl-group {
+            background: rgba(15, 23, 42, 0.6) !important;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 12px !important;
+            overflow: hidden;
+        }
+        .mapboxgl-ctrl-group button {
+            width: 36px !important;
+            height: 36px !important;
+        }
+        .mapboxgl-ctrl-icon {
+            filter: invert(1) opacity(0.8);
+        }
+        .mapboxgl-ctrl-group button:hover {
+            background: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        /* --- MORPHING HORLOGE -> CALENDRIER --- */
+        #dynamic-widget {
+            position: absolute;
+            z-index: 101; /* Au dessus de l'overlay */
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            overflow: hidden;
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            box-sizing: border-box;
+        }
+
+        /* État 1 : Horloge */
+        #dynamic-widget.state-clock {
+            top: 30px; 
+            left: 30px; 
+            width: 110px; 
+            height: 110px;
+            padding: 12px;
+            cursor: pointer;
+            transform: translate(0, 0) scale(1);
+        }
+
+        /* État 2 : Calendrier au centre */
+        #dynamic-widget.state-calendar {
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            width: 300px; 
+            height: 380px;
+            padding: 16px; /* Réduit le padding pour laisser de la place à la grille */
+            border-radius: 20px;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            cursor: default;
+        }
+
+        /* Contenu Horloge */
+        #clock-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            width: 100%;
+            height: 100%;
+            transition: opacity 0.3s ease;
+        }
+        #dynamic-widget.state-calendar #clock-content {
+            opacity: 0;
+            pointer-events: none;
+            position: absolute; /* Empêche de déformer le widget pendant l'animation */
+            visibility: hidden;
+        }
+
+        /* Contenu Calendrier */
+        #calendar-content {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        #dynamic-widget.state-clock #calendar-content {
+            position: absolute;
+            visibility: hidden;
+        }
+        #dynamic-widget.state-calendar #calendar-content {
+            opacity: 1;
+            pointer-events: auto;
+            transition-delay: 0.2s; /* Apparaît doucement à la fin du morphing */
+        }
+
+        #time-display {
+            font-size: 22px; font-weight: 600; background: linear-gradient(135deg, #ffffff, #aaaaaa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.5px; line-height: 1; margin-bottom: 6px;
+        }
+        #date-display {
+            font-size: 12px; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 1px; line-height: 1.2; word-wrap: break-word;
+        }
+
+        /* Overlay Sombre indépendant */
+        #calendar-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 100; opacity: 0; pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+        #calendar-overlay.active {
+            opacity: 1; pointer-events: auto;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 1px;
+            font-size: 16px;
+        }
+        .calendar-header button {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            flex: 0 0 32px; /* Surcharge le flex: 1 global */
+            padding: 0; /* Surcharge le padding global */
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .calendar-header button:hover { background: rgba(255, 255, 255, 0.2); }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px; /* Gap réduit pour éviter le débordement */
+            text-align: center;
+        }
+        .calendar-day-name {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 8px;
+        }
+        .calendar-day {
+            font-size: 14px;
+            width: 32px; /* Taille réduite pour tout faire rentrer */
+            height: 32px;
+            margin: 0 auto; /* Centre le cercle dans la case de la grille */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            cursor: default;
+        }
+        .calendar-day.today {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            font-weight: 600;
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+        .calendar-day.empty { background: transparent; }
+
+        /* --- MARQUEUR CAMIONNETTE --- */
+        .van-marker {
+            width: 44px;
+            height: 44px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5), 0 0 15px rgba(59, 130, 246, 0.5);
+            cursor: pointer;
+            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+            color: white;
+        }
+        .van-marker:hover {
+            transform: scale(1.1);
+        }
+        .van-marker svg {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+    </style>
+</head>
+<body>
+
+
+
+<!-- Panneau 1: Haut Gauche -->
+<div class="dashboard-panel">
+    <div class="panel-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+        Statistiques
+    </div>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">5</div>
+            <div class="stat-label">Interventions Actives</div>
+            <div class="stat-trend positive">↑ +2 depuis 1h</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">€ 3,450</div>
+            <div class="stat-label">Chiffre d'Affaires</div>
+            <div class="stat-trend positive">↑ +12% vs Hier</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">14 min</div>
+            <div class="stat-label">Temps de Trajet Moyen</div>
+            <div class="stat-trend negative">↓ -2 min</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">4.9/5</div>
+            <div class="stat-label">Satisfaction Client</div>
+            <div class="stat-trend neutral">→ Stable</div>
+        </div>
+    </div>
+</div>
+
+<!-- Panneau 2: Haut Droit (Carte) -->
+<div id="map-container">
+    <div id="map"></div>
+    
+    <!-- Bouton Plein Écran -->
+    <div style="position: absolute; top: 90px; right: 30px; z-index: 10;">
+        <button id="fullscreen-btn" style="background: rgba(15, 23, 42, 0.6); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; width: 44px; height: 44px; cursor: pointer; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: flex; justify-content: center; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); transition: transform 0.1s ease;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+            </svg>
+        </button>
+    </div>
+    
+    <!-- Widget Morphing (Horloge -> Calendrier) -->
+    <div id="dynamic-widget" class="state-clock">
+        <!-- Contenu Horloge -->
+        <div id="clock-content">
+            <div id="time-display"></div>
+            <div id="date-display"></div>
+        </div>
+
+        <!-- Contenu Calendrier -->
+        <div id="calendar-content">
+            <div class="calendar-header">
+                <button id="prev-month-btn">❮</button>
+                <div id="calendar-month-year">...</div>
+                <button id="next-month-btn">❯</button>
+            </div>
+            <div class="calendar-grid">
+                <div class="calendar-day-name">L</div>
+                <div class="calendar-day-name">M</div>
+                <div class="calendar-day-name">M</div>
+                <div class="calendar-day-name">J</div>
+                <div class="calendar-day-name">V</div>
+                <div class="calendar-day-name">S</div>
+                <div class="calendar-day-name">D</div>
+            </div>
+            <div class="calendar-grid" id="calendar-days">
+                <!-- Généré dynamiquement en JS -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Overlay Sombre indépendant -->
+    <div id="calendar-overlay"></div>
+    
+    <!-- Bouton Intervention -->
+    <div style="position: absolute; top: 30px; right: 30px; z-index: 10;">
+        <button id="intervention-btn" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; padding: 15px 25px; border-radius: 12px; font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4); border: 1px solid rgba(255,255,255,0.2); transition: transform 0.1s ease;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
+            Intervention
+        </button>
+    </div>
+
+    <!-- Bouton Toggle 2D/3D -->
+    <div style="position: absolute; bottom: 30px; left: 30px; z-index: 10;">
+        <button id="toggle-3d-btn" style="background: rgba(15, 23, 42, 0.6); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 12px 20px; border-radius: 20px; font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); transition: transform 0.1s ease;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
+            Vue 2D
+        </button>
+    </div>
+
+    <!-- Petit Joystick Minimaliste (Rotation 3D) -->
+    <div id="joystick-look" style="position: absolute; bottom: 30px; right: 30px; width: 60px; height: 60px; z-index: 10; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 5px 15px rgba(0,0,0,0.3);"></div>
+</div>
+
+<!-- Panneau 3: Bas Gauche -->
+<div class="dashboard-panel">
+    <div class="panel-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+        Interventions du Jour
+    </div>
+    <div class="list-container">
+        <div class="list-item">
+            <div class="item-left">
+                <div class="item-time-avatar">Maintenant</div>
+                <div class="item-details">
+                    <div class="item-title">Porte claquée</div>
+                    <div class="item-subtitle">Mont des Arts, Bruxelles</div>
+                </div>
+            </div>
+            <div class="status-badge badge-progress">En cours</div>
+        </div>
+        <div class="list-item">
+            <div class="item-left">
+                <div class="item-time-avatar">14:30</div>
+                <div class="item-details">
+                    <div class="item-title">Changement de cylindre</div>
+                    <div class="item-subtitle">Grand Place, Bruxelles</div>
+                </div>
+            </div>
+            <div class="status-badge badge-pending">En attente</div>
+        </div>
+        <div class="list-item">
+            <div class="item-left">
+                <div class="item-time-avatar">11:00</div>
+                <div class="item-details">
+                    <div class="item-title">Ouverture de coffre-fort</div>
+                    <div class="item-subtitle">Avenue Louise, Bruxelles</div>
+                </div>
+            </div>
+            <div class="status-badge badge-done">Terminé</div>
+        </div>
+    </div>
+</div>
+
+<!-- Panneau 4: Bas Droit -->
+<div class="dashboard-panel">
+    <div class="panel-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        Suivi des Techniciens
+    </div>
+    <div class="list-container">
+        <div class="list-item">
+            <div class="item-left">
+                <div class="tech-avatar" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">A</div>
+                <div class="item-details">
+                    <div class="item-title">Alexandre V.</div>
+                    <div class="item-subtitle">Camionnette #01</div>
+                </div>
+            </div>
+            <div class="status-dot-container">
+                <span class="status-dot dot-red"></span> Sur place
+            </div>
+        </div>
+        <div class="list-item">
+            <div class="item-left">
+                <div class="tech-avatar" style="background: linear-gradient(135deg, #10b981, #059669);">T</div>
+                <div class="item-details">
+                    <div class="item-title">Thomas L.</div>
+                    <div class="item-subtitle">Camionnette #03</div>
+                </div>
+            </div>
+            <div class="status-dot-container">
+                <span class="status-dot dot-green"></span> Disponible
+            </div>
+        </div>
+        <div class="list-item">
+            <div class="item-left">
+                <div class="tech-avatar" style="background: linear-gradient(135deg, #f59e0b, #d97706);">B</div>
+                <div class="item-details">
+                    <div class="item-title">Boris K.</div>
+                    <div class="item-subtitle">Camionnette #02</div>
+                </div>
+            </div>
+            <div class="status-dot-container">
+                <span class="status-dot dot-yellow"></span> En route (5 min)
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let isStyleLoaded = false;
+    let currentLightPreset = ''; // Mémorise la lumière actuelle pour éviter les surcharges
+
+    // Configuration Mapbox
+    mapboxgl.accessToken = 'YOUR_MAPBOX_TOKEN';
+    
+    const map = new mapboxgl.Map({
+        container: 'map', 
+        // Le style 'standard' de Mapbox v3 inclut automatiquement les bâtiments 3D, les arbres, et l'éclairage dynamique
+        style: 'mapbox://styles/mapbox/standard', 
+        center: [4.3528, 50.8468], // Coordonnées centrées sur le Mont des Arts / Grand-Place, Bruxelles
+        zoom: 16.5, 
+        pitch: 65, // Angle de caméra pour bien voir la 3D
+        bearing: -20, // Orientation de la caméra
+        antialias: true, // Active l'anti-aliasing pour des bords lisses
+        
+        // Optimisations de chargement et d'isolement
+        localIdeographFontFamily: "'Outfit', 'Inter', sans-serif", // Évite le téléchargement de polices inutiles
+        maxBounds: [
+            [4.24, 50.76], // Sud-Ouest strict de Bruxelles
+            [4.48, 50.92]  // Nord-Est strict de Bruxelles
+        ],
+        minZoom: 12, // Empêche de trop dézoomer et de charger le reste de la Belgique
+        maxTileCacheSize: 200, // Garde plus de tuiles en mémoire vive (RAM) pour éviter le rechargement lors des déplacements
+        attributionControl: false // Désactive le texte d'attribution
+    });
+
+    map.on('style.load', () => {
+        isStyleLoaded = true; // Autorise l'horloge à changer dynamiquement la lumière
+        
+        // ALLÉGER LA CARTE (Less is More) : Désactiver tous les magasins, POIs et transports
+        map.setConfigProperty('basemap', 'showPointOfInterestLabels', false);
+        map.setConfigProperty('basemap', 'showTransitLabels', false);
+        
+        // Conserver les noms de rue bien plaqués au sol
+        map.setConfigProperty('basemap', 'showRoadLabels', true);
+        
+        // --- BÂTIMENTS CIBLES EN ROUGE (CYLINDRES) ---
+        const interventions = [
+            [4.35415, 50.84655], // Centre (original)
+            [4.35200, 50.84800], // Nord-Ouest
+            [4.35600, 50.84500], // Sud-Est
+            [4.35000, 50.84400], // Sud-Ouest
+            [4.35800, 50.84750]  // Nord-Est
+        ];
+        
+        // Fonction pour générer la base d'un cylindre (polygone circulaire)
+        function createCylinder(center, radius, points) {
+            const coords = [];
+            for (let i = 0; i < points; i++) {
+                const angle = (i * 360) / points;
+                // Correction du ratio lat/lng pour la Belgique (cos 50.8° ≈ 0.63)
+                const lng = center[0] + (radius / 0.63) * Math.cos(angle * Math.PI / 180);
+                const lat = center[1] + radius * Math.sin(angle * Math.PI / 180);
+                coords.push([lng, lat]);
+            }
+            coords.push(coords[0]); // Fermer le cercle
+            return [coords];
+        }
+
+        map.addSource('intervention-building', {
+            type: 'geojson',
+            data: {
+                type: 'FeatureCollection',
+                features: interventions.map(coords => ({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Polygon',
+                        coordinates: createCylinder(coords, 0.0001, 32) // Rayon d'environ 10m, 32 faces
+                    },
+                    properties: { height: 50, base_height: 0 } // Cylindre géant de 50m de haut pour être très visible
+                }))
+            }
+        });
+
+        map.addLayer({
+            id: 'intervention-extrusion',
+            type: 'fill-extrusion',
+            source: 'intervention-building',
+            layout: {
+                'visibility': 'visible' // Par défaut en 3D
+            },
+            paint: {
+                'fill-extrusion-color': '#ef4444', // Rouge Alerte
+                'fill-extrusion-height': ['get', 'height'],
+                'fill-extrusion-base': ['get', 'base_height'],
+                'fill-extrusion-opacity': 0.9
+            }
+        });
+
+        // Source Point pour l'affichage en mode 2D
+        map.addSource('intervention-point', {
+            type: 'geojson',
+            data: {
+                type: 'FeatureCollection',
+                features: interventions.map(coords => ({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: coords
+                    }
+                }))
+            }
+        });
+
+        // Cercle extérieur (Halo lumineux 2D)
+        map.addLayer({
+            id: 'intervention-circle-glow',
+            type: 'circle',
+            source: 'intervention-point',
+            layout: {
+                'visibility': 'none' // Caché par défaut car on est en 3D
+            },
+            paint: {
+                'circle-radius': 24,
+                'circle-color': '#ef4444',
+                'circle-opacity': 0.3,
+                'circle-pitch-alignment': 'map'
+            }
+        });
+
+        // Cercle intérieur (Point central 2D)
+        map.addLayer({
+            id: 'intervention-circle',
+            type: 'circle',
+            source: 'intervention-point',
+            layout: {
+                'visibility': 'none' // Caché par défaut car on est en 3D
+            },
+            paint: {
+                'circle-radius': 8,
+                'circle-color': '#ef4444',
+                'circle-stroke-width': 2,
+                'circle-stroke-color': '#ffffff',
+                'circle-pitch-alignment': 'map'
+            }
+        });
+
+        // --- MARQUEUR CAMIONNETTE DU TECHNICIEN (RESTAURÉ) ---
+        // Le modèle 3D cause un crash WebGL/CORS, restauration du macaron HTML robuste
+        const vanCoords = [4.35380, 50.84670]; 
+        const vanMarkerEl = document.createElement('div');
+        vanMarkerEl.className = 'van-marker';
+        vanMarkerEl.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <rect x="1" y="3" width="15" height="13"></rect>
+                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                <circle cx="18.5" cy="18.5" r="2.5"></circle>
+            </svg>
+        `;
+        
+        new mapboxgl.Marker({ element: vanMarkerEl })
+            .setLngLat(vanCoords)
+            .addTo(map);
+
+        // --- ANIMATION BOUTON INTERVENTION ---
+        document.getElementById('intervention-btn').addEventListener('click', () => {
+            map.flyTo({
+                center: interventions[0],
+                zoom: 18.5,
+                pitch: 75,
+                bearing: -45, // Tourne la caméra pour un angle cinématique
+                duration: 4000, // 4 secondes d'animation fluide
+                essential: true
+            });
+        });
+
+        // --- LOGIQUE DU BOUTON PLEIN ÉCRAN ---
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const mapContainer = document.getElementById('map-container');
+        
+        fullscreenBtn.addEventListener('click', () => {
+            mapContainer.classList.toggle('fullscreen-map');
+            // Le délai permet d'attendre la fin de la transition CSS pour recalculer la carte
+            setTimeout(() => {
+                map.resize();
+            }, 400); 
+        });
+
+        // --- LOGIQUE DU BOUTON TOGGLE 2D/3D ---
+        let is3D = true;
+        const toggleBtn = document.getElementById('toggle-3d-btn');
+        
+        // Le bouton modifie simplement l'inclinaison de la caméra
+        toggleBtn.addEventListener('click', () => {
+            if (is3D) {
+                map.easeTo({ pitch: 0, bearing: 0, duration: 1000 });
+            } else {
+                map.easeTo({ pitch: 65, duration: 1000 });
+            }
+        });
+
+        // Synchronisation AUTOMATIQUE : on écoute l'inclinaison réelle de la caméra
+        // Cela corrige le bug quand on utilise le joystick ou le bouton intervention
+        map.on('pitch', () => {
+            const currentPitch = map.getPitch();
+            if (currentPitch > 30 && !is3D) {
+                is3D = true;
+                toggleBtn.innerHTML = 'VUE 2D';
+                map.setLayoutProperty('intervention-extrusion', 'visibility', 'visible');
+                map.setLayoutProperty('intervention-circle', 'visibility', 'none');
+                map.setLayoutProperty('intervention-circle-glow', 'visibility', 'none');
+            } else if (currentPitch <= 30 && is3D) {
+                is3D = false;
+                toggleBtn.innerHTML = 'VUE 3D';
+                map.setLayoutProperty('intervention-extrusion', 'visibility', 'none');
+                map.setLayoutProperty('intervention-circle', 'visibility', 'visible');
+                map.setLayoutProperty('intervention-circle-glow', 'visibility', 'visible');
+            }
+        });
+
+        // --- LOGIQUE DU PETIT JOYSTICK (Rotation 3D uniquement) ---
+        const joystickLook = nipplejs.create({
+            zone: document.getElementById('joystick-look'),
+            mode: 'static',
+            position: { left: '50%', top: '50%' },
+            color: '#FACC15', // Curseur jaune
+            size: 60 // Très petit et minimaliste
+        });
+
+        let lookInterval;
+        let dBearing = 0, dPitch = 0;
+
+        joystickLook.on('move', (evt, data) => {
+            // Axe inversé pour un rendu naturel de contrôle de caméra
+            // Sensibilité réduite pour un mouvement plus doux et précis
+            dBearing = -(Math.cos(data.angle.radian) * data.force * 0.4); 
+            dPitch = -(Math.sin(data.angle.radian) * data.force * 0.25); 
+            if (!lookInterval) lookInterval = requestAnimationFrame(lookCamera);
+        });
+
+        joystickLook.on('end', () => {
+            dBearing = 0; dPitch = 0;
+            if (lookInterval) { cancelAnimationFrame(lookInterval); lookInterval = null; }
+        });
+
+        function lookCamera() {
+            if (dBearing !== 0 || dPitch !== 0) {
+                let currentBearing = map.getBearing() + dBearing;
+                let currentPitch = map.getPitch() + dPitch;
+                
+                if (currentPitch < 0) currentPitch = 0;
+                if (currentPitch > 85) currentPitch = 85;
+
+                map.jumpTo({ bearing: currentBearing, pitch: currentPitch });
+                lookInterval = requestAnimationFrame(lookCamera);
+            }
+        }
+    });
+
+    // Mise à jour de l'horloge et de l'éclairage 3D
+    function updateClock() {
+        const now = new Date();
+        const dateOptions = { weekday: 'short', month: 'short', day: 'numeric' };
+        // Retire les points générés par le format court (ex: "mar." -> "mar") pour un look plus épuré
+        document.getElementById('date-display').textContent = now.toLocaleDateString('fr-FR', dateOptions).replace(/\./g, '');
+        document.getElementById('time-display').textContent = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        // Adaptation de la lumière (Jour/Nuit/Aube/Crépuscule)
+        if (isStyleLoaded) {
+            const hour = now.getHours();
+            let newPreset = 'day';
+            
+            if (hour >= 6 && hour < 8) newPreset = 'dawn'; // Aube de 6h à 8h
+            else if (hour >= 8 && hour < 18) newPreset = 'day'; // Jour de 8h à 18h
+            else if (hour >= 18 && hour < 20) newPreset = 'dusk'; // Crépuscule de 18h à 20h
+            else newPreset = 'night'; // Nuit de 20h à 6h
+
+            // On ne met à jour Mapbox que si la lumière doit changer
+            if (currentLightPreset !== newPreset) {
+                map.setConfigProperty('basemap', 'lightPreset', newPreset);
+                currentLightPreset = newPreset;
+            }
+        }
+    }
+    setInterval(updateClock, 1000);
+    updateClock(); // Initialisation immédiate
+
+    // --- LOGIQUE DU CALENDRIER ANIMÉ ---
+    const dynamicWidget = document.getElementById('dynamic-widget');
+    const calendarOverlay = document.getElementById('calendar-overlay');
+    const calendarMonthYear = document.getElementById('calendar-month-year');
+    const calendarDays = document.getElementById('calendar-days');
+    
+    let currentCalendarDate = new Date();
+
+    function renderCalendar(date) {
+        calendarDays.innerHTML = '';
+        
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        
+        // Nom du mois et de l'année
+        const monthName = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(date);
+        calendarMonthYear.textContent = monthName;
+
+        // Quel jour de la semaine commence le mois (0 = Dimanche, 1 = Lundi...)
+        const firstDay = new Date(year, month, 1).getDay();
+        // Convertir pour que la semaine commence le Lundi (0)
+        const startDayIndex = firstDay === 0 ? 6 : firstDay - 1;
+
+        // Nombre de jours dans le mois
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        // Référence pour mettre en évidence le jour d'aujourd'hui
+        const today = new Date();
+        const isCurrentMonth = (year === today.getFullYear() && month === today.getMonth());
+
+        // Cases vides avant le 1er du mois
+        for (let i = 0; i < startDayIndex; i++) {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'calendar-day empty';
+            calendarDays.appendChild(emptyDiv);
+        }
+
+        // Cases des jours
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'calendar-day';
+            dayDiv.textContent = i;
+            
+            if (isCurrentMonth && i === today.getDate()) {
+                dayDiv.classList.add('today');
+            }
+            
+            calendarDays.appendChild(dayDiv);
+        }
+    }
+
+    // Ouvrir le calendrier (Morphing dynamique)
+    dynamicWidget.addEventListener('click', (e) => {
+        // On évite de déclencher le clic si le calendrier est déjà ouvert
+        if (dynamicWidget.classList.contains('state-calendar')) return;
+        
+        dynamicWidget.classList.remove('state-clock');
+        dynamicWidget.classList.add('state-calendar');
+        calendarOverlay.classList.add('active');
+        
+        currentCalendarDate = new Date(); // Toujours ouvrir sur le mois actuel
+        renderCalendar(currentCalendarDate);
+    });
+
+    // Fermer le calendrier si on clique à l'extérieur (sur l'overlay sombre)
+    calendarOverlay.addEventListener('click', (e) => {
+        if (e.target === calendarOverlay) {
+            calendarOverlay.classList.remove('active');
+            dynamicWidget.classList.remove('state-calendar');
+            dynamicWidget.classList.add('state-clock');
+        }
+    });
+
+    // Navigation des mois
+    document.getElementById('prev-month-btn').addEventListener('click', () => {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+        renderCalendar(currentCalendarDate);
+    });
+
+    document.getElementById('next-month-btn').addEventListener('click', () => {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+        renderCalendar(currentCalendarDate);
+    });
+
+    // Fonction pour animer doucement la caméra
+    function rotateCamera(timestamp) {
+        map.rotateTo((timestamp / 200) % 360, { duration: 0 });
+        requestAnimationFrame(rotateCamera);
+    }
+
+    // PWA: Enregistrement du Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(registration => {
+                    console.log('ServiceWorker enregistré avec succès:', registration.scope);
+                })
+                .catch(err => {
+                    console.log('Échec de l\'enregistrement du ServiceWorker:', err);
+                });
+        });
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "BelgMap 3D",
+  "short_name": "BelgMap",
+  "description": "Exploration 3D de la Belgique et de Bruxelles.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

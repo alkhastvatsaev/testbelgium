@@ -1,0 +1,73 @@
+        /* --- MODE HUD (RADAR PLEIN ECRAN) --- */
+        .dashboard-layout.mode-hud {
+            display: block;
+        }
+
+        /* La carte devient l'arrière-plan total */
+        .dashboard-layout.mode-hud #map-container {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            --map-panel-outer-width: 100vw;
+            z-index: 5;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        /* Tous les autres panneaux deviennent flottants et plus luxueux */
+        .dashboard-layout.mode-hud .dashboard-panel:not(#map-container) {
+            position: fixed;
+            z-index: 20;
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* Panel Techniciens : En haut à gauche */
+        .dashboard-layout.mode-hud #step-technicians {
+            top: 24px;
+            left: 24px;
+            width: 340px;
+            height: calc(50vh - 36px);
+            padding: 20px;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+
+        /* Panel Interventions : Juste en dessous des techniciens */
+        .dashboard-layout.mode-hud #step-interventions {
+            top: calc(50vh + 12px);
+            left: 24px;
+            width: 340px;
+            height: calc(50vh - 100px); /* Laisse la place au dock */
+            padding: 20px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+
+        /* Panel Stats : Masqué en mode HUD (Nettoyage cognitif) */
+        .dashboard-layout.mode-hud #step-stats {
+            display: none;
+        }
+        
+        /* Ajuster la grille des stats en HUD pour être plus compacte */
+        .dashboard-layout.mode-hud .stats-grid {
+            gap: 12px;
+        }
+        .dashboard-layout.mode-hud .stat-card {
+            padding: 16px;
+        }
+        .dashboard-layout.mode-hud .stat-value {
+            font-size: 24px;
+        }
+
+        /* La barre de recherche est maintenant optimisée pour le HUD */
+        .dashboard-layout.mode-hud #spotlight-search {
+            display: flex;
+        }

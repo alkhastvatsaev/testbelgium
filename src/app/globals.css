@@ -1,0 +1,557 @@
+@import 'tailwindcss';
+@import './globals-hud.css';
+
+        body { 
+            margin: 0; 
+            font-family: 'Outfit', sans-serif; 
+            background-color: #f8fafc;
+            /* Premium Mesh Gradient */
+            background-image: 
+                radial-gradient(at 80% 0%, hsla(210, 100%, 98%, 1) 0px, transparent 50%),
+                radial-gradient(at 0% 50%, hsla(220, 40%, 95%, 1) 0px, transparent 50%),
+                radial-gradient(at 80% 100%, hsla(215, 30%, 96%, 1) 0px, transparent 50%),
+                radial-gradient(at 0% 0%, hsla(210, 40%, 94%, 1) 0px, transparent 50%);
+            background-attachment: fixed;
+            overflow: hidden;
+            height: 100vh;
+            padding: 0; 
+            box-sizing: border-box;
+            color: #1e293b;
+        }
+
+        .dashboard-layout {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            width: 100vw;
+            background: transparent;
+            overflow: hidden;
+            padding: 40px;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-layout {
+                display: flex;
+                flex-direction: column;
+                height: auto;
+                min-height: 100vh;
+            }
+            #map-container {
+                min-height: 50vh;
+            }
+        }
+
+        .dashboard-panel {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 0;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: inset 0 0 20px rgba(255,255,255,0.2);
+            color: #1e293b;
+            position: relative;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* --- STATISTIQUES --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 100%;
+        }
+        .stat-card {
+            background: rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #1e293b, #64748b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: rgba(30, 41, 59, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .stat-trend {
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .stat-trend.positive { color: #10b981; }
+        .stat-trend.negative { color: #ef4444; }
+        .stat-trend.neutral { color: #f59e0b; }
+
+        /* --- LISTES (INTERVENTIONS & TECHNICIENS) --- */
+        .list-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+        }
+        .list-item {
+            background: rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            border-radius: 16px;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        .list-item:hover {
+            transform: translateX(5px);
+            background: rgba(0, 0, 0, 0.04);
+        }
+        .item-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .item-time-avatar {
+            font-size: 14px;
+            font-weight: 600;
+            color: #3b82f6;
+            min-width: 50px;
+        }
+        .tech-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 600;
+            font-size: 18px;
+            color: white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .item-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .item-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1e293b;
+        }
+        .item-subtitle {
+            font-size: 12px;
+            color: rgba(30, 41, 59, 0.5);
+        }
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .badge-progress { background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .badge-pending { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-done { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+        
+        .status-dot-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .dot-green { background: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
+        .dot-yellow { background: #f59e0b; box-shadow: 0 0 10px rgba(245, 158, 11, 0.5); }
+        .dot-red { background: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+
+        /* --- MODE PLEIN ÉCRAN POUR LA CARTE --- */
+        #map-container.fullscreen-map {
+            position: fixed !important;
+            top: 24px;
+            left: 24px;
+            right: 24px;
+            bottom: 24px;
+            width: auto;
+            height: auto;
+            --map-panel-outer-width: calc(100vw - 48px);
+            z-index: 9999;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        #dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 30px;
+            color: #1e293b;
+            flex-shrink: 0;
+        }
+        #dashboard-header h2 {
+            margin: 0;
+            font-size: 32px;
+            background: linear-gradient(135deg, #FACC15, #F59E0B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        #map-container {
+            position: relative;
+            width: 70vh; /* Largeur basée sur la hauteur pour faire un carré parfait */
+            height: 70vh; /* Hauteur égale à la largeur */
+            /* Largeur partagée avec la barre Galaxy (AiAssistant), position fixed mais même taille que la carte */
+            --map-panel-outer-width: 70vh;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05), 0 0 100px rgba(59, 130, 246, 0.1);
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        #map { 
+            position: absolute; 
+            top: 0; 
+            bottom: 0; 
+            width: 100%; 
+        }
+        
+        /* Masquer les attributions et le logo Mapbox */
+        .mapboxgl-ctrl-logo, 
+        .mapboxgl-ctrl-attrib {
+            display: none !important;
+        }
+        
+        /* Premium UI Overlay */
+        .glass-panel {
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            padding: 30px;
+            border-radius: 24px;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            max-width: 320px;
+            transition: all 0.3s ease;
+        }
+        
+        .glass-panel:hover {
+            background: rgba(255, 255, 255, 0.8);
+            transform: translateY(-2px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        h1 {
+            margin: 0 0 12px 0;
+            font-size: 28px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #FACC15, #F59E0B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        p {
+            margin: 0 0 20px 0;
+            font-size: 15px;
+            color: rgba(30, 41, 59, 0.7);
+            line-height: 1.6;
+            font-weight: 300;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .controls button {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            color: #1e293b;
+            padding: 10px 15px;
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 400;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .controls button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .controls button.active {
+            background: rgba(250, 204, 21, 0.2);
+            border-color: rgba(250, 204, 21, 0.5);
+            color: #FACC15;
+        }
+
+        /* Customize Mapbox Controls to match dark theme */
+        .mapboxgl-ctrl-group {
+            background: rgba(255, 255, 255, 0.7) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.4) !important;
+            border-radius: 12px !important;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+        }
+        .mapboxgl-ctrl-group button {
+            width: 36px !important;
+            height: 36px !important;
+        }
+        .mapboxgl-ctrl-icon {
+            filter: none !important; /* Pas d'inversion en mode clair */
+            opacity: 0.8;
+        }
+        .mapboxgl-ctrl-group button:hover {
+            background: rgba(0, 0, 0, 0.05) !important;
+        }
+
+        /* --- MORPHING HORLOGE -> CALENDRIER --- */
+        #dynamic-widget {
+            position: fixed;
+            z-index: 101; /* Au dessus de l'overlay */
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            color: #1e293b;
+            font-family: 'Outfit', sans-serif;
+            overflow: hidden;
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            box-sizing: border-box;
+        }
+
+        /* Panel Techniciens : En haut à gauche */
+        .dashboard-layout.mode-hud #step-technicians {
+            top: 24px;
+            left: 24px;
+            width: 340px;
+            height: calc(50vh - 36px);
+            padding: 20px;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+
+        /* Panel Interventions : Juste en dessous des techniciens */
+        .dashboard-layout.mode-hud #step-interventions {
+            top: calc(50vh + 12px);
+            left: 24px;
+            width: 340px;
+            height: calc(50vh - 100px); /* Laisse la place au dock */
+            padding: 20px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+
+        /* Panel Stats : Masqué en mode HUD (Nettoyage cognitif) */
+        .dashboard-layout.mode-hud #step-stats {
+            display: none;
+        }
+
+        /* Container principal */
+        #dynamic-widget {
+            position: fixed;
+            transform-origin: center center;
+            transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 50;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #dynamic-widget.state-clock {
+            top: 24px;
+            left: 48px;
+            width: calc(50vw - 35vh - 100px + 5mm);
+            height: 70px;
+            border-radius: 24px;
+            padding: 12px 24px;
+            cursor: pointer;
+            transform: translate(0, 0) scale(1);
+        }
+
+        /* État 2 : Calendrier au centre */
+        #dynamic-widget.state-calendar {
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            width: 340px; 
+            height: 340px;
+            padding: 16px; 
+            border-radius: 24px;
+            z-index: 150;
+            cursor: default;
+        }
+
+        /* Contenu Horloge */
+        #clock-content {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            transition: opacity 0.3s ease;
+        }
+        #dynamic-widget.state-calendar #clock-content {
+            opacity: 0;
+            pointer-events: none;
+            position: absolute; /* Empêche de déformer le widget pendant l'animation */
+            visibility: hidden;
+        }
+
+        /* Contenu Calendrier */
+        #calendar-content {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        #dynamic-widget.state-clock #calendar-content {
+            position: absolute;
+            visibility: hidden;
+        }
+        #dynamic-widget.state-calendar #calendar-content {
+            opacity: 1;
+            pointer-events: auto;
+            transition-delay: 0.2s; /* Apparaît doucement à la fin du morphing */
+        }
+
+        #time-display {
+            font-size: 18px; font-weight: 600; background: linear-gradient(135deg, #1e293b, #64748b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0px; line-height: 1.2; margin-bottom: 0;
+        }
+        #date-display {
+            font-size: 18px; font-weight: 600; background: linear-gradient(135deg, #1e293b, #64748b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0px; line-height: 1.2; word-wrap: break-word;
+        }
+
+        /* Overlay Sombre indépendant */
+        #calendar-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 100; opacity: 0; pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+        #calendar-overlay.active {
+            opacity: 1; pointer-events: auto;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 1px;
+            font-size: 16px;
+        }
+        .calendar-header button {
+            background: rgba(255, 255, 255, 0.5);
+            border: none;
+            color: #1e293b;
+            padding: 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .calendar-header button:hover {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px; /* Gap réduit pour éviter le débordement */
+            text-align: center;
+        }
+        .calendar-day-name {
+            font-size: 11px;
+            color: rgba(30, 41, 59, 0.5);
+            margin-bottom: 8px;
+        }
+        .calendar-day {
+            font-size: 14px;
+            width: 32px; /* Taille réduite pour tout faire rentrer */
+            height: 32px;
+            margin: 0 auto; /* Centre le cercle dans la case de la grille */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            cursor: default;
+        }
+        .calendar-day.today {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            font-weight: 600;
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+            color: white;
+        }
+        .calendar-day.empty { background: transparent; }
+
+        /* --- MARQUEUR CAMIONNETTE --- */
+        .van-marker {
+            width: 48px;
+            height: 48px;
+            background: white;
+            border-radius: 12px;
+            border: 2px solid #3b82f6;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .van-marker:hover {
+            transform: scale(1.1);
+        }
+        .van-marker svg {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+    
