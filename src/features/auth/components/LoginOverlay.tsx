@@ -263,7 +263,7 @@ export default function LoginOverlay({ children }: { children: React.ReactNode }
                       toast.success("Mode développeur activé");
                       setIsAuthenticated(true);
                     }}
-                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xl py-6 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all uppercase tracking-widest"
+                    className="w-1/3 bg-black hover:bg-slate-800 text-white font-bold text-sm py-2 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all uppercase tracking-widest"
                   >
                     DEV ACCESS
                   </button>
