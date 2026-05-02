@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Phone, KeyRound, Loader2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Shield, Phone, KeyRound, Loader2, AlertTriangle, ShieldCheck, ArrowRight } from 'lucide-react';
 import { auth, firestore } from '@/core/config/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber, onAuthStateChanged, signOut, ConfirmationResult } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -258,9 +258,6 @@ export default function LoginOverlay({ children }: { children: React.ReactNode }
               {step === 'phone' ? (
                 <form onSubmit={handleSendSms} className="flex flex-col gap-5">
                   <div className="flex flex-col items-center w-full">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 block text-center w-full">
-                      Authentification Sécurisée
-                    </label>
                     <div className="relative w-full">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <Phone className="w-5 h-5 text-slate-500" />
@@ -276,13 +273,26 @@ export default function LoginOverlay({ children }: { children: React.ReactNode }
                     </div>
                   </div>
                   
-                  <button 
-                    type="submit"
-                    disabled={loadingState === 'authenticating' || !phoneNumber}
-                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
-                  >
-                    {loadingState === 'authenticating' ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Accéder au Terminal'}
-                  </button>
+                  <div className="flex flex-col items-center justify-center gap-6 mt-4">
+                    <button 
+                      type="submit"
+                      disabled={loadingState === 'authenticating' || !phoneNumber}
+                      className="w-16 h-16 bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all flex items-center justify-center disabled:opacity-50 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
+                    >
+                      {loadingState === 'authenticating' ? <Loader2 className="w-6 h-6 animate-spin" /> : <ArrowRight className="w-7 h-7" />}
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toast.success("Mode développeur activé");
+                        setIsAuthenticated(true);
+                      }}
+                      className="text-[10px] font-bold text-slate-400 hover:text-slate-600 tracking-widest uppercase transition-colors"
+                    >
+                      Dev Access
+                    </button>
+                  </div>
                 </form>
               ) : (
                 <form onSubmit={handleVerifyOtp} className="flex flex-col gap-5">
