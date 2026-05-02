@@ -256,44 +256,18 @@ export default function LoginOverlay({ children }: { children: React.ReactNode }
               <div className="pt-2"></div>
 
               {step === 'phone' ? (
-                <form onSubmit={handleSendSms} className="flex flex-col gap-5">
-                  <div className="flex flex-col items-center w-full">
-                    <div className="relative w-full">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Phone className="w-5 h-5 text-slate-500" />
-                      </div>
-                      <input 
-                        type="tel" 
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        placeholder="+32 470 00 00 00"
-                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-2xl py-4 pl-12 pr-12 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-center font-mono tracking-widest text-lg shadow-inner"
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col items-center justify-center gap-6 mt-4">
-                    <button 
-                      type="submit"
-                      disabled={loadingState === 'authenticating' || !phoneNumber}
-                      className="w-16 h-16 bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all flex items-center justify-center disabled:opacity-50 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
-                    >
-                      {loadingState === 'authenticating' ? <Loader2 className="w-6 h-6 animate-spin" /> : <ArrowRight className="w-7 h-7" />}
-                    </button>
-                    
-                    <button
-                      type="button"
-                      onClick={() => {
-                        toast.success("Mode développeur activé");
-                        setIsAuthenticated(true);
-                      }}
-                      className="text-[10px] font-bold text-slate-400 hover:text-slate-600 tracking-widest uppercase transition-colors"
-                    >
-                      Dev Access
-                    </button>
-                  </div>
-                </form>
+                <div className="flex flex-col items-center justify-center py-10">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast.success("Mode développeur activé");
+                      setIsAuthenticated(true);
+                    }}
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xl py-6 rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all uppercase tracking-widest"
+                  >
+                    DEV ACCESS
+                  </button>
+                </div>
               ) : (
                 <form onSubmit={handleVerifyOtp} className="flex flex-col gap-5">
                   <div className="flex flex-col items-center w-full">
