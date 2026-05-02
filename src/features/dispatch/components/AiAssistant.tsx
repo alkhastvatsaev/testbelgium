@@ -572,6 +572,9 @@ export default function AiAssistant({
       setIsPlaying(false);
       setAnalyser(null);
       stopBufferPlayback();
+      
+      // On retire le clip défectueux de la file pour ne pas rester bloqué (ex: 404)
+      finishClip();
     }
   }, [ensureAudioGraph, stopBufferPlayback]);
 
