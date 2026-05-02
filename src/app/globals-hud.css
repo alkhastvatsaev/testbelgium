@@ -8,9 +8,9 @@
             position: fixed !important;
             top: 0;
             left: 0;
-            width: 100vw;
-            height: 100vh;
-            --map-panel-outer-width: 100vw;
+            width: 100cqw;
+            height: 100cqh;
+            --map-panel-outer-width: 100cqw;
             z-index: 5;
             border-radius: 0;
             box-shadow: none;
@@ -34,7 +34,7 @@
             top: 24px;
             left: 24px;
             width: 340px;
-            height: calc(50vh - 36px);
+            height: calc(50cqh - 36px);
             padding: 20px;
             border-bottom-left-radius: 8px;
             border-bottom-right-radius: 8px;
@@ -42,10 +42,10 @@
 
         /* Panel Interventions : Juste en dessous des techniciens */
         .dashboard-layout.mode-hud #step-interventions {
-            top: calc(50vh + 12px);
+            top: calc(50cqh + 12px);
             left: 24px;
             width: 340px;
-            height: calc(50vh - 100px); /* Laisse la place au dock */
+            height: calc(50cqh - 100px); /* Laisse la place au dock */
             padding: 20px;
             border-top-left-radius: 8px;
             border-top-right-radius: 8px;
