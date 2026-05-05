@@ -83,6 +83,8 @@ type Props = {
   onVisibleChange?: (visible: boolean) => void;
   /** Si défini : n’utiliser que ce clip (URL /uploads/…), pas le « dernier fichier » disque — aligné sur la file Galaxy. */
   scopedClipPublicUrl?: string | null;
+  /** Force l'affichage du calque (assombrissement et croix) même sans texte ou signal de lecture. */
+  forceVisible?: boolean;
 };
 
 function MapTranscriptionOverlayInner({
@@ -92,6 +94,7 @@ function MapTranscriptionOverlayInner({
   playbackSync = null,
   scopedClipPublicUrl,
   onVisibleChange,
+  forceVisible = false,
 }: Props) {
   const [visible, setVisible] = useState(false);
   const [fullText, setFullText] = useState('');
@@ -182,13 +185,13 @@ function MapTranscriptionOverlayInner({
     onVisibleChange?.(visible);
   }, [visible, onVisibleChange]);
 
-  /** Ouverture immédiate à chaque appui sur lecture (même si la transcription arrive plus tard). */
+  /** Ouverture immédiate à chaque appui sur lecture (même si la transcription arrive plus tard) ou si forceVisible est vrai. */
   useEffect(() => {
     if (!armed) return;
-    if (!playOpenSignal) return;
+    if (!playOpenSignal && !forceVisible) return;
     setVisible(true);
     closedForSessionRef.current = null;
-  }, [armed, playOpenSignal]);
+  }, [armed, playOpenSignal, forceVisible]);
 
   useEffect(() => {
     if (!armed || !visible || !fullText || !transcriptTextEnabled) {
@@ -373,7 +376,7 @@ function MapTranscriptionOverlayInner({
 
   return (
     <>
-      {/* Assombrissement de la carte derrière le panneau */}
+      {/* Transcription Scrim : Assombrissement de la carte derrière le texte */}
       <div
         data-testid="map-transcription-dim"
         className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-black/0 via-black/35 to-black/75 transition-opacity duration-200"

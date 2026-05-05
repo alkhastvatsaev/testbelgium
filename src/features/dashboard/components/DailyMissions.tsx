@@ -9,7 +9,7 @@ export default function DailyMissions({ missions: missionsProp, onMissionClick }
   const missions = useMemo(() => missionsProp ?? generateDailyMissions(selectedDate), [missionsProp, selectedDate]);
 
   return (
-    <div className="fixed left-12 top-1/2 -translate-y-1/2 z-40 w-[calc(50vw-35vh-100px+5mm)] h-[70vh] bg-white/70 backdrop-blur-[24px] backdrop-saturate-[180%] border-[1px] border-black/5 rounded-[24px] p-6 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.5)] overflow-hidden flex flex-col transition-all duration-500">
+    <div className="pointer-events-auto fixed left-12 top-1/2 -translate-y-1/2 z-40 w-[calc(50vw-35vh-100px+5mm)] h-[70vh] bg-white/70 backdrop-blur-[24px] backdrop-saturate-[180%] border-[1px] border-black/5 rounded-[24px] p-6 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.5)] overflow-hidden flex flex-col transition-all duration-500">
       
       <div className="flex-1 flex flex-col justify-start items-center overflow-y-auto pr-2 custom-scrollbar">
         {/* Aligning the mission items to the top */}
@@ -42,8 +42,9 @@ export default function DailyMissions({ missions: missionsProp, onMissionClick }
                 : 'from-slate-600 via-slate-800 to-black';
             
             return (
-              <motion.div
-                key={mission.id}
+            <motion.div
+              key={mission.id}
+              data-testid={`daily-mission-${mission.id}`}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ 
                   opacity: 1, 

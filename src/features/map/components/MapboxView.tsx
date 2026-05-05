@@ -34,6 +34,7 @@ export default function MapboxView() {
     return [...all].sort((a, b) => score(a.time) - score(b.time));
   }, [missions, liveMissions, selectedDateStr]);
   const [mapTranscriptionArmed, setMapTranscriptionArmed] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -271,6 +272,8 @@ export default function MapboxView() {
     });
   };
 
+  const widgetBaseClass = "z-40 w-[calc(50vw-35vh-100px+5mm)] h-[70vh] bg-white/70 backdrop-blur-[24px] backdrop-saturate-[180%] border-[1px] border-black/5 rounded-[24px] p-6 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.5)] overflow-hidden flex flex-col transition-all duration-500";
+
 
   return (
     <div
@@ -280,6 +283,36 @@ export default function MapboxView() {
     >
       <div ref={mapContainerRef} id="map" style={{ position: 'absolute', top: 0, bottom: 0, width: '100%' }} />
       
+      {/* Pagination Controls */}
+      <div className="absolute bottom-6 right-[90px] z-[50] flex gap-3">
+        {currentPage === 1 && (
+          <button 
+            onClick={() => {
+              setCurrentPage(0);
+              if (mapRef.current) {
+                mapRef.current.panBy([window.innerWidth / 2, 0], { duration: 500 });
+              }
+            }}
+            className="flex items-center justify-center w-[46px] h-[46px] bg-white/95 backdrop-blur-2xl rounded-[14px] shadow-[0_8px_30px_rgba(0,0,0,0.076)] border border-white/75 hover:-translate-y-0.5 transition-all active:scale-95 text-slate-600 hover:text-slate-900"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+        )}
+        {currentPage === 0 && (
+          <button 
+            onClick={() => {
+              setCurrentPage(1);
+              if (mapRef.current) {
+                mapRef.current.panBy([-window.innerWidth / 2, 0], { duration: 500 });
+              }
+            }}
+            className="flex items-center justify-center w-[46px] h-[46px] bg-white/95 backdrop-blur-2xl rounded-[14px] shadow-[0_8px_30px_rgba(0,0,0,0.076)] border border-white/75 hover:-translate-y-0.5 transition-all active:scale-95 text-slate-600 hover:text-slate-900"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        )}
+      </div>
+
       {/* Premium Recenter Button */}
       <button
         onClick={handleRecenter}
@@ -298,22 +331,55 @@ export default function MapboxView() {
         </svg>
       </button>
 
-      <MapGalaxyTranscriptionLayer
-        transcriptionArmed={mapTranscriptionArmed}
-        onUserPressPlay={() => setMapTranscriptionArmed(true)}
-        onInterventionCreated={(m) =>
-          setLiveMissions((prev) => [
-            { ...m, source: "live", date: m.date || selectedDateStr },
-            // remove any existing with same stable key (prevents duplicates on later reload)
-            ...prev.filter((x) => (x.key ?? String(x.id)) !== m.key),
-          ])
-        }
-      />
-
+      {/* Top Widgets (Always visible) */}
       <ClockCalendar />
       <UserProfile />
-      <DailyMissions missions={allMissions} onMissionClick={handleMissionClick} />
-      <QuoteRequests />
+
+      {/* Paged Content Container */}
+      <div 
+        className="pointer-events-none fixed inset-0 z-40 flex transition-transform duration-500 ease-in-out"
+        style={{ transform: `translateX(-${currentPage * 100}vw)` }}
+      >
+        {/* Page 1 */}
+        <div className="relative w-screen h-screen flex-shrink-0">
+          <MapGalaxyTranscriptionLayer
+            transcriptionArmed={mapTranscriptionArmed}
+            onUserPressPlay={() => setMapTranscriptionArmed(true)}
+            onInterventionCreated={(m) =>
+              setLiveMissions((prev) => [
+                { ...m, source: "live", date: m.date || selectedDateStr },
+                // remove any existing with same stable key (prevents duplicates on later reload)
+                ...prev.filter((x) => (x.key ?? String(x.id)) !== m.key),
+              ])
+            }
+          />
+          <DailyMissions missions={allMissions} onMissionClick={handleMissionClick} />
+          <QuoteRequests />
+        </div>
+
+        {/* Page 2 */}
+        <div className="relative w-screen h-screen flex-shrink-0">
+          {/* Widget 1 - Left */}
+          <div className={`absolute left-12 top-1/2 -translate-y-1/2 ${widgetBaseClass} pointer-events-auto`}>
+            <div className="w-full h-full border-2 border-dashed border-slate-300/50 rounded-xl flex items-center justify-center text-slate-400 font-medium">
+              Widget Vide 1
+            </div>
+          </div>
+          {/* Widget 2 - Center */}
+          <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 ${widgetBaseClass} pointer-events-auto`}>
+            <div className="w-full h-full border-2 border-dashed border-slate-300/50 rounded-xl flex items-center justify-center text-slate-400 font-medium">
+              Widget Vide 2
+            </div>
+          </div>
+          {/* Widget 3 - Right */}
+          <div className={`absolute right-[120px] top-1/2 -translate-y-1/2 ${widgetBaseClass} pointer-events-auto`}>
+            <div className="w-full h-full border-2 border-dashed border-slate-300/50 rounded-xl flex items-center justify-center text-slate-400 font-medium">
+              Widget Vide 3
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
+

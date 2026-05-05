@@ -259,6 +259,7 @@ export default function LoginOverlay({ children }: { children: React.ReactNode }
                 <div className="flex flex-col items-center justify-center py-10">
                   <button
                     type="button"
+                    data-testid="login-dev-access-btn"
                     onClick={() => {
                       toast.success("Mode développeur activé");
                       setIsAuthenticated(true);

@@ -70,7 +70,7 @@ export default function ARScanner({ onClose }: { onClose: () => void }) {
           <div className="bg-white/80 backdrop-blur-xl px-5 py-2.5 rounded-full border border-white/50 text-slate-900 font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg">
             <ScanFace className="w-4 h-4 text-blue-600" /> Scanner IA
           </div>
-          <button onClick={onClose} className="p-3 bg-white/80 backdrop-blur-xl rounded-full text-slate-900 border border-white/50 shadow-lg">
+          <button type="button" data-testid="ar-scanner-close" onClick={onClose} className="p-3 bg-white/80 backdrop-blur-xl rounded-full text-slate-900 border border-white/50 shadow-lg">
             <X className="w-6 h-6" />
           </button>
         </div>

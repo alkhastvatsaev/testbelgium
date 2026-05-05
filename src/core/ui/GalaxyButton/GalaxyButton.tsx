@@ -6,6 +6,7 @@ import './GalaxyButton.css';
 interface GalaxyButtonProps {
     text?: string;
     onClick?: () => void;
+    onLongPress?: () => void;
     className?: string;
     children?: React.ReactNode;
     /**
@@ -18,12 +19,16 @@ interface GalaxyButtonProps {
 const GalaxyButton: React.FC<GalaxyButtonProps> = ({
     text,
     onClick,
+    onLongPress,
     className,
     children,
     asInteractiveButton = true,
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const surfaceRef = useRef<HTMLElement | null>(null);
+    const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const isLongPressRef = useRef(false);
+
     const setSurfaceRef = (el: HTMLButtonElement | HTMLDivElement | null) => {
         surfaceRef.current = el;
     };
@@ -187,6 +192,37 @@ const GalaxyButton: React.FC<GalaxyButtonProps> = ({
         };
     }, [asInteractiveButton]);
 
+    const handlePointerDown = () => {
+        isLongPressRef.current = false;
+        longPressTimerRef.current = setTimeout(() => {
+            isLongPressRef.current = true;
+            onLongPress?.();
+        }, 500);
+    };
+
+    const handlePointerUp = () => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    };
+
+    const handlePointerLeave = () => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    };
+
+    const handleClick = (e: React.MouseEvent) => {
+        if (isLongPressRef.current) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        onClick?.();
+    };
+
     const inner = (
         <>
             <canvas ref={canvasRef} id="stars-canvas"></canvas>
@@ -197,11 +233,33 @@ const GalaxyButton: React.FC<GalaxyButtonProps> = ({
     return (
         <div className={`galaxy-button-container ${className || ''}`}>
             {asInteractiveButton ? (
-                <button ref={setSurfaceRef} type="button" className="premium-btn" onClick={onClick}>
+                <button 
+                    ref={setSurfaceRef} 
+                    type="button" 
+                    className="premium-btn" 
+                    onClick={handleClick}
+                    onPointerDown={handlePointerDown}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerLeave}
+                    onContextMenu={(e) => {
+                        // Prevent context menu to not block long-press on mobile
+                        e.preventDefault();
+                    }}
+                >
                     {inner}
                 </button>
             ) : (
-                <div ref={setSurfaceRef} className="premium-btn premium-btn--surface" role="presentation">
+                <div 
+                    ref={setSurfaceRef} 
+                    className="premium-btn premium-btn--surface" 
+                    role="presentation"
+                    onPointerDown={handlePointerDown}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerLeave}
+                    onContextMenu={(e) => {
+                        e.preventDefault();
+                    }}
+                >
                     {inner}
                 </div>
             )}

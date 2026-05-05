@@ -20,7 +20,7 @@ export default function TapToPayModal({ onClose, amount = "149,00" }: { onClose:
   }, [phase, onClose]);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center font-['Outfit'] sm:items-center">
+    <div data-testid="tap-to-pay-modal" className="fixed inset-0 z-[60] flex items-end justify-center font-['Outfit'] sm:items-center">
       <div className="absolute inset-0 bg-slate-200/40 backdrop-blur-md" onClick={onClose} />
       
       <div className="bg-white/90 w-full sm:w-[400px] h-[70vh] sm:h-[500px] rounded-t-[40px] sm:rounded-[40px] relative z-10 p-8 flex flex-col items-center justify-between border border-white shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] animate-in slide-in-from-bottom-full duration-300 backdrop-blur-2xl">
@@ -28,7 +28,7 @@ export default function TapToPayModal({ onClose, amount = "149,00" }: { onClose:
         {/* Drag handle */}
         <div className="w-12 h-1.5 bg-slate-200 rounded-full absolute top-4 left-1/2 -translate-x-1/2 sm:hidden" />
         
-        <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+        <button type="button" data-testid="tap-to-pay-close" onClick={onClose} className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
           <X className="w-5 h-5" />
         </button>
 

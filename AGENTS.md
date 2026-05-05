@@ -5,10 +5,29 @@ This version has breaking changes — APIs, conventions, and file structure may 
 <!-- END:nextjs-agent-rules -->
 
 # Testing Architecture & Rules
-This project follows a strict testing architecture to prevent regressions and assist AI agents in maintaining code quality. As an AI agent working on this project, you MUST adhere to the following rules:
+This project follows a strict testing architecture to prevent regressions and assist AI agents in maintaining code quality. 
 
-1. **Colocated Tests (Jest)**: When you create or modify a React component or a hook in `src/features/*`, you MUST update or create the corresponding unit test in the `__tests__` folder next to it. For example, `src/features/dispatch/__tests__/algorithm.test.ts`.
-2. **Use Data Test IDs**: When writing tests with React Testing Library, rely heavily on `data-testid` attributes. If an element doesn't have one and you need to interact with it, add a `data-testid`. This prevents UI changes (like Tailwind class modifications) from breaking tests.
-3. **Use Provided Mocks**: Do NOT try to test the internals of third-party complex libraries like `mapbox-gl`, `firebase`, or `framer-motion`. Standard mocks for these are already set up globally in `jest.setup.ts`. Always leverage them.
-4. **E2E Tests (Playwright)**: End-to-end tests live in `tests/e2e/`. Only touch these tests if you are explicitly modifying a core, critical user journey (e.g., login, dispatching an agent).
-5. **Continuous Integration**: We use GitHub Actions to run typechecking (`npm run typecheck`) and Jest tests (`npm run test`) on every push and PR to the main branch. Ensure all code modifications pass these checks locally before considering a task complete.
+As an AI agent working on this project, you **MUST** read the `TESTING_CODEX.md` file located at the root of the project BEFORE attempting to write or modify any tests. The CODEX acts as the single source of truth for test placement, mocking strategies, component selection, and test coverage requirements.
+
+GitHub Actions runs `npm run typecheck`, `npm run test`, and `npm run test:e2e` on pushes and PRs to `main`.
+
+## Where to add tests (quick reference)
+
+| You change… | Add or update… |
+|-------------|----------------|
+| Component or hook under `src/features/**` | Colocated `__tests__/*.test.tsx` / `*.test.ts` (Jest + RTL) |
+| Pure logic under `src/core/**` | Colocated `__tests__`; prefer testing extracted helpers over route internals |
+| App Router API route with non-trivial branching | Prefer moving logic to `src/core` + unit tests; optional route-focused test if orchestration must stay put |
+| Critical user journey (login, dispatch, upload) | `tests/e2e/*.spec.ts` (Playwright) — keep the suite small and stable |
+
+**Scripts**: `npm run test` (unit), `npm run test:coverage` (coverage report), `npm run test:e2e` (Playwright headless), `npm run test:e2e:ui` (Playwright UI mode).
+
+# Glossaire UI (Terminologie de Référence)
+Ce lexique définit les termes spécifiques à utiliser lors des modifications de l'interface pour garantir la cohérence entre les sessions et les différents agents/IDE.
+
+| Terme | Définition | Composant Source |
+|-------|------------|------------------|
+| **Transcription Scrim** | Le dégradé sombre (gradient) qui s'affiche sur la carte pour assurer la lisibilité de la transcription. | `MapTranscriptionOverlay.tsx` |
+| **Galaxy Button** | Le bouton central principal gérant l'état de l'assistant et de l'audio. | `GalaxyButton.tsx` |
+| **Actions Panel** | Le panneau latéral d'édition des fiches d'intervention générées. | `MapTranscriptionActionsPanel.tsx` |
+

@@ -1,4 +1,23 @@
 import '@testing-library/jest-dom';
+import { TextDecoder, TextEncoder } from 'util';
+
+// Polyfills / browser APIs absent from JSDOM (jspdf, cmdk, etc.)
+if (typeof globalThis.TextEncoder === 'undefined') {
+  globalThis.TextEncoder = TextEncoder as typeof globalThis.TextEncoder;
+}
+if (typeof globalThis.TextDecoder === 'undefined') {
+  globalThis.TextDecoder = TextDecoder as typeof globalThis.TextDecoder;
+}
+
+globalThis.ResizeObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}));
+
+if (typeof Element !== 'undefined') {
+  Element.prototype.scrollIntoView = jest.fn();
+}
 
 // --- GLOBAL MOCKS FOR AI TESTING ARCHITECTURE ---
 
@@ -29,8 +48,12 @@ jest.mock('mapbox-gl', () => ({
     off: jest.fn(),
     remove: jest.fn(),
     flyTo: jest.fn(),
+    fitBounds: jest.fn(),
     setCenter: jest.fn(),
     setZoom: jest.fn(),
+    setConfigProperty: jest.fn(),
+    getCenter: jest.fn(() => ({ toArray: () => [4.3522, 50.8466] as [number, number] })),
+    getZoom: jest.fn(() => 15),
     addControl: jest.fn(),
     addSource: jest.fn(),
     addLayer: jest.fn(),
@@ -44,6 +67,10 @@ jest.mock('mapbox-gl', () => ({
     addTo: jest.fn().mockReturnThis(),
     remove: jest.fn(),
     setElement: jest.fn().mockReturnThis(),
+  })),
+  LngLatBounds: jest.fn().mockImplementation(() => ({
+    extend: jest.fn(),
+    getCenter: jest.fn(() => ({ toArray: () => [4.3522, 50.8466] as [number, number] })),
   })),
   Popup: jest.fn(() => ({
     setLngLat: jest.fn().mockReturnThis(),

@@ -51,7 +51,7 @@ function getAiStripAnchorEl(): HTMLElement | null {
   return mapEl;
 }
 
-type QueuedClip = {
+export type QueuedClip = {
   url: string;
   createdAt: string;
   source: "disk" | "firestore";
@@ -198,6 +198,8 @@ type AiAssistantProps = {
    * jusqu’à ce que l’utilisateur ferme avec la croix (pas seulement quand la file est vide).
    */
   transcriptOverlayVisible?: boolean;
+  onUserLongPress?: () => void;
+  onQueueChange?: (queue: QueuedClip[]) => void;
 };
 
 export default function AiAssistant({
@@ -205,6 +207,8 @@ export default function AiAssistant({
   onPlaybackSync,
   onActiveClipUrlChange,
   transcriptOverlayVisible = false,
+  onUserLongPress,
+  onQueueChange,
 }: AiAssistantProps = {}) {
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [queue, setQueue] = useState<QueuedClip[]>([]);
@@ -309,7 +313,8 @@ export default function AiAssistant({
 
   useEffect(() => {
     queueRef.current = queue;
-  }, [queue]);
+    onQueueChange?.(queue);
+  }, [queue, onQueueChange]);
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
@@ -827,7 +832,7 @@ export default function AiAssistant({
   return (
     <div
       data-testid="ai-assistant-strip"
-      className="fixed bottom-10 z-[100] box-border flex min-w-0 flex-col items-stretch"
+      className="pointer-events-auto fixed bottom-10 z-[100] box-border flex min-w-0 flex-col items-stretch"
       style={stripPositionStyle}
     >
       <div
@@ -844,6 +849,7 @@ export default function AiAssistant({
         <GalaxyButton
           asInteractiveButton={false}
           className={`h-full w-full ${showBadge ? "notified" : ""}`}
+          onLongPress={onUserLongPress}
         >
           <div className="pointer-events-none relative flex h-full w-full items-center justify-center">
             <Waveform color="white" barCount={12} analyser={analyser} />

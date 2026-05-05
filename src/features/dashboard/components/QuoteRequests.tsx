@@ -121,7 +121,7 @@ export default function QuoteRequests() {
   };
 
   return (
-    <div className="fixed right-12 top-1/2 -translate-y-1/2 z-40 w-[calc(50vw-35vh-100px+5mm)] h-[70vh] bg-white/70 backdrop-blur-[24px] backdrop-saturate-[180%] border-[1px] border-black/5 rounded-[24px] p-6 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.5)] overflow-hidden flex flex-col transition-all duration-500">
+    <div className="pointer-events-auto fixed right-12 top-1/2 -translate-y-1/2 z-40 w-[calc(50vw-35vh-100px+5mm)] h-[70vh] bg-white/70 backdrop-blur-[24px] backdrop-saturate-[180%] border-[1px] border-black/5 rounded-[24px] p-6 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.5)] overflow-hidden flex flex-col transition-all duration-500">
       
 
       <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-3">
@@ -132,6 +132,7 @@ export default function QuoteRequests() {
           return (
             <motion.div
               key={req.id}
+              data-testid={`quote-request-${req.id}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
@@ -140,6 +141,8 @@ export default function QuoteRequests() {
               {/* Gauche : Bouton DEVIS IA */}
               <div className="flex justify-start">
                 <button 
+                  type="button"
+                  data-testid={`quote-generate-btn-${req.id}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     generateLocksmithQuote(req.clientName);
