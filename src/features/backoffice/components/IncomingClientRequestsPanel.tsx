@@ -1,11 +1,17 @@
 "use client";
 
-import { ClipboardList } from "lucide-react";
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { ClipboardList, ArrowLeft, Trash2, UserPlus } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
+import { doc, deleteDoc, updateDoc } from "firebase/firestore";
+import { firestore } from "@/core/config/firebase";
+
 import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
 import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
 import { cn } from "@/lib/utils";
 import { useBackOfficeInterventions } from "@/features/backoffice/useBackOfficeInterventions";
+import type { Intervention } from "@/features/interventions/types";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
@@ -15,10 +21,37 @@ export default function IncomingClientRequestsPanel() {
   const cid = workspace?.isTenantUser ? workspace.activeCompanyId : null;
   const { interventions, loading } = useBackOfficeInterventions(cid);
 
+  const [selectedRequest, setSelectedRequest] = useState<Intervention | null>(null);
+
   // Filtre pour ne garder que les demandes en attente
   const pendingRequests = interventions
     .filter((inv) => inv.status === "pending")
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const handleDelete = async (id: string) => {
+    if (!firestore) return;
+    try {
+      await deleteDoc(doc(firestore, "interventions", id));
+      toast.success("Demande supprimée");
+      setSelectedRequest(null);
+    } catch (e) {
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
+  const handleAssign = async (id: string) => {
+    if (!firestore) return;
+    try {
+      // Pour l'instant, on passe le statut en_route ou in_progress
+      await updateDoc(doc(firestore, "interventions", id), {
+        status: "in_progress",
+      });
+      toast.success("Demande assignée");
+      setSelectedRequest(null);
+    } catch (e) {
+      toast.error("Erreur lors de l'assignation");
+    }
+  };
 
   if (!workspace || !workspace.isTenantUser || !workspace.memberships.length) {
     return (
@@ -59,21 +92,21 @@ export default function IncomingClientRequestsPanel() {
         {!loading && pendingRequests.length > 0 ? (
           <>
             {pendingRequests.map((req, index) => {
-              const clientName = [req.clientFirstName, req.clientLastName].filter(Boolean).join(" ") || "Client Anonyme";
-              const location = req.address ? ` - ${req.address}` : "";
+              const clientName = [req.clientFirstName, req.clientLastName].filter(Boolean).join(" ") || req.clientName || "Client Anonyme";
               
               const cardClass = "shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)] hover:shadow-[0_14px_32px_-10px_rgba(15,23,42,0.18)]";
 
               return (
                 <motion.div
                   key={req.id}
+                  onClick={() => setSelectedRequest(req)}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                   className={`group relative grid cursor-pointer grid-cols-1 items-center gap-2 rounded-[20px] bg-white px-4 py-4 transition-all duration-300 hover:bg-white ${cardClass}`}
                 >
                   <h3 className="text-[14px] font-semibold text-slate-800 truncate text-center">
-                    {clientName}{location}
+                    {clientName}
                   </h3>
                 </motion.div>
               );
@@ -81,6 +114,83 @@ export default function IncomingClientRequestsPanel() {
           </>
         ) : null}
       </div>
+
+      <AnimatePresence>
+        {selectedRequest && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 z-20 flex flex-col bg-white/95 backdrop-blur-md rounded-[inherit] overflow-hidden shadow-2xl"
+          >
+            {/* Header with Back button */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-100/50">
+              <button 
+                onClick={() => setSelectedRequest(null)}
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-semibold text-slate-800">Détails de la demande</span>
+              <div className="w-8" />
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+              <div>
+                <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Client</span>
+                <p className="text-[16px] font-semibold text-slate-900 mt-1">
+                  {[selectedRequest.clientFirstName, selectedRequest.clientLastName].filter(Boolean).join(" ") || selectedRequest.clientName || "Client Anonyme"}
+                </p>
+                {selectedRequest.clientPhone && (
+                  <p className="text-[14px] text-slate-500 mt-0.5">{selectedRequest.clientPhone}</p>
+                )}
+              </div>
+
+              {selectedRequest.address && (
+                <div>
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Adresse</span>
+                  <p className="text-[15px] text-slate-800 mt-1">{selectedRequest.address}</p>
+                </div>
+              )}
+
+              <div>
+                <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Problème</span>
+                <p className="text-[15px] text-slate-800 mt-1 whitespace-pre-wrap leading-relaxed">
+                  {selectedRequest.problem || selectedRequest.title || "Non spécifié"}
+                </p>
+              </div>
+
+              {selectedRequest.urgency && (
+                <div>
+                   <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-[12px] font-semibold tracking-wide text-amber-800 uppercase mt-2">
+                     Urgence: {selectedRequest.urgency}
+                   </span>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="p-4 border-t border-slate-100/50 flex gap-3 bg-white">
+              <button
+                onClick={() => handleDelete(selectedRequest.id)}
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-[16px] border border-red-200 bg-red-50 text-red-600 font-semibold text-[14px] transition-colors hover:bg-red-100 active:scale-95"
+              >
+                <Trash2 className="w-4 h-4" />
+                Supprimer
+              </button>
+              <button
+                onClick={() => handleAssign(selectedRequest.id)}
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-[16px] bg-slate-900 text-white font-semibold text-[14px] transition-all hover:bg-slate-800 hover:shadow-[0_8px_20px_rgba(15,23,42,0.2)] active:scale-95"
+              >
+                <UserPlus className="w-4 h-4" />
+                Assigner
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
