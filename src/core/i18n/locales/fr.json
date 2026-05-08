@@ -1,1 +1,11 @@
-{}
+{
+  "tracking": {
+    "step1": "Demande reçue",
+    "step2": "Recherche d'un technicien",
+    "step3": "Technicien assigné",
+    "step4": "En route / Sur place",
+    "in_progress": "En cours...",
+    "no_active_request": "Aucune demande active",
+    "tracking_description": "Le suivi en temps réel de votre intervention apparaîtra ici."
+  }
+}

@@ -1,1 +1,11 @@
-{}
+{
+  "tracking": {
+    "step1": "Request received",
+    "step2": "Searching for a technician",
+    "step3": "Technician assigned",
+    "step4": "On the way / On site",
+    "in_progress": "In progress...",
+    "no_active_request": "No active request",
+    "tracking_description": "Real-time tracking of your intervention will appear here."
+  }
+}

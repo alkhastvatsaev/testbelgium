@@ -1,1 +1,11 @@
-{}
+{
+  "tracking": {
+    "step1": "Aanvraag ontvangen",
+    "step2": "Zoeken naar een technicus",
+    "step3": "Technicus toegewezen",
+    "step4": "Onderweg / Ter plaatse",
+    "in_progress": "In uitvoering...",
+    "no_active_request": "Geen actieve aanvraag",
+    "tracking_description": "Real-time tracking van uw interventie verschijnt hier."
+  }
+}
