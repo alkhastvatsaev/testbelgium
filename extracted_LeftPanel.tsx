@@ -1,2 +1,0 @@
-"import React from 'react';\nimport { Target, MapPin, Truck, Wrench, Clock, PlusCircle, Navigation, Package, History, Coffee } from 'lucide-react';\n\nexport default function LeftPanel() {\n  return (\n    <div className=\"w-72 h-full bg-zinc-950 border-r 
-<truncated 3521 bytes>

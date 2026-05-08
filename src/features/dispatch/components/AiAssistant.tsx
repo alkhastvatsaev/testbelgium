@@ -29,7 +29,7 @@ function queueFindIndexByBasename(q: QueuedClip[], url: string): number {
   return q.findIndex((c) => uploadAudioBasenameFromUrl(c.url) === b);
 }
 
-type QueuedClip = {
+export type QueuedClip = {
   url: string;
   createdAt: string;
   source: "disk" | "firestore";
@@ -180,6 +180,8 @@ type AiAssistantProps = {
    * jusqu’à ce que l’utilisateur ferme avec la croix (pas seulement quand la file est vide).
    */
   transcriptOverlayVisible?: boolean;
+  onUserLongPress?: () => void;
+  onQueueChange?: (queue: QueuedClip[]) => void;
 };
 
 export default function AiAssistant({
@@ -187,6 +189,8 @@ export default function AiAssistant({
   onPlaybackSync,
   onActiveClipUrlChange,
   transcriptOverlayVisible = false,
+  onUserLongPress,
+  onQueueChange,
 }: AiAssistantProps = {}) {
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [queue, setQueue] = useState<QueuedClip[]>([]);
@@ -291,7 +295,8 @@ export default function AiAssistant({
 
   useEffect(() => {
     queueRef.current = queue;
-  }, [queue]);
+    onQueueChange?.(queue);
+  }, [queue, onQueueChange]);
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
@@ -789,6 +794,10 @@ export default function AiAssistant({
     >
       <div
         className={`relative h-14 w-full min-w-0 max-w-full shrink-0 transition-all duration-500 ease-out hover:scale-[1.02] ${showBadge ? "scale-[1.02]" : ""}`}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onUserLongPress?.();
+        }}
       >
         {showBadge ? (
           <div

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Map, List, Navigation, Phone, Play, MapPin } from 'lucide-react';
+import { Map, List, Navigation, Phone, Play, MapPin, Clock } from 'lucide-react';
 
 interface Mission {
   id: string;

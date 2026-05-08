@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
+import { I18nProvider } from "@/core/i18n/I18nContext";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -32,7 +33,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${outfit.variable}`} suppressHydrationWarning>
       <body suppressHydrationWarning>
-        {children}
+        <I18nProvider>{children}</I18nProvider>
         <Toaster position="top-center" theme="light" richColors closeButton />
       </body>
     </html>
