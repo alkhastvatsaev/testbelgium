@@ -11,7 +11,7 @@ import {
 } from "@/features/backoffice/backofficeHubNavigation";
 import InterventionCalendarPanel from "@/features/calendar/components/InterventionCalendarPanel";
 import DashboardTriplePanelLayout from "@/features/dashboard/components/DashboardTriplePanelLayout";
-import DuplicateAlertsPanel from "@/features/interventions/components/DuplicateAlertsPanel";
+import IncomingClientRequestsPanel from "@/features/backoffice/components/IncomingClientRequestsPanel";
 import { useDashboardPager } from "@/features/dashboard/dashboardPagerContext";
 
 type Props = { slotIndex: number };
@@ -43,7 +43,7 @@ export default function BackOfficeHubPage({ slotIndex }: Props) {
         rightAriaLabel={`Page ${humanPage} — agenda`}
         left={
           <section id={BACKOFFICE_HUB_ANCHOR_DUPLICATES} className={`${railGap} scroll-mt-2`}>
-            <DuplicateAlertsPanel />
+            <IncomingClientRequestsPanel />
           </section>
         }
         center={

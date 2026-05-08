@@ -18,8 +18,7 @@ export function useBackOfficeInterventions(companyId: string | null) {
     (!isConfigured ||
       !firestore ||
       !auth ||
-      !auth.currentUser ||
-      auth.currentUser.isAnonymous);
+      !auth.currentUser);
 
   useEffect(() => {
     if (skipFirestoreDemo) {
