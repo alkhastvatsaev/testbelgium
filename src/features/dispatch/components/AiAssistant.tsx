@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { firestore as db } from "@/core/config/firebase";
 import GalaxyButton from "@/core/ui/GalaxyButton/GalaxyButton";
 import Waveform from "@/core/ui/Waveform/Waveform";
 import { AnimatePresence, motion } from "framer-motion";
 import { Play, Square } from "lucide-react";
+import { AI_STRIP_EDGE_INSET_PX } from "@/features/dispatch/aiStripAnchor";
+import { useAiStripInsetRect } from "@/features/dispatch/useAiStripInsetRect";
 
 const LS_UPLOAD_LAST_SEEN = "ai_upload_last_seen_mtime";
 
@@ -27,31 +29,7 @@ function queueFindIndexByBasename(q: QueuedClip[], url: string): number {
   return q.findIndex((c) => uploadAudioBasenameFromUrl(c.url) === b);
 }
 
-/**
- * Marge horizontale (en px) appliquée **des deux côtés** entre le repère géométrique
- * (`#spotlight-search`, ou `#map-container` en mode HUD) et le bandeau Galaxy en `fixed`.
- *
- * **Valeur figée** après calage visuel sur la carte (overlay 5 px + 5 px). Ne pas la modifier
- * sans revérifier l’alignement sur la carte / la barre Rechercher.
- */
-const AI_STRIP_EDGE_INSET_PX = 5;
-
-/**
- * Référence largeur + position du bandeau : même logique que la barre Rechercher
- * (`#spotlight-search`). En HUD, la carte est plein écran → `#map-container`.
- */
-function getAiStripAnchorEl(): HTMLElement | null {
-  if (typeof document === "undefined") return null;
-  const layout = document.querySelector(".dashboard-layout");
-  const mapEl = document.getElementById("map-container");
-  const spotlightEl = document.getElementById("spotlight-search");
-  const isHud = layout?.classList.contains("mode-hud") === true;
-  if (isHud && mapEl) return mapEl;
-  if (spotlightEl) return spotlightEl;
-  return mapEl;
-}
-
-export type QueuedClip = {
+type QueuedClip = {
   url: string;
   createdAt: string;
   source: "disk" | "firestore";
@@ -78,14 +56,18 @@ function serializeFirestoreUpdatedAt(v: unknown): string {
   return String(v);
 }
 
-function isNotSupportedError(err: unknown): boolean {
-  return (
-    (err instanceof DOMException && err.name === "NotSupportedError") ||
-    (typeof err === "object" &&
-      err !== null &&
-      "name" in err &&
-      (err as { name: string }).name === "NotSupportedError")
-  );
+/**
+ * Lecture impossible sans geste utilisateur (NotAllowedError) ou média refusé par le moteur (NotSupportedError).
+ * Ne doit pas faire « sauter » la file ni spammer la console — l’utilisateur appuie sur lecture.
+ */
+function isRecoverablePlaybackError(err: unknown): boolean {
+  const name =
+    err instanceof DOMException
+      ? err.name
+      : typeof err === "object" && err !== null && "name" in err
+        ? String((err as { name: unknown }).name)
+        : "";
+  return name === "NotAllowedError" || name === "NotSupportedError";
 }
 
 /** iOS / PWA : sans type explicite, le blob peut rester `application/octet-stream` et `play()` échoue. */
@@ -198,8 +180,6 @@ type AiAssistantProps = {
    * jusqu’à ce que l’utilisateur ferme avec la croix (pas seulement quand la file est vide).
    */
   transcriptOverlayVisible?: boolean;
-  onUserLongPress?: () => void;
-  onQueueChange?: (queue: QueuedClip[]) => void;
 };
 
 export default function AiAssistant({
@@ -207,8 +187,6 @@ export default function AiAssistant({
   onPlaybackSync,
   onActiveClipUrlChange,
   transcriptOverlayVisible = false,
-  onUserLongPress,
-  onQueueChange,
 }: AiAssistantProps = {}) {
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [queue, setQueue] = useState<QueuedClip[]>([]);
@@ -313,8 +291,7 @@ export default function AiAssistant({
 
   useEffect(() => {
     queueRef.current = queue;
-    onQueueChange?.(queue);
-  }, [queue, onQueueChange]);
+  }, [queue]);
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
@@ -345,7 +322,12 @@ export default function AiAssistant({
       audioContextRef.current = new Ctx();
     }
     if (audioContextRef.current.state === "suspended") {
-      await audioContextRef.current.resume();
+      try {
+        await audioContextRef.current.resume();
+      } catch (err) {
+        if (isRecoverablePlaybackError(err)) return null;
+        throw err;
+      }
     }
     if (!audioRef.current) {
       audioRef.current = new Audio();
@@ -424,7 +406,7 @@ export default function AiAssistant({
         await mediaEl.play();
         return true;
       } catch (err) {
-        if (isNotSupportedError(err)) return false;
+        if (isRecoverablePlaybackError(err)) return false;
         throw err;
       }
     };
@@ -571,6 +553,12 @@ export default function AiAssistant({
     } catch (e) {
       if (isStale() || !mountedRef.current) return;
       if (e instanceof DOMException && e.name === "AbortError") {
+        return;
+      }
+      if (isRecoverablePlaybackError(e)) {
+        setIsPlaying(false);
+        setAnalyser(null);
+        stopBufferPlayback();
         return;
       }
       console.error("lecture audio:", e);
@@ -771,43 +759,7 @@ export default function AiAssistant({
    * Bandeau `fixed` sous la vue : aligné sur `#spotlight-search` (ou carte en HUD),
    * avec {@link AI_STRIP_EDGE_INSET_PX}px de retrait à gauche et à droite (largeur figée).
    */
-  const [mapPanelRect, setMapPanelRect] = useState<{ left: number; width: number } | null>(null);
-
-  useLayoutEffect(() => {
-    if (typeof ResizeObserver === "undefined") return;
-
-    const read = () => {
-      const anchor = getAiStripAnchorEl();
-      if (!anchor) return;
-      const r = anchor.getBoundingClientRect();
-      if (r.width >= 1) {
-        const inset = AI_STRIP_EDGE_INSET_PX;
-        setMapPanelRect({
-          left: Math.round(r.left) + inset,
-          width: Math.max(0, Math.round(r.width) - inset * 2),
-        });
-      }
-    };
-    read();
-
-    const ro = new ResizeObserver(() => read());
-    const spotlight = document.getElementById("spotlight-search");
-    const mapPanel = document.getElementById("map-container");
-    if (spotlight) ro.observe(spotlight);
-    if (mapPanel) ro.observe(mapPanel);
-
-    window.addEventListener("resize", read);
-    window.addEventListener("scroll", read, true);
-    window.visualViewport?.addEventListener("resize", read);
-    window.visualViewport?.addEventListener("scroll", read);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", read);
-      window.removeEventListener("scroll", read, true);
-      window.visualViewport?.removeEventListener("resize", read);
-      window.visualViewport?.removeEventListener("scroll", read);
-    };
-  }, []);
+  const mapPanelRect = useAiStripInsetRect();
 
   const stripInsetTotal = AI_STRIP_EDGE_INSET_PX * 2;
   const stripFallbackWidth = `calc(min(70vh, calc(100vw - 48px)) - ${stripInsetTotal}px)`;
@@ -832,7 +784,7 @@ export default function AiAssistant({
   return (
     <div
       data-testid="ai-assistant-strip"
-      className="pointer-events-auto fixed bottom-10 z-[100] box-border flex min-w-0 flex-col items-stretch"
+      className="fixed bottom-10 z-[100] box-border flex min-w-0 flex-col items-stretch"
       style={stripPositionStyle}
     >
       <div
@@ -849,7 +801,6 @@ export default function AiAssistant({
         <GalaxyButton
           asInteractiveButton={false}
           className={`h-full w-full ${showBadge ? "notified" : ""}`}
-          onLongPress={onUserLongPress}
         >
           <div className="pointer-events-none relative flex h-full w-full items-center justify-center">
             <Waveform color="white" barCount={12} analyser={analyser} />

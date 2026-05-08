@@ -24,8 +24,10 @@
             background: rgba(255, 255, 255, 0.7);
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            box-shadow:
+                0 30px 60px -15px rgba(0, 0, 0, 0.1),
+                0 26px 56px -22px rgba(15, 23, 42, 0.08);
             transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
         }
 

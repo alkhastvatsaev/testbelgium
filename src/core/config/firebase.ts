@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
 import { getFirestore, enableMultiTabIndexedDbPersistence, initializeFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,7 +14,6 @@ const firebaseConfig = {
 };
 
 const isConfigured = !!firebaseConfig.projectId;
-console.log("Firebase config projectId:", firebaseConfig.projectId, "isConfigured:", isConfigured);
 
 const app = isConfigured 
   ? (getApps().length > 0 ? getApp() : initializeApp(firebaseConfig)) 
@@ -27,8 +27,9 @@ const firestore = app ? initializeFirestore(app, {
   experimentalForceLongPolling: true,
 }) : null;
 
-// Authentification
+// Authentification + fichiers (photos fin d’intervention)
 const auth = app ? getAuth(app) : null;
+const storage = app ? getStorage(app) : null;
 
 // Activer le cache hors-ligne uniquement côté client (navigateur)
 if (typeof window !== 'undefined' && firestore) {
@@ -41,4 +42,4 @@ if (typeof window !== 'undefined' && firestore) {
   });
 }
 
-export { app, db, firestore, auth, isConfigured };
+export { app, db, firestore, auth, storage, isConfigured };

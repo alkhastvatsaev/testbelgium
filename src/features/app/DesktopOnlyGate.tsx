@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { devUiPreviewEnabled } from "@/core/config/devUiPreview";
 
 /** Détection PWA / navigateur sur téléphone (Android, iPhone, iPod). iPad exclu pour usage tablette large. */
 function isPhoneClassDevice(): boolean {
@@ -12,15 +13,22 @@ function isPhoneClassDevice(): boolean {
 }
 
 export default function DesktopOnlyGate({ children }: { children: React.ReactNode }) {
-  const [desktopOk, setDesktopOk] = useState<boolean | null>(null);
+  const [desktopOk, setDesktopOk] = useState<boolean | null>(() =>
+    devUiPreviewEnabled ? true : null,
+  );
 
   useEffect(() => {
+    if (devUiPreviewEnabled) return;
     setDesktopOk(!isPhoneClassDevice());
   }, []);
 
+  if (devUiPreviewEnabled) {
+    return <>{children}</>;
+  }
+
   if (desktopOk === null) {
     return (
-      <div data-testid="desktop-only-loading" className="flex min-h-dvh items-center justify-center bg-[#f8fafc]">
+      <div className="flex min-h-dvh items-center justify-center bg-[#f8fafc]">
         <div
           className="h-9 w-9 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600"
           aria-hidden
@@ -31,7 +39,7 @@ export default function DesktopOnlyGate({ children }: { children: React.ReactNod
 
   if (!desktopOk) {
     return (
-      <div data-testid="desktop-only-blocked" className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-[#f8fafc] px-6 text-center">
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-[#f8fafc] px-6 text-center">
         <p className="text-lg font-semibold text-slate-800">Version desktop uniquement</p>
         <p className="max-w-md text-sm leading-relaxed text-slate-600">
           Version desktop seulement — le mobile (Android / iPhone) est en cours de développement. Ouvrez cette

@@ -1,0 +1,2 @@
+"import React, { useState } from 'react';\nimport LeftPanel from './LeftPanel';\nimport CenterPanel from './CenterPanel';\nimport RightPanel from './RightPanel';\n\ninterface Mission {\n  id: string;\n  client: string;\n  type: string;\n  address: string;\
+<truncated 1833 bytes>

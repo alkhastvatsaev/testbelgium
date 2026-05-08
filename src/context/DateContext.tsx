@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from "react";
 
 interface DateContextType {
   selectedDate: Date;
@@ -25,4 +25,10 @@ export function useDateContext() {
     throw new Error('useDateContext must be used within a DateProvider');
   }
   return context;
+}
+
+/** Hors provider → jour système (hooks métier utilisables dans les tests sans erreur). */
+export function useDashboardSelectedDate(): Date {
+  const context = useContext(DateContext);
+  return context?.selectedDate ?? new Date();
 }

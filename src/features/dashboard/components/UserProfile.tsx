@@ -1,14 +1,30 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useDashboardPagerOptional } from '@/features/dashboard/dashboardPagerContext';
 
-const profiles = [
-  { name: "ASLAMBECK", role: "ADMIN" },
-  { name: "TIMOUR", role: "ADMIN" }
+export const appProfiles = [
+  { name: "ASLANBECK", role: "BACK OFFICE" },
+  { name: "SOCIÉTÉ BX", role: "CLIENT" },
+  { name: "MANSOUR", role: "TECHNICIEN" },
+  { name: "IVANA", role: "BACK OFFICE" },
+  { name: "TIMOUR", role: "ADMIN" },
 ];
 
 export default function UserProfile() {
+  const pager = useDashboardPagerOptional();
+  const profiles = appProfiles;
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Synchronise le profil avec la page courante
+  useEffect(() => {
+    if (pager) {
+      if (pager.pageIndex >= 0 && pager.pageIndex < 4) {
+        setCurrentIndex(pager.pageIndex);
+      }
+    }
+  }, [pager?.pageIndex]);
+
   const currentProfile = profiles[currentIndex];
 
   const handleNext = (e: React.MouseEvent) => {
@@ -23,7 +39,7 @@ export default function UserProfile() {
 
   return (
     <div 
-      className="fixed z-50 flex items-center justify-center cursor-pointer group hover:bg-white/80 hover:scale-[1.01] hover:shadow-[0_40px_80px_-15px_rgba(0,0,0,0.12)] active:scale-[0.99] transition-all duration-300 ease-out"
+      className="fixed z-50 flex items-center justify-center cursor-pointer group hover:bg-white/80 hover:scale-[1.01] hover:shadow-[0_36px_72px_-18px_rgba(15,23,42,0.14)] active:scale-[0.99] transition-all duration-300 ease-out"
       style={{ 
         top: '24px',
         right: '48px',
@@ -33,8 +49,8 @@ export default function UserProfile() {
         background: 'rgba(255, 255, 255, 0.7)',
         backdropFilter: 'blur(24px) saturate(180%)',
         WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-        border: '1px solid rgba(0, 0, 0, 0.05)',
-        boxShadow: '0 30px 60px -15px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
+        border: '1px solid rgba(0, 0, 0, 0.06)',
+        boxShadow: '0 30px 60px -15px rgba(0, 0, 0, 0.1), 0 26px 56px -22px rgba(15, 23, 42, 0.08)',
         fontFamily: "'Outfit', sans-serif",
       }}
     >
@@ -67,4 +83,3 @@ export default function UserProfile() {
     </div>
   );
 }
-

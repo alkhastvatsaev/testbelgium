@@ -75,11 +75,11 @@ export default function MacroDroidIndicator() {
             initial={{ opacity: 0, x: 50, scale: 0.9 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 50, scale: 0.9 }}
-            className="fixed bottom-6 right-6 z-[9999] w-96 overflow-hidden rounded-3xl border-2 border-emerald-400 bg-emerald-950/95 p-6 shadow-[0_0_50px_rgba(16,185,129,0.4)] backdrop-blur-2xl pointer-events-auto"
+            className="pointer-events-auto fixed bottom-6 right-6 z-[9999] flex max-h-[85vh] min-h-0 w-96 flex-col overflow-hidden rounded-3xl border-2 border-emerald-400 bg-emerald-950/95 shadow-[0_0_50px_rgba(16,185,129,0.4)] backdrop-blur-2xl"
           >
-            <div className="absolute top-0 right-0 -mr-16 -mt-16 h-32 w-32 rounded-full bg-emerald-500/20 blur-3xl" />
+            <div className="pointer-events-none absolute -right-16 -top-16 h-32 w-32 rounded-full bg-emerald-500/20 blur-3xl" />
 
-            <div className="relative z-10 mb-4 flex items-center justify-between">
+            <div className="relative z-10 flex shrink-0 items-center justify-between px-6 pb-2 pt-6">
               <div className="flex items-center gap-3">
                 <div className="h-3 w-3 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,1)]" />
                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-emerald-400">
@@ -98,16 +98,18 @@ export default function MacroDroidIndicator() {
               </button>
             </div>
 
-            <div className="group relative z-10 rounded-2xl border border-white/10 bg-black/60 p-5 shadow-inner transition-all">
-              <div
-                className="text-xl font-bold leading-relaxed"
-                style={{ color: "white", textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}
-              >
-                &quot;{transcript}&quot;
+            <div className="relative z-10 min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-6 py-3 pb-4 custom-scrollbar">
+              <div className="group relative rounded-2xl border border-white/10 bg-black/60 p-5 shadow-inner transition-all">
+                <div
+                  className="text-xl font-bold leading-relaxed"
+                  style={{ color: "white", textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}
+                >
+                  &quot;{transcript}&quot;
+                </div>
               </div>
             </div>
 
-            <div className="relative z-10 mt-5 flex items-center justify-between border-t border-emerald-500/20 pt-4">
+            <div className="relative z-10 mt-auto flex shrink-0 items-center justify-between border-t border-emerald-500/20 px-6 pb-6 pt-4">
               <div className="flex flex-col">
                 <span className="text-[9px] font-mono font-bold text-emerald-400/60">ENGINE</span>
                 <span className="text-[10px] font-bold text-white">OpenAI Transcribe + dispatch</span>

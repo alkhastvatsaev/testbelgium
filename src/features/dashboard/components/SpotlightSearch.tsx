@@ -1,11 +1,20 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { Command } from 'cmdk';
-import { Search, MapPin, Truck, X } from 'lucide-react';
+import { Search, MapPin, Truck, X, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { GLASS_PANEL_OVERFLOW_PADDING } from '@/core/ui/glassPanelChrome';
+import { useTranslation, Language } from '@/core/i18n/I18nContext';
+
+const languages: { code: Language; label: string }[] = [
+  { code: 'fr', label: 'FR' },
+  { code: 'en', label: 'EN' },
+  { code: 'nl', label: 'NL' },
+];
 
 export default function SpotlightSearch() {
   const [open, setOpen] = useState(false);
+  const { language, setLanguage, t } = useTranslation();
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -26,7 +35,7 @@ export default function SpotlightSearch() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Ouvrir la recherche"
-        className="fixed top-[24px] left-1/2 -translate-x-1/2 z-50 flex items-center justify-end w-[calc(100vw-48px)] lg:w-[70vh] h-[70px] bg-white/95 backdrop-blur-[24px] border-[1px] border-white/40 px-8 rounded-[24px] font-semibold text-gray-900/60 hover:text-gray-900 hover:bg-white transition-all duration-300 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,1)] group"
+        className="fixed top-[24px] left-1/2 -translate-x-1/2 z-50 flex items-center justify-end w-[calc(100vw-48px)] lg:w-[70vh] h-[70px] bg-white/95 backdrop-blur-[24px] border-[1px] border-black/[0.06] px-8 rounded-[24px] font-semibold text-gray-900/60 hover:text-gray-900 hover:bg-white transition-all duration-300 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),0_26px_56px_-22px_rgba(15,23,42,0.08)] group"
         style={{ fontFamily: "'Outfit', sans-serif" }}
       >
         <Search className="w-6 h-6 opacity-60 group-hover:scale-110 transition-transform" />
@@ -47,46 +56,79 @@ export default function SpotlightSearch() {
               initial={{ opacity: 0, scale: 0.98, y: -10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98, y: -10 }}
-              className="relative w-full max-w-xl overflow-hidden rounded-[24px] bg-white/75 border-[1px] border-black/5 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.5)] backdrop-blur-[24px]"
+              className="relative flex max-h-[min(90vh,720px)] min-h-0 w-full max-w-xl flex-col overflow-hidden rounded-[24px] border-[1px] border-black/[0.06] bg-white/75 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.14),0_28px_56px_-22px_rgba(15,23,42,0.1)] backdrop-blur-[24px]"
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
-              <Command className="w-full flex flex-col overflow-hidden">
-                <div className="flex items-center px-8 border-b border-black/5">
-                  <Search className="w-6 h-6 opacity-30 mr-4" />
+              <Command className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+                
+                {/* Header: Search Input & Close */}
+                <div className="flex items-center px-8 border-b border-black/5 bg-white/50 backdrop-blur-md z-10">
+                  <Search className="w-6 h-6 opacity-30 mr-4 shrink-0" />
                   <Command.Input 
                     autoFocus 
-                    placeholder="Rechercher une mission, un technicien..." 
+                    placeholder={t('spotlight.search_placeholder')}
                     className="flex h-[70px] w-full bg-transparent text-gray-800 placeholder:text-gray-400 focus:outline-none text-[20px] font-medium"
                   />
                   <X 
-                    className="w-5 h-5 opacity-30 cursor-pointer hover:opacity-60 transition-opacity" 
+                    className="w-5 h-5 opacity-30 cursor-pointer hover:opacity-60 transition-opacity shrink-0" 
                     onClick={() => setOpen(false)}
                   />
                 </div>
+
+                {/* Sub-header: Premium Language Selector */}
+                <div className="flex items-center justify-between px-6 py-2 border-b border-black/5 bg-slate-50/40 backdrop-blur-md">
+                  <div className="flex items-center gap-2 text-sm text-gray-400 font-medium px-2">
+                    <Globe className="w-4 h-4 opacity-70" />
+                    <span className="hidden sm:inline">Langue / Language / Taal</span>
+                  </div>
+                  
+                  {/* Apple Segmented Control Style */}
+                  <div className="relative flex items-center p-1 bg-black/[0.04] rounded-full shadow-inner">
+                    {languages.map((lang) => (
+                      <button
+                        key={lang.code}
+                        onClick={() => setLanguage(lang.code)}
+                        className={`relative z-10 px-5 py-1.5 text-sm font-bold transition-colors duration-200 rounded-full ${
+                          language === lang.code ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        {language === lang.code && (
+                          <motion.div
+                            layoutId="active-language"
+                            className="absolute inset-0 bg-white rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
+                            initial={false}
+                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                          />
+                        )}
+                        <span className="relative z-10 tracking-wide">{lang.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 
-                <Command.List className="max-h-[300px] overflow-y-auto p-2">
+                <Command.List className={`${GLASS_PANEL_OVERFLOW_PADDING} max-h-[300px]`}>
                   <Command.Empty className="px-6 py-8 text-center text-gray-500/60 font-medium">
-                    Aucun résultat trouvé.
+                    {t('spotlight.no_results')}
                   </Command.Empty>
                   
-                  <Command.Group heading="Actions" className="px-4 py-2 text-[12px] font-semibold text-gray-400 uppercase tracking-wider">
+                  <Command.Group heading={t('spotlight.actions_title')} className="px-4 py-2 text-[12px] font-semibold text-gray-400 uppercase tracking-wider">
                     <Command.Item className="flex items-center gap-4 px-4 py-3 rounded-2xl cursor-pointer hover:bg-black/5 transition-colors group">
-                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
                         <MapPin className="w-5 h-5 text-blue-500" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[16px] font-semibold text-gray-800">Voir la carte</span>
-                        <span className="text-[12px] text-gray-500">Afficher toutes les interventions</span>
+                        <span className="text-[16px] font-semibold text-gray-800">{t('spotlight.map_action_title')}</span>
+                        <span className="text-[12px] text-gray-500">{t('spotlight.map_action_desc')}</span>
                       </div>
                     </Command.Item>
                     
                     <Command.Item className="flex items-center gap-4 px-4 py-3 rounded-2xl cursor-pointer hover:bg-black/5 transition-colors group mt-1">
-                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
                         <Truck className="w-5 h-5 text-orange-500" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[16px] font-semibold text-gray-800">Techniciens</span>
-                        <span className="text-[12px] text-gray-500">Gérer les équipes sur le terrain</span>
+                        <span className="text-[16px] font-semibold text-gray-800">{t('spotlight.tech_action_title')}</span>
+                        <span className="text-[12px] text-gray-500">{t('spotlight.tech_action_desc')}</span>
                       </div>
                     </Command.Item>
                   </Command.Group>

@@ -1,10 +1,18 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Clock, ChevronRight, Inbox, SlidersHorizontal, FileText, Mail, Check, SendHorizontal } from 'lucide-react';
+import { Mail, Check, SendHorizontal } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { generateLocksmithQuote } from '@/utils/generateQuotePdf';
+import { QUOTE_REQUESTS_PANEL_ID } from '@/features/dashboard/quoteRequestsPanelId';
+import { GLASS_PANEL_BODY_SCROLL } from '@/core/ui/glassPanelChrome';
+import {
+  applyQuoteRequestOrder,
+  moveAllSentToEnd,
+  moveItemToEndById,
+  type QuoteRequestRow,
+} from '@/features/dashboard/quoteRequestsOrder';
 
-const baseRequests = [
+const baseRequests: QuoteRequestRow[] = [
   {
     id: 1,
     clientName: "M. Dupont",
@@ -38,38 +46,91 @@ const baseRequests = [
 const QUOTE_GENERATED_STORAGE_KEY = "quote_generated_states";
 /** Nouvelle clé : reset des statuts « mail envoyé » (les anciennes entrées `quote_sent_states` sont ignorées). */
 const QUOTE_SENT_STORAGE_KEY = "quote_sent_states_v2";
+/** Ordre des lignes (ids) après envois mail — conservé au rechargement. */
+const QUOTE_REQUEST_ORDER_KEY = "quote_requests_order_v1";
 
-const pendingRequests = Array.from({ length: 50 }, (_, i) => {
-  if (i < baseRequests.length) return baseRequests[i];
-  
-  const names = ["M. Bernard", "Mme Dubois", "Société XYZ", "M. Petit", "Mme Roux", "M. Richard", "SARL Durand", "M. Morel", "Mme Blanc", "M. Simon"];
-  const services = ["Installation électrique", "Mise aux normes", "Borne de recharge", "Dépannage urgent", "Rénovation", "Domotique"];
-  
-  return {
-    id: i + 1,
-    clientName: names[i % names.length],
-    service: services[i % services.length],
-    days: Math.floor((i - 4) / 5) + 2,
-    status: i % 4 === 0 ? "Nouveau" : "En attente",
-  };
-});
+function buildPendingRequests(): QuoteRequestRow[] {
+  return Array.from({ length: 50 }, (_, i) => {
+    if (i < baseRequests.length) return baseRequests[i];
+
+    const names = [
+      "M. Bernard",
+      "Mme Dubois",
+      "Société XYZ",
+      "M. Petit",
+      "Mme Roux",
+      "M. Richard",
+      "SARL Durand",
+      "M. Morel",
+      "Mme Blanc",
+      "M. Simon",
+    ];
+    const services = [
+      "Installation électrique",
+      "Mise aux normes",
+      "Borne de recharge",
+      "Dépannage urgent",
+      "Rénovation",
+      "Domotique",
+    ];
+
+    return {
+      id: i + 1,
+      clientName: names[i % names.length],
+      service: services[i % services.length],
+      days: Math.floor((i - 4) / 5) + 2,
+      status: i % 4 === 0 ? "Nouveau" : "En attente",
+    };
+  });
+}
 
 export default function QuoteRequests() {
+  const [requests, setRequests] = useState<QuoteRequestRow[]>(() => buildPendingRequests());
   const [generatedStates, setGeneratedStates] = useState<Record<number, boolean>>({});
   const [sendingStates, setSendingStates] = useState<Record<number, boolean>>({});
   const [sentStates, setSentStates] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.removeItem("quote_sent_states");
-        const savedGenerated = localStorage.getItem(QUOTE_GENERATED_STORAGE_KEY);
-        const savedSent = localStorage.getItem(QUOTE_SENT_STORAGE_KEY);
-        if (savedGenerated) setGeneratedStates(JSON.parse(savedGenerated));
-        if (savedSent) setSentStates(JSON.parse(savedSent));
-      } catch (e) {
-        console.error("Error loading quote states", e);
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.removeItem("quote_sent_states");
+      const savedGenerated = localStorage.getItem(QUOTE_GENERATED_STORAGE_KEY);
+      const savedSent = localStorage.getItem(QUOTE_SENT_STORAGE_KEY);
+      const savedOrder = localStorage.getItem(QUOTE_REQUEST_ORDER_KEY);
+
+      if (savedGenerated) {
+        setGeneratedStates(JSON.parse(savedGenerated) as Record<number, boolean>);
       }
+
+      let sentMap: Record<number, boolean> = {};
+      if (savedSent) {
+        sentMap = JSON.parse(savedSent) as Record<number, boolean>;
+        setSentStates(sentMap);
+      }
+
+      const base = buildPendingRequests();
+      let ordered: QuoteRequestRow[] = base;
+      if (savedOrder) {
+        try {
+          const orderIds = JSON.parse(savedOrder) as number[];
+          if (Array.isArray(orderIds)) {
+            ordered = applyQuoteRequestOrder(base, orderIds);
+          }
+        } catch {
+          /* conserver ordered */
+        }
+      }
+
+      const next = moveAllSentToEnd(ordered, sentMap);
+      setRequests(next);
+
+      try {
+        localStorage.setItem(QUOTE_REQUEST_ORDER_KEY, JSON.stringify(next.map((r) => r.id)));
+      } catch {
+        /* quota */
+      }
+    } catch (e) {
+      console.error("Error loading quote states", e);
     }
   }, []);
 
@@ -107,6 +168,15 @@ export default function QuoteRequests() {
 
       if (response.ok) {
         setSentStates(prev => ({ ...prev, [id]: true }));
+        setRequests((prev) => {
+          const next = moveItemToEndById(prev, id);
+          try {
+            localStorage.setItem(QUOTE_REQUEST_ORDER_KEY, JSON.stringify(next.map((r) => r.id)));
+          } catch {
+            /* ignore quota */
+          }
+          return next;
+        });
       } else {
         const errorData = await response.json();
         console.error("Erreur API Email:", errorData.error || errorData);
@@ -121,28 +191,27 @@ export default function QuoteRequests() {
   };
 
   return (
-    <div className="pointer-events-auto fixed right-12 top-1/2 -translate-y-1/2 z-40 w-[calc(50vw-35vh-100px+5mm)] h-[70vh] bg-white/70 backdrop-blur-[24px] backdrop-saturate-[180%] border-[1px] border-black/5 rounded-[24px] p-6 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.5)] overflow-hidden flex flex-col transition-all duration-500">
-      
-
-      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-3">
-        {pendingRequests.map((req, index) => {
+    <div
+      id={QUOTE_REQUESTS_PANEL_ID}
+      className="fixed right-12 top-1/2 -translate-y-1/2 z-40 flex h-[70vh] min-h-0 w-[calc(50vw-35vh-100px+5mm)] flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/70 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),0_24px_56px_-22px_rgba(15,23,42,0.08)] backdrop-blur-[24px] backdrop-saturate-[180%] transition-all duration-500"
+    >
+      {/* Zone scroll + marges : la coque `overflow-hidden` ne doit pas couper les ombres. */}
+      <div className={`${GLASS_PANEL_BODY_SCROLL} flex flex-col gap-5`}>
+        {requests.map((req, index) => {
           const cardClass =
-            "shadow-[0_4px_16px_-4px_rgba(15,23,42,0.08)] hover:shadow-[0_10px_24px_-8px_rgba(15,23,42,0.12)]";
+            "shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)] hover:shadow-[0_14px_32px_-10px_rgba(15,23,42,0.18)]";
 
           return (
             <motion.div
               key={req.id}
-              data-testid={`quote-request-${req.id}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
-              className={`group relative grid cursor-pointer grid-cols-3 items-center gap-2 rounded-[20px] border border-black/[0.06] bg-white/80 px-4 py-4 transition-all duration-300 hover:bg-white ${cardClass}`}
+              className={`group relative grid cursor-pointer grid-cols-3 items-center gap-2 rounded-[20px] bg-white px-4 py-4 transition-all duration-300 hover:bg-white ${cardClass}`}
             >
               {/* Gauche : Bouton DEVIS IA */}
               <div className="flex justify-start">
                 <button 
-                  type="button"
-                  data-testid={`quote-generate-btn-${req.id}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     generateLocksmithQuote(req.clientName);

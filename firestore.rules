@@ -1,8 +1,255 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function membershipPath(companyId) {
+      return /databases/$(database)/documents/users/$(request.auth.uid)/company_memberships/$(companyId);
+    }
+
+    function userBelongsToCompany(companyId) {
+      return isAuthed()
+        && companyId is string
+        && companyId.size() > 0
+        && exists(membershipPath(companyId));
+    }
+
+    function userRoleInCompany(companyId) {
+      return get(membershipPath(companyId)).data.role;
+    }
+
+    /** Jeton synchronisé via /api/company/sync-claims — obligatoire pour isoler les données tenant. */
+    function isCompanyPortalUser() {
+      return isAuthed()
+        && request.auth.token.keys().hasAll(['bmTenants'])
+        && request.auth.token.bmTenants is list
+        && request.auth.token.bmTenants.size() > 0;
+    }
+
+    function tenantClaimsIncludeCompany(companyId) {
+      return isCompanyPortalUser()
+        && companyId is string
+        && companyId.size() > 0
+        && (
+          request.auth.token.bmTenants.hasAny([companyId + ':admin'])
+          || request.auth.token.bmTenants.hasAny([companyId + ':collaborateur'])
+        );
+    }
+
+    function interventionHasTenantScope(data) {
+      return data.keys().hasAny(['companyId'])
+        && data.companyId is string
+        && data.companyId.size() > 0;
+    }
+
+    // --- Prompt 1 : entreprise multi-tenant ---
+    match /companies/{companyId} {
+      allow read: if userBelongsToCompany(companyId);
+      allow create: if isAuthed()
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.keys().hasAll(['name', 'createdAt', 'createdByUid']);
+      allow update: if isAuthed() && resource.data.createdByUid == request.auth.uid;
+      allow delete: if false;
+
+      match /billing/{docId} {
+        allow read: if userBelongsToCompany(companyId) && userRoleInCompany(companyId) == 'admin';
+        allow write: if false;
+      }
+    }
+
+    /** Création collaborateur uniquement via Admin SDK (accept-invite). Premier admin : créateur du doc companies. */
+    match /users/{userId}/company_memberships/{companyId} {
+      allow read: if isAuthed() && request.auth.uid == userId;
+      allow create: if isAuthed()
+        && request.auth.uid == userId
+        && request.resource.data.role == 'admin'
+        && exists(/databases/$(database)/documents/companies/$(companyId))
+        && get(/databases/$(database)/documents/companies/$(companyId)).data.createdByUid == request.auth.uid
+        && request.resource.data.keys().hasAll(['role', 'joinedAt', 'companyName']);
+      allow update, delete: if false;
+    }
+
+    /** Jetons Web Push FCM — uniquement le propriétaire Auth peut les gérer. */
+    match /users/{userId}/fcm_tokens/{tokenId} {
+      allow read, write: if isAuthed() && request.auth.uid == userId;
+    }
+
+    match /company_invites/{inviteId} {
+      allow read: if isAuthed() && (
+        resource.data.invitedByUid == request.auth.uid
+        || (
+          userBelongsToCompany(resource.data.companyId)
+          && userRoleInCompany(resource.data.companyId) == 'admin'
+        )
+      );
+      allow create: if isAuthed()
+        && request.resource.data.keys().hasAll(['companyId', 'phone', 'role', 'createdAt', 'invitedByUid'])
+        && request.resource.data.invitedByUid == request.auth.uid
+        && request.resource.data.role == 'collaborateur'
+        && userBelongsToCompany(request.resource.data.companyId)
+        && userRoleInCompany(request.resource.data.companyId) == 'admin';
+      allow update, delete: if false;
+    }
+
+    /** Hors portail société : lecture limitée aux dossiers non assignés (legacy / carte) ou assignés à soi. */
+    function nonPortalCanReadIntervention() {
+      return !resource.data.keys().hasAny(['assignedTechnicianUid'])
+        || resource.data.assignedTechnicianUid == null
+        || resource.data.assignedTechnicianUid == ''
+        || resource.data.assignedTechnicianUid == request.auth.uid;
+    }
+
+    /** Alertes doublons — créées après analyse locale des nouvelles demandes (tenant). */
+    match /intervention_duplicate_alerts/{alertId} {
+      allow read: if isAuthed()
+        && resource.data.keys().hasAll([
+          'companyId',
+          'newInterventionId',
+          'similarInterventionId',
+          'similarAddress',
+          'similarProblemPreview',
+          'similarCreatedAt',
+          'status',
+          'createdByUid',
+          'detectedAt',
+        ])
+        && tenantClaimsIncludeCompany(resource.data.companyId);
+
+      allow create: if isAuthed()
+        && request.resource.data.keys().hasAll([
+          'companyId',
+          'newInterventionId',
+          'similarInterventionId',
+          'similarAddress',
+          'similarProblemPreview',
+          'similarCreatedAt',
+          'status',
+          'createdByUid',
+          'detectedAt',
+        ])
+        && request.resource.data.companyId is string
+        && request.resource.data.status == 'open'
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.newInterventionId == alertId
+        && tenantClaimsIncludeCompany(request.resource.data.companyId);
+
+      allow update: if isAuthed()
+        && resource.data.companyId is string
+        && tenantClaimsIncludeCompany(resource.data.companyId)
+        && request.auth.token.bmTenants.hasAny([resource.data.companyId + ':admin'])
+        && resource.data.status == 'open'
+        && request.resource.data.status in ['ignored', 'merged']
+        && request.resource.data.companyId == resource.data.companyId
+        && request.resource.data.newInterventionId == resource.data.newInterventionId
+        && request.resource.data.similarInterventionId == resource.data.similarInterventionId
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.detectedAt == resource.data.detectedAt
+        && request.resource.data.resolvedAt is string
+        && request.resource.data.resolvedByUid == request.auth.uid;
+
+      allow delete: if false;
+    }
+
+    match /interventions/{docId} {
+      allow read: if isAuthed() && (
+        (
+          isCompanyPortalUser()
+          && interventionHasTenantScope(resource.data)
+          && tenantClaimsIncludeCompany(resource.data.companyId)
+        )
+        || (
+          !isCompanyPortalUser()
+          && nonPortalCanReadIntervention()
+        )
+      );
+
+      allow create: if isAuthed() && (
+        (
+          !isCompanyPortalUser()
+        )
+        || (
+          isCompanyPortalUser()
+          && interventionHasTenantScope(request.resource.data)
+          && tenantClaimsIncludeCompany(request.resource.data.companyId)
+          && request.resource.data.keys().hasAny(['createdByUid'])
+          && request.resource.data.createdByUid == request.auth.uid
+        )
+      );
+
+      allow update: if isAuthed() && (
+        !isCompanyPortalUser()
+        || (
+          isCompanyPortalUser()
+          && interventionHasTenantScope(resource.data)
+          && tenantClaimsIncludeCompany(resource.data.companyId)
+          && (
+            request.auth.token.bmTenants.hasAny([resource.data.companyId + ':admin'])
+            || (
+              request.auth.token.bmTenants.hasAny([resource.data.companyId + ':collaborateur'])
+              && resource.data.keys().hasAny(['createdByUid'])
+              && resource.data.createdByUid == request.auth.uid
+            )
+            || (
+              resource.data.keys().hasAny(['assignedTechnicianUid'])
+              && resource.data.assignedTechnicianUid == request.auth.uid
+            )
+          )
+        )
+      );
+
+      allow delete: if isAuthed() && (
+        !isCompanyPortalUser()
+        || (
+          interventionHasTenantScope(resource.data)
+          && request.auth.token.bmTenants.hasAny([resource.data.companyId + ':admin'])
+        )
+      );
+    }
+
+    /** Brouillon formulaire demande d’intervention — une entrée par utilisateur authentifié (doc id = uid). */
+    match /intervention_request_drafts/{userId} {
+      allow read: if isAuthed() && request.auth.uid == userId;
+      allow create: if isAuthed() && request.auth.uid == userId;
+      allow update: if isAuthed() && request.auth.uid == userId;
+      allow delete: if isAuthed() && request.auth.uid == userId;
+    }
+
+    /** Profils portail client (SSO / magic link) — doc id = Firebase Auth uid. */
+    match /client_portal_profiles/{uid} {
+      allow read: if isAuthed() && request.auth.uid == uid;
+      allow create: if isAuthed()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid;
+      allow update: if isAuthed()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid;
+      allow delete: if false;
+    }
+
+    // --- Collections BelgMap existantes ---
+    match /allowed_users/{phone} {
+      allow read: if isAuthed();
+      allow write: if false;
+    }
+
+    match /technicians/{docId} {
+      allow read, write: if isAuthed();
+    }
+
+    match /ai_status/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /ai_audio_decisions/{docId} {
+      allow read, write: if isAuthed();
+    }
+
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

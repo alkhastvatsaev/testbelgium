@@ -1,23 +1,12 @@
 import '@testing-library/jest-dom';
-import { TextDecoder, TextEncoder } from 'util';
 
-// Polyfills / browser APIs absent from JSDOM (jspdf, cmdk, etc.)
-if (typeof globalThis.TextEncoder === 'undefined') {
-  globalThis.TextEncoder = TextEncoder as typeof globalThis.TextEncoder;
-}
-if (typeof globalThis.TextDecoder === 'undefined') {
-  globalThis.TextDecoder = TextDecoder as typeof globalThis.TextDecoder;
+class ResizeObserverMock {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
 }
 
-globalThis.ResizeObserver = jest.fn().mockImplementation(() => ({
-  observe: jest.fn(),
-  unobserve: jest.fn(),
-  disconnect: jest.fn(),
-}));
-
-if (typeof Element !== 'undefined') {
-  Element.prototype.scrollIntoView = jest.fn();
-}
+global.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 
 // --- GLOBAL MOCKS FOR AI TESTING ARCHITECTURE ---
 
@@ -48,12 +37,8 @@ jest.mock('mapbox-gl', () => ({
     off: jest.fn(),
     remove: jest.fn(),
     flyTo: jest.fn(),
-    fitBounds: jest.fn(),
     setCenter: jest.fn(),
     setZoom: jest.fn(),
-    setConfigProperty: jest.fn(),
-    getCenter: jest.fn(() => ({ toArray: () => [4.3522, 50.8466] as [number, number] })),
-    getZoom: jest.fn(() => 15),
     addControl: jest.fn(),
     addSource: jest.fn(),
     addLayer: jest.fn(),
@@ -68,10 +53,6 @@ jest.mock('mapbox-gl', () => ({
     remove: jest.fn(),
     setElement: jest.fn().mockReturnThis(),
   })),
-  LngLatBounds: jest.fn().mockImplementation(() => ({
-    extend: jest.fn(),
-    getCenter: jest.fn(() => ({ toArray: () => [4.3522, 50.8466] as [number, number] })),
-  })),
   Popup: jest.fn(() => ({
     setLngLat: jest.fn().mockReturnThis(),
     setDOMContent: jest.fn().mockReturnThis(),
@@ -81,6 +62,7 @@ jest.mock('mapbox-gl', () => ({
   })),
   NavigationControl: jest.fn(),
   GeolocateControl: jest.fn(),
+  AttributionControl: jest.fn(),
   supported: jest.fn(() => true),
 }));
 
@@ -124,25 +106,108 @@ jest.mock('firebase/app', () => ({
   getApp: jest.fn(),
 }));
 
-jest.mock('firebase/auth', () => ({
-  getAuth: jest.fn(() => ({ currentUser: { uid: 'mock-user-123' } })),
-  signInWithEmailAndPassword: jest.fn(),
-  signOut: jest.fn(),
+jest.mock('firebase/database', () => ({
+  getDatabase: jest.fn(() => ({})),
+}));
+
+jest.mock('firebase/storage', () => {
+  const r = {
+    put: jest.fn(() => Promise.resolve({ ref: { fullPath: "mock/path" } })),
+    putString: jest.fn(() => Promise.resolve()),
+    getDownloadURL: jest.fn(() => Promise.resolve("https://example.com/mock")),
+    delete: jest.fn(() => Promise.resolve()),
+    child: jest.fn(),
+  };
+  (r.child as jest.Mock).mockReturnValue(r);
+  return {
+    getStorage: jest.fn(() => ({})),
+    ref: jest.fn(() => r),
+    uploadBytes: jest.fn(() => Promise.resolve({ ref: r })),
+    getDownloadURL: jest.fn(() => Promise.resolve("https://example.com/mock")),
+  };
+});
+
+jest.mock('firebase/auth', () => {
+  const mockUser = {
+    uid: 'mock-user-123',
+    email: 'portal@test.example',
+    emailVerified: true,
+    displayName: 'Portal Tester',
+    photoURL: null,
+    phoneNumber: undefined as string | undefined,
+    providerData: [{ providerId: 'google.com' }],
+  };
+
+  function MockGoogleAuthProvider(this: { setCustomParameters: jest.Mock }) {
+    this.setCustomParameters = jest.fn();
+  }
+
+  function MockOAuthProvider(this: { addScope: jest.Mock; setCustomParameters: jest.Mock }) {
+    this.addScope = jest.fn();
+    this.setCustomParameters = jest.fn();
+  }
+
+  return {
+    getAuth: jest.fn(() => ({ currentUser: mockUser })),
+    GoogleAuthProvider: MockGoogleAuthProvider,
+    OAuthProvider: MockOAuthProvider,
+    getRedirectResult: jest.fn(() => Promise.resolve(null)),
+    isSignInWithEmailLink: jest.fn(() => false),
+    signInWithEmailLink: jest.fn(() =>
+      Promise.resolve({
+        user: {
+          uid: 'magic-user',
+          email: 'magic@test.example',
+          emailVerified: true,
+          displayName: null,
+          photoURL: null,
+          providerData: [{ providerId: 'password' }],
+        },
+      }),
+    ),
+    sendSignInLinkToEmail: jest.fn(() => Promise.resolve()),
+    signInWithRedirect: jest.fn(() => Promise.resolve()),
+    signInWithEmailAndPassword: jest.fn(),
+    signOut: jest.fn(() => Promise.resolve()),
+    RecaptchaVerifier: jest.fn(),
+    signInWithPhoneNumber: jest.fn(),
+    onAuthStateChanged: jest.fn((_auth: unknown, cb: (u: unknown | null) => void) => {
+      cb(mockUser);
+      return jest.fn();
+    }),
+  };
+});
+
+jest.mock('idb', () => ({
+  openDB: jest.fn(async () => ({
+    put: jest.fn().mockResolvedValue(undefined),
+    delete: jest.fn().mockResolvedValue(undefined),
+    getAll: jest.fn(async () => []),
+    count: jest.fn(async () => 0),
+  })),
 }));
 
 jest.mock('firebase/firestore', () => ({
-  getFirestore: jest.fn(),
+  getFirestore: jest.fn(() => ({})),
+  initializeFirestore: jest.fn(() => ({})),
+  enableMultiTabIndexedDbPersistence: jest.fn(() => Promise.resolve()),
   collection: jest.fn(),
   doc: jest.fn(),
-  getDoc: jest.fn(),
+  getDoc: jest.fn(() => Promise.resolve({ exists: () => false, data: () => undefined })),
+  getDocFromCache: jest.fn(() => Promise.reject(new Error('no cache'))),
   getDocs: jest.fn(),
-  setDoc: jest.fn(),
+  setDoc: jest.fn(() => Promise.resolve()),
   updateDoc: jest.fn(),
-  addDoc: jest.fn(),
+  addDoc: jest.fn(() => Promise.resolve({ id: 'mock-doc' })),
+  deleteDoc: jest.fn(() => Promise.resolve()),
   query: jest.fn(),
   where: jest.fn(),
   orderBy: jest.fn(),
   limit: jest.fn(),
+  serverTimestamp: jest.fn(() => ({ _methodName: 'serverTimestamp' })),
+  Timestamp: {
+    now: jest.fn(() => ({ toMillis: () => Date.now() })),
+  },
   onSnapshot: jest.fn((_refOrQuery, callback) => {
     if (typeof callback === 'function') {
       callback({
@@ -154,3 +219,24 @@ jest.mock('firebase/firestore', () => ({
     return jest.fn();
   }),
 }));
+
+// JSDOM has no Web Speech API; dictation hook checks `window.SpeechRecognition`.
+if (typeof window !== "undefined") {
+  class JestMockSpeechRecognition {
+    lang = "";
+    continuous = false;
+    interimResults = false;
+    onresult: ((e: unknown) => void) | null = null;
+    onerror: ((e: { error?: string }) => void) | null = null;
+    onend: (() => void) | null = null;
+    start = jest.fn();
+    stop = jest.fn();
+    abort = jest.fn();
+  }
+
+  Object.defineProperty(window, "SpeechRecognition", {
+    writable: true,
+    configurable: true,
+    value: JestMockSpeechRecognition,
+  });
+}

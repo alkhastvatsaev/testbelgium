@@ -3,22 +3,23 @@ import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useDateContext } from '@/context/DateContext';
 import { generateDailyMissions, type Mission } from '@/utils/mockMissions';
+import { GLASS_PANEL_BODY_SCROLL } from '@/core/ui/glassPanelChrome';
 
 export default function DailyMissions({ missions: missionsProp, onMissionClick }: { missions?: Mission[]; onMissionClick?: (mission: any) => void }) {
   const { selectedDate } = useDateContext();
   const missions = useMemo(() => missionsProp ?? generateDailyMissions(selectedDate), [missionsProp, selectedDate]);
 
   return (
-    <div className="pointer-events-auto fixed left-12 top-1/2 -translate-y-1/2 z-40 w-[calc(50vw-35vh-100px+5mm)] h-[70vh] bg-white/70 backdrop-blur-[24px] backdrop-saturate-[180%] border-[1px] border-black/5 rounded-[24px] p-6 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.5)] overflow-hidden flex flex-col transition-all duration-500">
+    <div className="fixed left-12 top-1/2 z-40 flex h-[70vh] min-h-0 w-[calc(50vw-35vh-100px+5mm)] -translate-y-1/2 flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/70 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),0_24px_56px_-22px_rgba(15,23,42,0.08)] backdrop-blur-[24px] backdrop-saturate-[180%] transition-all duration-500">
       
-      <div className="flex-1 flex flex-col justify-start items-center overflow-y-auto pr-2 custom-scrollbar">
+      <div className={`${GLASS_PANEL_BODY_SCROLL} flex flex-col items-center justify-start`}>
         {/* Aligning the mission items to the top */}
-        <div className="grid grid-cols-3 gap-3 px-1 pt-1 pb-8">
+        <div className="grid grid-cols-3 gap-4 px-1 pb-8 pt-1">
           {missions.map((mission, index) => {
             const isDone = mission.status === 'Terminé';
             const inProgress = mission.status === 'En cours';
             
-            const baseShadow = '0 4px 12px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.5)';
+            const baseShadow = '0 6px 18px -4px rgba(15,23,42,0.1)';
             
             const activeGlow = isDone 
               ? '0 0 15px rgba(40,224,90,0.1), 0 5px 20px rgba(40,224,90,0.08)' 
@@ -42,9 +43,8 @@ export default function DailyMissions({ missions: missionsProp, onMissionClick }
                 : 'from-slate-600 via-slate-800 to-black';
             
             return (
-            <motion.div
-              key={mission.id}
-              data-testid={`daily-mission-${mission.id}`}
+              <motion.div
+                key={mission.key ?? String(mission.id)}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ 
                   opacity: 1, 

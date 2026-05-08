@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import "@/core/config/firebase-admin";
+import * as admin from "firebase-admin";
 import { getAdminDb } from "@/core/config/firebase-admin";
 import { readAudioUploadSidecarIfPresent } from "@/core/services/audio/transcript-sidecar";
 import { writeAudioDecisionToDisk } from "@/core/services/audio/audio-decision-store";
@@ -39,11 +41,18 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
   return { lat, lng };
 }
 
+async function verifyTenantCompany(uid: string, companyId: string): Promise<boolean> {
+  if (!admin.apps.length) return false;
+  const snap = await admin.firestore().doc(`users/${uid}/company_memberships/${companyId}`).get();
+  return snap.exists;
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => null)) as
       | {
           fileName?: unknown;
+          companyId?: unknown;
           override?: {
             address?: unknown;
             clientName?: unknown;
@@ -86,12 +95,39 @@ export async function POST(request: Request) {
     const nowIso = new Date().toISOString();
     const location = address ? await geocodeAddress(address) : null;
 
+    const authHeader = request.headers.get("authorization");
+    const bearer =
+      authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+    const rawCompanyId = typeof body?.companyId === "string" ? body.companyId.trim() : "";
+    let scopedCompanyId: string | null = null;
+    let createdByUid: string | null = null;
+
+    if (rawCompanyId && bearer && admin.apps.length) {
+      try {
+        const decoded = await admin.auth().verifyIdToken(bearer);
+        if (await verifyTenantCompany(decoded.uid, rawCompanyId)) {
+          scopedCompanyId = rawCompanyId;
+          createdByUid = decoded.uid;
+        }
+      } catch {
+        scopedCompanyId = null;
+        createdByUid = null;
+      }
+    }
+
     // Try Firestore Admin. If it's not configured locally, fallback to disk so the UI still works.
     let db: ReturnType<typeof getAdminDb> | null = null;
     try {
       db = getAdminDb();
     } catch {
       db = null;
+    }
+
+    if (rawCompanyId && db && !scopedCompanyId) {
+      return NextResponse.json(
+        { error: "companyId ou jeton invalide pour une intervention liée à une société." },
+        { status: 403 },
+      );
     }
 
     const ref = db ? db.collection("interventions").doc() : null;
@@ -112,6 +148,7 @@ export async function POST(request: Request) {
       transcription,
       audioUrl: sidecar.publicUrl,
       createdAt: nowIso,
+      ...(scopedCompanyId ? { companyId: scopedCompanyId, createdByUid } : {}),
     };
 
     if (ref) {

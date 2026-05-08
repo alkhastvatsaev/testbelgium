@@ -1,23 +1,26 @@
 import type { NextConfig } from "next";
 import withPWAInit from "@ducanh2912/next-pwa";
 
+/** En dev, la PWA (service worker) est désactivée par défaut — FCM Web a besoin du SW. Voir ENABLE_PWA_IN_DEV. */
+const pwaDisabledInDev =
+  process.env.NODE_ENV === "development" && process.env.ENABLE_PWA_IN_DEV !== "true";
+
 const withPWA = withPWAInit({
   dest: "public",
   cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
-  disable: process.env.NODE_ENV === "development",
+  disable: pwaDisabledInDev,
   workboxOptions: {
     disableDevLogs: true,
     runtimeCaching: [
       {
-        urlPattern: /^https:\/\/api\.mapbox\.com\/.*/i,
-        handler: 'CacheFirst',
+        urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+        handler: "StaleWhileRevalidate",
         options: {
-          cacheName: 'mapbox-tiles',
+          cacheName: "google-fonts",
           expiration: {
-            maxEntries: 2000, // Garde jusqu'à 2000 tuiles (tout Bruxelles)
-            maxAgeSeconds: 30 * 24 * 60 * 60, // Garde en mémoire pendant 30 jours
+            maxEntries: 24,
+            maxAgeSeconds: 365 * 24 * 60 * 60,
           },
           cacheableResponse: {
             statuses: [0, 200],

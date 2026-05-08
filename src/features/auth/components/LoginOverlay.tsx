@@ -6,6 +6,10 @@ import { auth, firestore } from '@/core/config/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber, onAuthStateChanged, signOut, ConfirmationResult } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
+import { CLIENT_PORTAL_PROFILE_COLLECTION } from '@/features/auth/clientPortalConstants';
+import { syncClientPortalProfile } from '@/features/auth/clientPortalProfile';
+import { GLASS_PANEL_BODY_SCROLL_WIDE } from '@/core/ui/glassPanelChrome';
+import { devUiPreviewEnabled } from '@/core/config/devUiPreview';
 
 export default function LoginOverlay({ children }: { children: React.ReactNode }) {
   const [loadingState, setLoadingState] = useState<'checking' | 'ready' | 'authenticating'>('checking');
@@ -19,7 +23,13 @@ export default function LoginOverlay({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     console.log("[LoginOverlay] Mount");
-    
+
+    if (devUiPreviewEnabled) {
+      setLoadingState('ready');
+      setIsAuthenticated(true);
+      return () => {};
+    }
+
     // 0. Récupérer le numéro sauvegardé si existant
     if (typeof window !== 'undefined') {
       const savedPhone = localStorage.getItem('saved_phone');
@@ -57,8 +67,15 @@ export default function LoginOverlay({ children }: { children: React.ReactNode }
 
       const unsubscribe = onAuthStateChanged(auth, async (user) => {
         console.log("[LoginOverlay] onAuthStateChanged fired, user:", !!user);
-        if (user && user.phoneNumber && firestore) {
-          // Vérifier la Whitelist Firestore
+
+        if (!user) {
+          console.log("[LoginOverlay] No user");
+          setIsAuthenticated(false);
+          setLoadingState('ready');
+          return;
+        }
+
+        if (user.phoneNumber && firestore) {
           try {
             console.log("[LoginOverlay] Checking whitelist for:", user.phoneNumber);
             const userDoc = await getDoc(doc(firestore, 'allowed_users', user.phoneNumber));
@@ -69,16 +86,43 @@ export default function LoginOverlay({ children }: { children: React.ReactNode }
               console.log("[LoginOverlay] User not allowed");
               await signOut(auth!);
               toast.error("Accès refusé", { description: "Votre numéro n'est pas autorisé." });
+              setIsAuthenticated(false);
             }
           } catch (e) {
             console.error("Erreur vérification whitelist", e);
             await signOut(auth!);
+            setIsAuthenticated(false);
           }
-        } else {
-          console.log("[LoginOverlay] No user or phone number");
-          setIsAuthenticated(false);
+          setLoadingState('ready');
+          return;
         }
-        console.log("[LoginOverlay] Setting ready from onAuthStateChanged");
+
+        // Client Portal — sans téléphone : SSO / lien e-mail (profil `client_portal_profiles`)
+        if (user.email && firestore) {
+          try {
+            const portalSnap = await getDoc(doc(firestore, CLIENT_PORTAL_PROFILE_COLLECTION, user.uid));
+            const oauth = user.providerData.some((p) =>
+              ["google.com", "microsoft.com"].includes(p.providerId),
+            );
+            const emailMagic =
+              user.providerData.some((p) => p.providerId === "password") && user.emailVerified;
+
+            if (oauth || portalSnap.exists() || emailMagic) {
+              setIsAuthenticated(true);
+              void syncClientPortalProfile(user);
+            } else {
+              setIsAuthenticated(false);
+            }
+          } catch (e) {
+            console.error("[LoginOverlay] Client portal gate", e);
+            setIsAuthenticated(false);
+          }
+          setLoadingState('ready');
+          return;
+        }
+
+        console.log("[LoginOverlay] No matching auth path");
+        setIsAuthenticated(false);
         setLoadingState('ready');
       });
 
@@ -247,19 +291,17 @@ export default function LoginOverlay({ children }: { children: React.ReactNode }
             <motion.div 
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white/70 border border-white/40 p-8 rounded-[40px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] max-w-md w-full mx-4 backdrop-blur-2xl relative overflow-hidden"
+              className="relative mx-4 flex max-h-[90vh] min-h-0 w-full max-w-md flex-col overflow-hidden rounded-[40px] border border-white/40 bg-white/70 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] backdrop-blur-2xl"
             >
               {/* Effet lumineux */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1.5 bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
-              
-              {/* Espacement ajusté en l'absence de logo */}
-              <div className="pt-2"></div>
+              <div className="pointer-events-none absolute left-1/2 top-0 h-1.5 w-full -translate-x-1/2 bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
 
+              <div className={`relative ${GLASS_PANEL_BODY_SCROLL_WIDE}`}>
+              <div className="pt-2" aria-hidden />
               {step === 'phone' ? (
                 <div className="flex flex-col items-center justify-center py-10">
                   <button
                     type="button"
-                    data-testid="login-dev-access-btn"
                     onClick={() => {
                       toast.success("Mode développeur activé");
                       setIsAuthenticated(true);
@@ -308,6 +350,7 @@ export default function LoginOverlay({ children }: { children: React.ReactNode }
                   </button>
                 </form>
               )}
+              </div>
 
             </motion.div>
           </motion.div>

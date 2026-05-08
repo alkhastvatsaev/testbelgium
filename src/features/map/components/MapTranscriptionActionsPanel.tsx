@@ -2,10 +2,13 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { firestore, isConfigured } from "@/core/config/firebase";
+import { auth, firestore, isConfigured } from "@/core/config/firebase";
 import type { AudioUploadSidecar } from "@/core/services/audio/transcription.types";
 import { addDoc, collection } from "firebase/firestore";
 import { extractClientNameFromText, extractDateTimeFromText } from "./transcriptionFormInference";
+import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
+import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
+import { recordDuplicateAlertIfNeeded } from "@/features/interventions/recordDuplicateAlertIfNeeded";
 
 type DecisionStatus = "none" | "refused" | "created";
 
@@ -37,6 +40,7 @@ export default function MapTranscriptionActionsPanel({
   openEditSignal = 0,
   scopedClipPublicUrl,
 }: Props) {
+  const workspace = useCompanyWorkspaceOptional();
   const [latest, setLatest] = useState<LatestAudioResponse | null>(null);
   const [busy, setBusy] = useState<null | "refuse" | "create">(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -187,10 +191,20 @@ export default function MapTranscriptionActionsPanel({
     if (!fileName) return;
     setBusy("create");
     try {
+      const tenantCompanyId =
+        workspace?.isTenantUser && workspace.activeCompanyId ? workspace.activeCompanyId : undefined;
+      const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+      const headers: Record<string, string> = { "content-type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
       const res = await fetch("/api/interventions/from-audio", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ fileName, override: form }),
+        headers,
+        body: JSON.stringify({
+          fileName,
+          override: form,
+          ...(tenantCompanyId ? { companyId: tenantCompanyId } : {}),
+        }),
       });
       if (res.ok) {
         const payload = (await res.json().catch(() => null)) as
@@ -235,6 +249,9 @@ export default function MapTranscriptionActionsPanel({
         const analysis = sidecar.analysis;
         const address = form.address.trim() || analysis.adresse?.trim() || null;
         const nowIso = new Date().toISOString();
+        const uid = auth?.currentUser?.uid ?? null;
+        const fallbackTenantCompanyId =
+          workspace?.isTenantUser && workspace.activeCompanyId ? workspace.activeCompanyId : undefined;
         const doc = {
           title: (form.problem.trim() || analysis.probleme?.trim() || "Intervention serrurerie").slice(0, 140),
           address: address ?? "Adresse inconnue",
@@ -251,9 +268,21 @@ export default function MapTranscriptionActionsPanel({
           transcription: analysis.transcription?.trim() || "",
           audioUrl: sidecar.publicUrl,
           createdAt: nowIso,
+          ...(fallbackTenantCompanyId ? { companyId: fallbackTenantCompanyId } : {}),
+          ...(uid ? { createdByUid: uid } : {}),
         };
 
-        await addDoc(collection(firestore, "interventions"), doc);
+        const createdRef = await addDoc(collection(firestore, "interventions"), doc);
+        if (uid) {
+          await recordDuplicateAlertIfNeeded({
+            db: firestore,
+            newInterventionId: createdRef.id,
+            companyId: fallbackTenantCompanyId ?? null,
+            address: doc.address,
+            problem: (doc.problem ?? doc.title ?? "").trim(),
+            createdByUid: uid,
+          }).catch(() => null);
+        }
         onInterventionCreated?.({
           id: Date.now(),
           key: fileName,
@@ -282,7 +311,7 @@ export default function MapTranscriptionActionsPanel({
     } finally {
       setBusy(null);
     }
-  }, [fileName, latest?.audio?.meta, form, onInterventionCreated]);
+  }, [fileName, latest?.audio?.meta, form, onInterventionCreated, workspace]);
 
   return (
     <>
@@ -295,9 +324,9 @@ export default function MapTranscriptionActionsPanel({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 18, scale: 0.99 }}
             transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.8 }}
-            className="pointer-events-auto fixed left-12 top-1/2 z-[90] flex h-[70vh] w-[calc(50vw-35vh-100px+5mm)] -translate-y-1/2 flex-col rounded-[24px] border border-black/10 bg-white/85 p-6 shadow-[0_40px_90px_-22px_rgba(0,0,0,0.25)] backdrop-blur-2xl"
+            className="pointer-events-auto fixed left-12 top-1/2 z-[90] flex h-[70vh] min-h-0 w-[calc(50vw-35vh-100px+5mm)] -translate-y-1/2 flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/85 shadow-[0_36px_72px_-22px_rgba(0,0,0,0.18),0_24px_52px_-22px_rgba(15,23,42,0.1)] backdrop-blur-2xl"
           >
-            <div className="custom-scrollbar grid min-h-0 flex-1 grid-cols-2 gap-3 overflow-y-auto pr-2">
+            <div className={`${GLASS_PANEL_BODY_SCROLL_COMPACT} grid grid-cols-2 gap-3 pr-2`}>
               <label className="col-span-2">
                 <div className="mb-1 text-[11px] font-bold text-slate-700">Adresse</div>
                 <input
@@ -371,13 +400,13 @@ export default function MapTranscriptionActionsPanel({
               </label>
             </div>
 
-            <div className="mt-auto flex w-full flex-shrink-0 gap-3 border-t border-black/10 pt-4">
+            <div className="mt-auto flex w-full shrink-0 gap-3 border-t border-black/10 px-4 pb-5 pt-4">
               <button
                 type="button"
                 data-testid="edit-delete"
                 onClick={() => void supprimer()}
                 disabled={busy !== null}
-                className="flex h-12 min-w-0 flex-1 items-center justify-center rounded-xl bg-red-600 text-sm font-bold text-white shadow-[0_10px_28px_rgba(220,38,38,0.35)] transition hover:bg-red-700 disabled:opacity-50"
+                className="flex h-12 min-w-0 flex-1 items-center justify-center rounded-xl bg-red-600 text-sm font-bold text-white shadow-[0_10px_26px_-6px_rgba(220,38,38,0.45)] transition hover:bg-red-700 disabled:opacity-50"
               >
                 Supprimer
               </button>
@@ -386,7 +415,7 @@ export default function MapTranscriptionActionsPanel({
                 data-testid="edit-create"
                 onClick={() => void create()}
                 disabled={busy !== null || !isValid}
-                className="flex h-12 min-w-0 flex-1 items-center justify-center rounded-xl bg-emerald-600 text-sm font-bold text-white shadow-[0_12px_30px_rgba(16,185,129,0.35)] transition hover:bg-emerald-700 disabled:opacity-50"
+                className="flex h-12 min-w-0 flex-1 items-center justify-center rounded-xl bg-emerald-600 text-sm font-bold text-white shadow-[0_12px_28px_-6px_rgba(16,185,129,0.42)] transition hover:bg-emerald-700 disabled:opacity-50"
               >
                 Créer
               </button>

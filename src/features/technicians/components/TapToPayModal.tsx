@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { CreditCard, CheckCircle2, X } from 'lucide-react';
+import { GLASS_PANEL_BODY_SCROLL_COMPACT } from '@/core/ui/glassPanelChrome';
 
 export default function TapToPayModal({ onClose, amount = "149,00" }: { onClose: () => void, amount?: string }) {
   const [phase, setPhase] = useState<'waiting' | 'processing' | 'success'>('waiting');
@@ -20,24 +21,24 @@ export default function TapToPayModal({ onClose, amount = "149,00" }: { onClose:
   }, [phase, onClose]);
 
   return (
-    <div data-testid="tap-to-pay-modal" className="fixed inset-0 z-[60] flex items-end justify-center font-['Outfit'] sm:items-center">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center font-['Outfit'] sm:items-center">
       <div className="absolute inset-0 bg-slate-200/40 backdrop-blur-md" onClick={onClose} />
       
-      <div className="bg-white/90 w-full sm:w-[400px] h-[70vh] sm:h-[500px] rounded-t-[40px] sm:rounded-[40px] relative z-10 p-8 flex flex-col items-center justify-between border border-white shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] animate-in slide-in-from-bottom-full duration-300 backdrop-blur-2xl">
+      <div className="relative z-10 flex h-[70vh] min-h-0 w-full max-w-full flex-col overflow-hidden rounded-t-[40px] border border-white bg-white/90 backdrop-blur-2xl animate-in slide-in-from-bottom-full duration-300 sm:h-[500px] sm:w-[400px] sm:rounded-[40px] sm:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)]">
         
         {/* Drag handle */}
-        <div className="w-12 h-1.5 bg-slate-200 rounded-full absolute top-4 left-1/2 -translate-x-1/2 sm:hidden" />
+        <div className="absolute left-1/2 top-4 h-1.5 w-12 -translate-x-1/2 rounded-full bg-slate-200 sm:hidden" />
         
-        <button type="button" data-testid="tap-to-pay-close" onClick={onClose} className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+        <button type="button" onClick={onClose} className="absolute right-6 top-6 z-20 rounded-full bg-slate-100 p-2 text-slate-400 transition-colors hover:text-slate-600">
           <X className="w-5 h-5" />
         </button>
 
-        <div className="text-center mt-6">
-          <h2 className="text-slate-500 font-bold text-xs uppercase tracking-widest mb-2">Montant à régler</h2>
-          <div className="text-5xl font-black text-slate-900 tracking-tight">{amount} €</div>
+        <div className="shrink-0 px-8 pb-2 pt-14 text-center">
+          <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500">Montant à régler</h2>
+          <div className="text-5xl font-black tracking-tight text-slate-900">{amount} €</div>
         </div>
 
-        <div className="flex-1 flex items-center justify-center relative w-full">
+        <div className={`${GLASS_PANEL_BODY_SCROLL_COMPACT} relative flex flex-col items-center justify-center`}>
           {/* NFC Waves Animation */}
           {phase === 'waiting' && (
             <div className="absolute inset-0 flex items-center justify-center">
@@ -47,10 +48,10 @@ export default function TapToPayModal({ onClose, amount = "149,00" }: { onClose:
           )}
 
           {/* Center Icon */}
-          <div className={`w-28 h-28 rounded-full flex items-center justify-center relative z-10 transition-all duration-500 ${
-            phase === 'success' ? 'bg-emerald-600 text-white scale-110 shadow-[0_0_40px_rgba(16,185,129,0.3)]' :
-            phase === 'processing' ? 'bg-blue-600 text-white scale-100 shadow-[0_0_30px_rgba(59,130,246,0.3)]' :
-            'bg-slate-100 text-slate-400 scale-100'
+          <div className={`relative z-10 flex h-28 w-28 items-center justify-center rounded-full transition-all duration-500 ${
+            phase === 'success' ? 'scale-110 bg-emerald-600 text-white shadow-[0_0_40px_rgba(16,185,129,0.3)]' :
+            phase === 'processing' ? 'scale-100 bg-blue-600 text-white shadow-[0_0_30px_rgba(59,130,246,0.3)]' :
+            'scale-100 bg-slate-100 text-slate-400'
           }`}>
             {phase === 'success' ? (
               <CheckCircle2 className="w-12 h-12" />
@@ -60,7 +61,7 @@ export default function TapToPayModal({ onClose, amount = "149,00" }: { onClose:
           </div>
         </div>
 
-        <div className="text-center w-full pb-6">
+        <div className="w-full shrink-0 px-8 pb-8 text-center">
           <div className="text-xl font-bold text-slate-900 mb-2">
             {phase === 'waiting' && "Approchez la carte"}
             {phase === 'processing' && "Traitement..."}

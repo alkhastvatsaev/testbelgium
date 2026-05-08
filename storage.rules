@@ -1,0 +1,25 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    /** Photos + signature de fin d’intervention — utilisateurs authentifiés uniquement. */
+    match /interventions/{interventionId}/completion/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.size < 15 * 1024 * 1024
+        && (
+          request.resource.contentType.matches('image/jpeg')
+          || request.resource.contentType.matches('image/png')
+        );
+    }
+
+    /** Factures PDF (écriture Admin SDK / Functions uniquement). */
+    match /invoices/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
