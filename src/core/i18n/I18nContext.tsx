@@ -7,7 +7,7 @@ import nl from './locales/nl.json';
  
 export type Language = 'fr' | 'en' | 'nl';
  
-type Translations = Record<string, string>;
+type Translations = Record<string, any>;
  
 const dictionaries: Record<Language, Translations> = {
   fr,
@@ -45,14 +45,35 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const t = (key: string): string => {
     // Avoid hydration mismatch by rendering default keys or French on first pass if needed, 
     // but typically dictionaries are small and fast.
-    const dict = dictionaries[language];
-    return dict[key] || key;
+    const dict = dictionaries[language] as any;
+    const keys = key.split('.');
+    let result = dict;
+    for (const k of keys) {
+      if (result && typeof result === 'object' && k in result) {
+        result = result[k];
+      } else {
+        return key;
+      }
+    }
+    return typeof result === 'string' ? result : key;
   };
 
   // Wait for client to avoid hydration mismatch if language is different from 'fr'
   if (!isClient) {
     return (
-      <I18nContext.Provider value={{ language: 'fr', setLanguage, t: (key) => dictionaries['fr'][key] || key }}>
+      <I18nContext.Provider value={{ language: 'fr', setLanguage, t: (key) => {
+        const dict = dictionaries['fr'] as any;
+        const keys = key.split('.');
+        let result = dict;
+        for (const k of keys) {
+          if (result && typeof result === 'object' && k in result) {
+            result = result[k];
+          } else {
+            return key;
+          }
+        }
+        return typeof result === 'string' ? result : key;
+      } }}>
         {children}
       </I18nContext.Provider>
     );

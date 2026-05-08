@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/core/i18n/I18nContext";
 
-const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
+const springTransition = { type: "spring", bounce: 0, duration: 0.5 } as const;
 
 type TrackedIntervention = {
   id: string;
@@ -74,8 +74,6 @@ function useMyLatestIntervention() {
   return { intervention, loading };
 }
 
-const springTransition = { type: "spring", bounce: 0, duration: 0.5 } as const;
-
 export default function RequesterTrackingPanel() {
   const { isSubmitting, requestData, lastSubmittedRequest } = useRequesterHub();
   const { intervention: latestIntervention, loading: interventionLoading } = useMyLatestIntervention();
@@ -132,10 +130,9 @@ export default function RequesterTrackingPanel() {
   return (
     <div
       data-testid="requester-tracking-panel"
-      style={outfit}
-      className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white"
+      className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white/60 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] border-l border-white/40 font-brand"
     >
-      <div className="relative flex-1 overflow-y-auto px-2 py-4">
+      <div className="relative flex-1 overflow-y-auto px-2 py-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {interventionLoading && !latestIntervention && !isSubmitting && requestData.description.trim().length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <motion.div

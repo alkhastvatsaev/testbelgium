@@ -29,6 +29,8 @@ interface RequesterHubContextValue {
   setProfile: React.Dispatch<React.SetStateAction<RequesterProfile>>;
   requestData: InterventionRequestData;
   setRequestData: React.Dispatch<React.SetStateAction<InterventionRequestData>>;
+  currentStep: number;
+  setCurrentStep: React.Dispatch<React.SetStateAction<number>>;
   lastSubmittedRequest: InterventionRequestData | null;
   setLastSubmittedRequest: (request: InterventionRequestData | null) => void;
   isSubmitting: boolean;
@@ -64,6 +66,7 @@ const STORAGE_KEY = "map-belgique-requester-draft-v1";
 export function RequesterHubProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<RequesterProfile>(defaultProfile);
   const [requestData, setRequestData] = useState<InterventionRequestData>(defaultRequestData);
+  const [currentStep, setCurrentStep] = useState(0);
   const [lastSubmittedRequest, setLastSubmittedRequest] = useState<InterventionRequestData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationFailedCount, setValidationFailedCount] = useState(0);
@@ -99,12 +102,14 @@ export function RequesterHubProvider({ children }: { children: ReactNode }) {
 
   const resetRequestOnly = () => {
     setRequestData(defaultRequestData);
+    setCurrentStep(0);
     setValidationFailedCount(0);
   };
 
   const resetAll = () => {
     setProfile(defaultProfile);
     setRequestData(defaultRequestData);
+    setCurrentStep(0);
     setLastSubmittedRequest(null);
     localStorage.removeItem(STORAGE_KEY);
   };
@@ -116,6 +121,8 @@ export function RequesterHubProvider({ children }: { children: ReactNode }) {
         setProfile,
         requestData,
         setRequestData,
+        currentStep,
+        setCurrentStep,
         lastSubmittedRequest,
         setLastSubmittedRequest,
         isSubmitting,

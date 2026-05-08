@@ -654,9 +654,9 @@ export default function SmartInterventionRequestForm() {
       ) : null}
 
       {step === 2 ? (
-        <div className="flex flex-col gap-3" role="region" aria-label="Étape 2 — Type de problème">
-          <p className="text-center text-[15px] font-bold tracking-tight text-slate-900">Type de problème</p>
-          <div className="grid grid-cols-3 justify-items-center gap-3 px-0.5" role="list" aria-label="Modèles de problème">
+        <div className="flex flex-col gap-4 -mt-4" role="region" aria-label="Étape 2 — Type de problème">
+          <p className="text-center text-[16px] font-extrabold tracking-tight text-slate-900">Type de problème</p>
+          <div className="grid grid-cols-3 justify-items-center gap-3 px-1" role="list" aria-label="Modèles de problème">
             {SMART_FORM_TEMPLATES.map((t) => {
               const active = problemLabel === t.label;
               const tileLabel = t.labelLines ? `${t.labelLines[0]}\n${t.labelLines[1]}` : t.label;
@@ -667,9 +667,10 @@ export default function SmartInterventionRequestForm() {
                   role="listitem"
                   data-testid={`smart-form-template-${t.id}`}
                   className={cn(
-                    "flex aspect-square w-full max-w-[108px] flex-col items-center justify-center rounded-[24px] border border-black/[0.06] bg-white/95 p-2.5 text-center shadow-[0_6px_18px_-4px_rgba(15,23,42,0.1)] outline-none ring-2 ring-transparent transition duration-200 hover:scale-[1.02] hover:shadow-[0_6px_18px_-4px_rgba(15,23,42,0.1),0_0_12px_rgba(59,130,246,0.15)] hover:ring-blue-500/35 active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-slate-900/20",
-                    active &&
-                      "shadow-[0_6px_18px_-4px_rgba(15,23,42,0.1),0_0_12px_rgba(59,130,246,0.15)] ring-blue-500/35",
+                    "group relative flex aspect-square w-[95px] flex-col items-center justify-center rounded-[24px] border transition-all duration-[400ms] ease-out outline-none active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-blue-500/30",
+                    active
+                      ? "border-blue-200 bg-white shadow-[0_6px_18px_-4px_rgba(15,23,42,0.1),0_0_15px_rgba(59,130,246,0.15),0_5px_20px_rgba(59,130,246,0.12)] scale-[1.02]"
+                      : "border-black/[0.06] bg-white/95 shadow-[0_6px_18px_-4px_rgba(15,23,42,0.1)] hover:scale-[1.02] hover:border-blue-100 hover:shadow-[0_6px_18px_-4px_rgba(15,23,42,0.1),0_0_15px_rgba(59,130,246,0.08),0_5px_20px_rgba(59,130,246,0.06)]"
                   )}
                   onClick={() => {
                     setProblemLabel(t.label);
@@ -679,9 +680,9 @@ export default function SmartInterventionRequestForm() {
                 >
                   <span
                     className={cn(
-                      "block w-full text-center line-clamp-2 bg-gradient-to-br bg-clip-text text-[13px] font-bold leading-snug tracking-[-0.015em] text-transparent",
+                      "block w-full text-center line-clamp-2 bg-gradient-to-br bg-clip-text text-[13px] font-bold leading-snug tracking-[-0.015em] text-transparent px-1",
                       t.labelLines ? "whitespace-pre-line" : "text-balance whitespace-normal",
-                      active ? "from-blue-600 via-indigo-600 to-slate-900" : "from-slate-600 via-slate-800 to-black",
+                      active ? "from-blue-500 via-indigo-500 to-violet-600" : "from-slate-600 via-slate-800 to-black"
                     )}
                   >
                     {tileLabel}

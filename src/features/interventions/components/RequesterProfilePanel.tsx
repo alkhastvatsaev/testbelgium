@@ -6,8 +6,6 @@ import { useRequesterHub, RequesterType } from "../context/RequesterHubContext";
 import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
 import { cn } from "@/lib/utils";
 import { motion, useAnimation } from "framer-motion";
-import { useTranslation } from "@/core/i18n/I18nContext";
-
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
 const inputClass =
@@ -22,8 +20,6 @@ const glassRow =
 export default function RequesterProfilePanel() {
   const { profile, setProfile, validationFailedCount } = useRequesterHub();
   const shakeControls = useAnimation();
-  const { t } = useTranslation();
-
   useEffect(() => {
     if (validationFailedCount > 0) {
       shakeControls.start({
@@ -55,7 +51,7 @@ export default function RequesterProfilePanel() {
             )}
           >
             <UserRound className="h-4 w-4" />
-            {t("profile.individual") || "Particulier"}
+            Particulier
           </button>
           <button
             type="button"
@@ -69,7 +65,7 @@ export default function RequesterProfilePanel() {
             )}
           >
             <Building2 className="h-4 w-4" />
-            {t("profile.company") || "Société"}
+            Société
           </button>
         </div>
 
@@ -84,7 +80,7 @@ export default function RequesterProfilePanel() {
               </span>
               <input
                 type="text"
-                placeholder={t("profile.companyName") || "Nom de la société"}
+                placeholder="Nom de la société"
                 value={profile.companyName}
                 onChange={(e) => setProfile((prev) => ({ ...prev, companyName: e.target.value }))}
                 className={cn(inputClass, isInvalid(profile.companyName) && "placeholder:text-red-300")}
@@ -101,7 +97,7 @@ export default function RequesterProfilePanel() {
             </span>
             <input
               type="text"
-              placeholder={t("profile.firstName") || "Prénom"}
+              placeholder="Prénom"
               value={profile.firstName}
               onChange={(e) => setProfile((prev) => ({ ...prev, firstName: e.target.value }))}
               className={cn(inputClass, isInvalid(profile.firstName) && "placeholder:text-red-300")}
@@ -117,7 +113,7 @@ export default function RequesterProfilePanel() {
             </span>
             <input
               type="text"
-              placeholder={t("profile.lastName") || "Nom"}
+              placeholder="Nom"
               value={profile.lastName}
               onChange={(e) => setProfile((prev) => ({ ...prev, lastName: e.target.value }))}
               className={cn(inputClass, isInvalid(profile.lastName) && "placeholder:text-red-300")}
@@ -135,7 +131,7 @@ export default function RequesterProfilePanel() {
             </span>
             <input
               type="tel"
-              placeholder={t("profile.phone") || "Téléphone"}
+              placeholder="Téléphone"
               value={profile.phone}
               onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))}
               className={cn(inputClass, isInvalid(profile.phone) && "placeholder:text-red-300")}
@@ -151,7 +147,7 @@ export default function RequesterProfilePanel() {
             </span>
             <input
               type="text"
-              placeholder={t("profile.defaultAddress") || "Adresse habituelle"}
+              placeholder="Adresse habituelle"
               value={profile.defaultAddress}
               onChange={(e) => setProfile((prev) => ({ ...prev, defaultAddress: e.target.value }))}
               className={cn(inputClass, isInvalid(profile.defaultAddress) && "placeholder:text-red-300")}

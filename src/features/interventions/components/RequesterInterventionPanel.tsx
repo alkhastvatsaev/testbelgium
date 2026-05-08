@@ -3,8 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRequesterHub } from "../context/RequesterHubContext";
-import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
-import { ImagePlus, Loader2, MapPin, Mic, SendHorizontal, Trash2, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { ImagePlus, Loader2, MapPin, Mic, SendHorizontal, Trash2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { addDoc, collection, deleteDoc, doc } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
@@ -18,6 +17,7 @@ import { recordDuplicateAlertIfNeeded } from "@/features/interventions/recordDup
 import { resolveInterventionAddressFromCoords } from "@/features/interventions/smartFormReverseGeocode";
 import SmartFormAddressAutocomplete from "@/features/interventions/components/SmartFormAddressAutocomplete";
 import SmartFormAddressMiniMap from "@/features/interventions/components/SmartFormAddressMiniMap";
+import RequesterInterventionStepperHeader from "./RequesterInterventionStepperHeader";
 import { useBrowserSpeechDictation } from "@/features/interventions/useBrowserSpeechDictation";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
@@ -106,18 +106,18 @@ export default function RequesterInterventionPanel() {
     profile,
     requestData,
     setRequestData,
+    currentStep,
+    setCurrentStep,
     isSubmitting,
     setIsSubmitting,
     setLastSubmittedRequest,
-    resetRequestOnly,
+    resetAll,
     triggerValidation,
   } = useRequesterHub();
   const workspace = useCompanyWorkspaceOptional();
   const tenantCompanyId = workspace?.isTenantUser && workspace.activeCompanyId ? workspace.activeCompanyId : null;
   const { t } = useTranslation();
-
   const [locatingAddress, setLocatingAddress] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -169,7 +169,9 @@ export default function RequesterInterventionPanel() {
             interventionAddress: formatted || "",
           }));
           if (!formatted) {
-            toast.message(t("intervention.address_saved") || "Position enregistrée", { description: t("intervention.complete_address") || "Complétez l'adresse si besoin." });
+            toast.message(t("intervention.address_saved") || "Position enregistrée", {
+              description: t("intervention.complete_address") || "Complétez l'adresse si besoin.",
+            });
           }
         } catch {
           toast.error(t("intervention.cant_get_address") || "Impossible de récupérer l'adresse");
@@ -200,7 +202,7 @@ export default function RequesterInterventionPanel() {
         try {
           encoded.push(await compressImageToDataUrl(file));
         } catch {
-          toast.error(t("intervention.image_not_read") || "Image non lue");
+          toast.error("Image non lue");
         }
       }
       setRequestData((prev) => {
@@ -239,24 +241,24 @@ export default function RequesterInterventionPanel() {
 
     if (missingProfileFields.length > 0) {
       triggerValidation();
-      toast.error(t("intervention.fill_info_first") || "Veuillez remplir vos informations (Panneau de gauche)");
+      toast.error("Veuillez remplir vos informations (Panneau de gauche)");
       return;
     }
 
     if (!interventionAddress.trim()) {
-      toast.error(t("intervention.address_req") || "Adresse requise");
+      toast.error("Adresse requise");
       return;
     }
     if (interventionAddress === GEOLOC_ADDRESS_PENDING) {
-      toast.error(t("intervention.address_pending") || "Adresse encore en cours de recherche");
+      toast.error("Adresse encore en cours de recherche");
       return;
     }
     if (!problemLabel.trim() && !description.trim()) {
-      toast.error(t("intervention.problem_req") || "Problème requis");
+      toast.error("Problème requis");
       return;
     }
     if (workspace?.isTenantUser && !tenantCompanyId) {
-      toast.error(t("intervention.company_req") || "Société active requise");
+      toast.error("Société active requise");
       return;
     }
     const user = await ensureUserForInterventionSubmit();
@@ -315,8 +317,7 @@ export default function RequesterInterventionPanel() {
         interventionAddress,
         interventionLatLng,
       });
-      resetRequestOnly();
-      setCurrentStep(0);
+      resetAll();
       toast.success(t("intervention.request_saved") || "Demande enregistrée");
     } catch (e) {
       console.error(e);
@@ -324,13 +325,6 @@ export default function RequesterInterventionPanel() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleNext = () => {
-    if (currentStep < 3) setCurrentStep((prev) => prev + 1);
-  };
-  const handleBack = () => {
-    if (currentStep > 0) setCurrentStep((prev) => prev - 1);
   };
 
   const handleProblemSelect = (label: string) => {
@@ -348,38 +342,9 @@ export default function RequesterInterventionPanel() {
 
   return (
     <div data-testid="requester-intervention-panel" style={outfit} className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white">
-      {/* Header */}
-      <div className="flex shrink-0 items-center justify-between bg-white px-4 py-3 z-10">
-        <button
-          onClick={handleBack}
-          disabled={currentStep === 0}
-          className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-        >
-          <ChevronLeft className="h-5 w-5 text-slate-900" />
-        </button>
-        <div className="flex gap-1.5">
-          {[0, 1, 2, 3].map((step) => (
-            <div
-              key={step}
-              className={cn(
-                "h-1.5 rounded-full transition-all duration-300",
-                currentStep === step ? "w-4 bg-black" : "w-1.5 bg-slate-200"
-              )}
-            />
-          ))}
-        </div>
-        <div className="w-8">
-          {currentStep > 0 && currentStep < 3 && (
-            <button
-              onClick={handleNext}
-              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
-            >
-              <ChevronRight className="h-5 w-5 text-slate-900" />
-            </button>
-          )}
-        </div>
+      <div className="shrink-0">
+        <RequesterInterventionStepperHeader />
       </div>
-
       {/* Body with AnimatePresence */}
       <div className="relative flex-1 overflow-hidden">
         <AnimatePresence mode="wait" initial={false}>
@@ -391,42 +356,46 @@ export default function RequesterInterventionPanel() {
               animate="animate"
               exit="exit"
               transition={springTransition}
-              className="absolute inset-0 flex flex-col overflow-y-auto"
+              className="absolute inset-0 flex flex-col overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
-              <div className="grid grid-cols-3 gap-4 px-1 pt-2 pb-8 content-start flex-1">
-                {SMART_FORM_TEMPLATES.map((tpl) => {
-                  const selected = problemLabel === tpl.label;
-                  return (
-                    <motion.button
-                      key={tpl.id}
-                      type="button"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.96 }}
-                      onClick={() => handleProblemSelect(tpl.label)}
-                      className={cn(
-                        "group relative flex w-full aspect-square flex-col items-center justify-center p-1.5 text-center outline-none rounded-[24px] transition-colors duration-200",
-                        selected ? "bg-black text-white shadow-md" : "bg-white border border-black/5 hover:border-black/10 text-slate-800 shadow-sm"
-                      )}
-                    >
-                      <div className="flex flex-col items-center justify-center gap-1">
-                        {tpl.labelLines ? (
-                          <>
-                            <span className="text-[12px] font-bold tracking-tight leading-tight">
-                              {t(tpl.labelLines[0])}
-                            </span>
-                            <span className="text-[12px] font-bold tracking-tight leading-tight">
-                              {t(tpl.labelLines[1])}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-[12px] font-bold tracking-tight leading-tight line-clamp-3">
-                            {t(tpl.label)}
-                          </span>
+              <div className="flex min-h-full flex-1 items-center justify-center py-4">
+                <div className="-translate-y-3 grid w-full max-w-[440px] grid-cols-3 gap-3 px-1">
+                  {SMART_FORM_TEMPLATES.map((tpl) => {
+                    const selected = problemLabel === tpl.label;
+                    return (
+                      <motion.button
+                        key={tpl.id}
+                        type="button"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => handleProblemSelect(tpl.label)}
+                        className={cn(
+                          "group relative flex w-full aspect-square flex-col items-center justify-center p-1 text-center outline-none rounded-[22px] transition-all duration-200",
+                          selected
+                            ? "bg-white border border-blue-200 text-slate-800 shadow-[0_4px_20px_-4px_rgba(59,130,246,0.45)]"
+                            : "bg-white border border-black/5 hover:border-black/10 text-slate-800 shadow-sm",
                         )}
-                      </div>
-                    </motion.button>
-                  );
-                })}
+                      >
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          {tpl.labelLines ? (
+                            <>
+                              <span className="text-[11px] font-bold tracking-tight leading-tight">
+                                {t(tpl.labelLines[0])}
+                              </span>
+                              <span className="text-[11px] font-bold tracking-tight leading-tight">
+                                {t(tpl.labelLines[1])}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-[11px] font-bold tracking-tight leading-tight line-clamp-3">
+                              {t(tpl.label)}
+                            </span>
+                          )}
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </div>
               </div>
             </motion.div>
           )}
@@ -439,10 +408,11 @@ export default function RequesterInterventionPanel() {
               animate="animate"
               exit="exit"
               transition={springTransition}
-              className="absolute inset-0 flex flex-col overflow-y-auto"
+              className="absolute inset-0 flex flex-col overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
               {suggestions.length > 0 && (
-                  <div className="grid grid-cols-3 gap-4 px-1 pt-2 pb-8 content-start flex-1">
+                <div className="flex min-h-full flex-1 items-center justify-center py-4">
+                  <div className="-translate-y-3 grid w-full max-w-[440px] grid-cols-3 gap-3 px-1">
                     {suggestions.map((sugg, index) => {
                       const isSelected = description.includes(sugg);
 
@@ -456,7 +426,7 @@ export default function RequesterInterventionPanel() {
                             if (isSelected) {
                               setRequestData((prev) => ({
                                 ...prev,
-                                description: prev.description.replace(sugg, '').replace(/\s{2,}/g, ' ').trim()
+                                description: prev.description.replace(sugg, "").replace(/\s{2,}/g, " ").trim(),
                               }));
                             } else {
                               setRequestData((prev) => {
@@ -465,7 +435,7 @@ export default function RequesterInterventionPanel() {
                                   if (group.includes(sugg)) {
                                     group.forEach((exSugg) => {
                                       if (exSugg !== sugg) {
-                                        newDesc = newDesc.replace(exSugg, '').replace(/\s{2,}/g, ' ').trim();
+                                        newDesc = newDesc.replace(exSugg, "").replace(/\s{2,}/g, " ").trim();
                                       }
                                     });
                                   }
@@ -478,24 +448,27 @@ export default function RequesterInterventionPanel() {
                             }
                           }}
                           className={cn(
-                            "group relative flex w-full aspect-square flex-col items-center justify-center p-1.5 text-center outline-none rounded-[24px] transition-colors duration-200",
-                            isSelected ? "bg-black text-white shadow-md" : "bg-white border border-black/5 hover:border-black/10 text-slate-800 shadow-sm"
+                            "group relative flex w-full aspect-square flex-col items-center justify-center p-1 text-center outline-none rounded-[22px] transition-all duration-200",
+                            isSelected
+                              ? "bg-white border border-blue-200 text-slate-800 shadow-[0_4px_20px_-4px_rgba(59,130,246,0.45)]"
+                              : "bg-white border border-black/5 hover:border-black/10 text-slate-800 shadow-sm",
                           )}
                         >
                           <div className="flex flex-col items-center justify-center gap-1">
-                            <span className="text-[12px] font-bold tracking-tight leading-tight line-clamp-3">
+                            <span className="text-[11px] font-bold tracking-tight leading-tight line-clamp-3">
                               {t(sugg)}
                             </span>
                           </div>
-                          {isSelected && (
-                            <div className="absolute top-2 right-2 h-4 w-4 bg-white text-black rounded-full flex items-center justify-center shadow-sm">
+                          {isSelected ? (
+                            <div className="absolute top-2 right-2 h-4 w-4 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-sm">
                               <Check className="h-2.5 w-2.5" />
                             </div>
-                          )}
+                          ) : null}
                         </motion.button>
                       );
                     })}
                   </div>
+                </div>
               )}
 
 
@@ -510,9 +483,9 @@ export default function RequesterInterventionPanel() {
               animate="animate"
               exit="exit"
               transition={springTransition}
-              className="absolute inset-0 flex flex-col gap-6 px-1 overflow-y-auto"
+              className="absolute inset-0 flex flex-col gap-6 px-10 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 -mt-4">
                 <input
                   type="file"
                   accept="image/*"
@@ -526,7 +499,7 @@ export default function RequesterInterventionPanel() {
                     e.target.value = "";
                   }}
                 />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-6">
                   {Array.from({ length: SMART_FORM_MAX_PHOTOS }, (_, i) => {
                     const src = photoDataUrls[i];
                     const filled = Boolean(src);
@@ -555,7 +528,7 @@ export default function RequesterInterventionPanel() {
                             <div className="rounded-full bg-white shadow-sm p-3 transition-transform duration-300 group-hover:scale-105">
                               <ImagePlus className="h-6 w-6 text-slate-800" />
                             </div>
-                            <span className="text-[14px] font-bold tracking-tight">{t("intervention.add") || "Ajouter"}</span>
+                            <span className="text-[14px] font-bold tracking-tight">Ajouter</span>
                           </button>
                         ) : (
                           <div className="flex h-full w-full items-center justify-center rounded-[24px] bg-slate-50 border border-black/5">
@@ -579,7 +552,7 @@ export default function RequesterInterventionPanel() {
               animate="animate"
               exit="exit"
               transition={springTransition}
-              className="absolute inset-0 flex flex-col gap-4 px-1 overflow-y-auto"
+              className="absolute inset-0 flex flex-col gap-4 px-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
               <div className="flex flex-col gap-2 h-full">
                 <div className="flex flex-col gap-3 rounded-[24px] bg-white p-3 shadow-sm border border-black/5">
@@ -602,7 +575,7 @@ export default function RequesterInterventionPanel() {
                       type="button"
                       onClick={fillAddressFromGeolocation}
                       disabled={locatingAddress}
-                      aria-label={t("intervention.use_my_loc") || "Utiliser ma position"}
+                      aria-label="Utiliser ma position"
                       className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[14px] bg-slate-100 transition-colors hover:bg-slate-200 disabled:opacity-50"
                     >
                       {locatingAddress ? (
@@ -635,7 +608,7 @@ export default function RequesterInterventionPanel() {
                     ) : (
                       <>
                         <SendHorizontal className="h-5 w-5" />
-                        {t("intervention.send_request") || "Envoyer la demande"}
+Envoyer la demande
                       </>
                     )}
                   </button>
