@@ -537,11 +537,16 @@ export default function SmartInterventionRequestForm() {
       toast.error("Adresse requise");
       return;
     }
+    const finalAudioBlob = audioRecorder.audioBlob || audioBlob;
+    const promiseFunc = audioRecorder.transcriptionPromise;
+    const tPromise = promiseFunc ? promiseFunc() : null;
+    let finalTranscription = audioTranscription || audioRecorder.transcription;
+
     if (address === GEOLOC_ADDRESS_PENDING) {
       toast.error("Adresse encore en cours de recherche");
       return;
     }
-    if (!description.trim() && !audioBlob && !audioTranscription.trim() && !audioRecorder.transcription) {
+    if (!description.trim() && !finalAudioBlob && !finalTranscription.trim() && !audioRecorder.isTranscribing) {
       toast.error("Description ou audio requis");
       return;
     }
@@ -556,28 +561,47 @@ export default function SmartInterventionRequestForm() {
 
     setBusy(true);
     try {
-      let lat = placeLatLng?.lat;
-      let lng = placeLatLng?.lng;
-      if (lat === undefined || lng === undefined) {
-        const geo = await fetch(`/api/maps/geocode?q=${encodeURIComponent(address.trim())}`);
-        const gj = (await geo.json()) as { location?: { lat: number; lng: number } };
-        lat = gj.location?.lat ?? 50.8466;
-        lng = gj.location?.lng ?? 4.3522;
-      }
-
-      const title = (description.trim() || audioTranscription.trim() || audioRecorder.transcription || "Demande d'intervention").slice(0, 140);
+      const newDocRef = doc(collection(db, "interventions"));
       const nowIso = new Date().toISOString();
       const hour = new Date().toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
 
-      const problemForDedupe = description.trim() || audioTranscription.trim() || audioRecorder.transcription || "Demande d'intervention";
-      const createdRef = await addDoc(collection(db, "interventions"), {
-        title,
+      let lat = placeLatLng?.lat;
+      let lng = placeLatLng?.lng;
+      if (lat === undefined || lng === undefined) {
+        try {
+          const geo = await fetch(`/api/maps/geocode?q=${encodeURIComponent(address.trim())}`);
+          const gj = (await geo.json()) as { location?: { lat: number; lng: number } };
+          lat = gj.location?.lat ?? 50.8466;
+          lng = gj.location?.lng ?? 4.3522;
+        } catch {
+          lat = 50.8466;
+          lng = 4.3522;
+        }
+      }
+
+      let uploadedAudioUrl: string | null = null;
+      if (finalAudioBlob && finalAudioBlob.size > 0 && storage) {
+        try {
+          const audioRef = ref(storage, `interventions/${newDocRef.id}/audio.webm`);
+          const metadata = { contentType: finalAudioBlob.type || "audio/webm" };
+          await uploadBytes(audioRef, finalAudioBlob, metadata);
+          uploadedAudioUrl = await getDownloadURL(audioRef);
+        } catch (uploadErr) {
+          console.error("Failed to upload audio blob:", uploadErr);
+        }
+      }
+
+      const finalTitle = (description.trim() || finalTranscription || "Demande d'intervention").slice(0, 140);
+      const finalProblem = description.trim() || finalTranscription || "Demande d'intervention";
+
+      await setDoc(newDocRef, {
+        title: finalTitle,
         address: address.trim(),
         time: hour,
         status: "pending",
         location: { lat, lng },
         urgency,
-        problem: problemForDedupe,
+        problem: finalProblem,
         category: "serrurerie",
         createdAt: nowIso,
         createdByUid: user.uid,
@@ -588,36 +612,40 @@ export default function SmartInterventionRequestForm() {
         ...(phone.trim() ? { clientPhone: phone.trim() } : {}),
         ...(scheduledDate ? { scheduledDate } : {}),
         ...(scheduledTime ? { scheduledTime } : {}),
+        ...(uploadedAudioUrl ? { audioUrl: uploadedAudioUrl } : {}),
+        ...(finalTranscription ? { transcription: finalTranscription } : {}),
       });
 
-      let audioUrl: string | undefined;
-      if (audioBlob && storage) {
+      // BACKGROUND TASK (Ne pas attendre pour la transcription et les doublons)
+      void (async () => {
         try {
-          const audioRef = ref(storage, `interventions/${createdRef.id}/audio.webm`);
-          await uploadBytes(audioRef, audioBlob);
-          audioUrl = await getDownloadURL(audioRef);
-          
-          await setDoc(doc(db, "interventions", createdRef.id), {
-            audioUrl,
-            transcription: audioTranscription || null,
-          }, { merge: true });
-        } catch (uploadErr) {
-          console.error("Failed to upload audio blob:", uploadErr);
+          if (tPromise) {
+            const result = await tPromise;
+            if (result && !finalTranscription) {
+              await setDoc(newDocRef, {
+                transcription: result,
+                problem: result,
+                title: result.slice(0, 140)
+              }, { merge: true });
+            }
+          }
+
+          await recordDuplicateAlertIfNeeded({
+            db,
+            newInterventionId: newDocRef.id,
+            companyId: tenantCompanyId,
+            address: address.trim(),
+            problem: finalProblem,
+            createdByUid: user.uid,
+          }).catch(() => null);
+
+          await deleteDoc(doc(db, "intervention_request_drafts", user.uid)).catch(() => null);
+        } catch (bgErr) {
+          console.error("Background submission error:", bgErr);
         }
-      }
+      })();
 
-      await recordDuplicateAlertIfNeeded({
-        db,
-        newInterventionId: createdRef.id,
-        companyId: tenantCompanyId,
-        address: address.trim(),
-        problem: problemForDedupe,
-        createdByUid: user.uid,
-      }).catch(() => null);
-
-      await deleteDoc(doc(db, "intervention_request_drafts", user.uid)).catch(() => null);
       localStorage.removeItem(SMART_INTERVENTION_DRAFT_STORAGE_KEY);
-
       setAddress("");
       setUrgency(false);
       setPhotoDataUrls([]);
@@ -831,11 +859,13 @@ export default function SmartInterventionRequestForm() {
             </div>
           )}
           
-          {(audioTranscription || audioRecorder.transcription || audioRecorder.interimTranscript) && (
+          {(audioTranscription || audioRecorder.transcription || audioRecorder.interimTranscript || audioRecorder.isTranscribing) && (
             <div className="w-full rounded-xl bg-slate-50 p-4 border border-slate-100">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Transcription :</p>
               <p className="text-sm text-slate-700 italic">
-                "{audioTranscription || audioRecorder.transcription || audioRecorder.interimTranscript}"
+                {audioRecorder.isTranscribing 
+                  ? "Transcription en cours d'amélioration..." 
+                  : `"${audioTranscription || audioRecorder.transcription || audioRecorder.interimTranscript}"`}
               </p>
             </div>
           )}

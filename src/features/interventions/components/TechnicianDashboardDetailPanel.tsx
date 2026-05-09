@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, Clock3, MapPin, User, Play, Navigation, Phone, CheckCircle2, Mic } from "lucide-react";
+import { Camera, Clock3, MapPin, User, Play, Navigation, Phone, CheckCircle2, Mic, Pause } from "lucide-react";
+import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { doc, updateDoc } from "firebase/firestore";
 import { firestore } from "@/core/config/firebase";
@@ -27,6 +28,75 @@ import {
 } from "@/features/interventions/technicianHubNavigation";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
+
+const AudioUrlPlayer = ({ url }: { url: string }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setProgress(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const formatTime = (time: number) => {
+    if (!time || isNaN(time)) return "0:00";
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <div className="flex w-full items-center gap-3 rounded-[16px] border border-slate-200 bg-slate-50/50 p-2 shadow-sm transition-all hover:shadow-md">
+      <audio 
+        ref={audioRef} 
+        src={url}
+        onTimeUpdate={handleTimeUpdate} 
+        onLoadedMetadata={handleLoadedMetadata}
+        onEnded={() => setIsPlaying(false)}
+        className="hidden" 
+      />
+      <button 
+        type="button"
+        onClick={togglePlay}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition hover:scale-105 hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-blue-600/20"
+        aria-label={isPlaying ? "Mettre en pause" : "Lire l'audio"}
+      >
+        {isPlaying ? <Pause className="h-4 w-4" fill="currentColor" /> : <Play className="h-4 w-4 ml-0.5" fill="currentColor" />}
+      </button>
+      <div className="flex flex-1 flex-col gap-1.5 px-1">
+        <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+          <div 
+            className="absolute left-0 top-0 h-full bg-blue-600 transition-all duration-100"
+            style={{ width: duration > 0 ? `${(progress / duration) * 100}%` : "0%" }}
+          />
+        </div>
+        <div className="flex justify-between text-[10px] font-bold tracking-wider text-slate-500">
+          <span>{formatTime(progress)}</span>
+          <span>{duration > 0 ? formatTime(duration) : "0:00"}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function TechnicianDashboardDetailPanel({
   caseId,
@@ -140,17 +210,24 @@ export default function TechnicianDashboardDetailPanel({
   );
 
   const renderAudioAndTranscription = () => {
-    if (!liveIv.audioUrl && !liveIv.transcription) return null;
     return (
       <div className={cn(cardClass, "flex flex-col items-center text-center gap-3")}>
         <div className="flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wide text-black">
           <Mic className="h-3.5 w-3.5" aria-hidden /> Message Vocal
         </div>
-        {liveIv.audioUrl && (
-          <audio controls src={liveIv.audioUrl} className="w-full max-w-[250px] h-10" />
+        
+        {liveIv.audioUrl ? (
+          <div className="w-full flex flex-col gap-2 items-center">
+            <AudioUrlPlayer url={liveIv.audioUrl} />
+          </div>
+        ) : (
+          <div className="w-full max-w-[250px] h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-sm font-medium border border-slate-200">
+            Aucun message vocal
+          </div>
         )}
+
         {liveIv.transcription && (
-          <div className="mt-1 text-[14px] font-bold text-black italic">
+          <div className="mt-2 text-[14px] font-bold text-black italic bg-slate-50 p-3 rounded-xl border border-slate-100 w-full text-left">
             "{liveIv.transcription}"
           </div>
         )}

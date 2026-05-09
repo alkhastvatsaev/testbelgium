@@ -8,9 +8,11 @@ export function useAudioRecorder() {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [transcription, setTranscription] = useState("");
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const transcriptionPromiseRef = useRef<Promise<string> | null>(null);
 
   // Use the existing speech dictation for the transcription part
   const {
@@ -37,10 +39,40 @@ export function useAudioRecorder() {
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        setAudioBlob(audioBlob);
+        const generatedBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        setAudioBlob(generatedBlob);
+        setIsRecording(false); // Set to false only when blob is ready
+        
+        // Use OpenAI Whisper for highly accurate transcription
+        setIsTranscribing(true);
+        const promise = (async () => {
+          try {
+            const formData = new FormData();
+            formData.append("audio", generatedBlob, "audio.webm");
+            
+            const res = await fetch("/api/ai/transcribe-blob", {
+              method: "POST",
+              body: formData,
+            });
+            
+            const data = await res.json();
+            if (data.success && data.text) {
+              setTranscription(data.text);
+              return data.text as string;
+            } else {
+              console.error("Erreur de transcription serveur:", data.error);
+              return "";
+            }
+          } catch (error) {
+            console.error("Failed to transcribe via API:", error);
+            return "";
+          } finally {
+            setIsTranscribing(false);
+          }
+        })();
+        transcriptionPromiseRef.current = promise;
       };
 
       mediaRecorder.start();
@@ -65,8 +97,9 @@ export function useAudioRecorder() {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
       streamRef.current?.getTracks().forEach((track) => track.stop()); // Stop all tracks to release mic
+    } else {
+      setIsRecording(false);
     }
-    setIsRecording(false);
 
     // Stop dictation
     if (isDictating) {
@@ -81,8 +114,10 @@ export function useAudioRecorder() {
 
   return {
     isRecording,
+    isTranscribing,
     audioBlob,
     transcription,
+    transcriptionPromise: () => transcriptionPromiseRef.current,
     startRecording,
     stopRecording,
     resetRecording,

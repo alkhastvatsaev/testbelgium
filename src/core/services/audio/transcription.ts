@@ -14,7 +14,7 @@ Réponds UNIQUEMENT avec un objet JSON valide, clés exactes :
   "est_serrurerie": false
 }`;
 
-function getClient(): OpenAI {
+export function getClient(): OpenAI {
   const key = process.env.OPENAI_API_KEY;
   if (!key) {
     throw new Error("OPENAI_API_KEY manquant — ajoutez la clé dans l'environnement.");
@@ -50,7 +50,7 @@ async function audioBufferFromInput(audioInput: Buffer | string): Promise<{ buff
   return { buffer: audioInput, fileName: "audio.wav" };
 }
 
-async function transcribeAudioToText(
+export async function transcribeAudioToText(
   client: OpenAI,
   buffer: Buffer,
   fileName: string

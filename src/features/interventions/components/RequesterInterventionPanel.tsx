@@ -6,7 +6,7 @@ import { useRequesterHub } from "../context/RequesterHubContext";
 import { ImagePlus, Loader2, MapPin, Mic, SendHorizontal, Trash2, Check, Calendar, Clock, Square, Play, Pause } from "lucide-react";
 import { SmartTimeSlotPicker } from "./SmartTimeSlotPicker";
 import { toast } from "sonner";
-import { addDoc, collection, deleteDoc, doc } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, setDoc } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
 import { auth, firestore, isConfigured } from "@/core/config/firebase";
 import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
@@ -338,73 +338,86 @@ export default function RequesterInterventionPanel() {
         return;
       }
 
-      let lat = interventionLatLng?.lat;
-      let lng = interventionLatLng?.lng;
-      if (lat === undefined || lng === undefined) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        try {
-          const geo = await fetch(`/api/maps/geocode?q=${encodeURIComponent(interventionAddress.trim())}`, { signal: controller.signal });
-          const gj = (await geo.json()) as { location?: { lat: number; lng: number } };
-          lat = gj.location?.lat ?? 50.8466;
-          lng = gj.location?.lng ?? 4.3522;
-        } catch (err) {
-          lat = 50.8466;
-          lng = 4.3522;
-        } finally {
-          clearTimeout(timeoutId);
-        }
-      }
-
+      const db = firestore;
+      const newDocRef = doc(collection(db, "interventions"));
       const title = (problemLabel.trim() || description.trim()).slice(0, 140);
       const nowIso = new Date().toISOString();
       const hour = interventionTime || new Date().toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
       const problemForDedupe = description.trim() || problemLabel.trim();
 
-      let uploadedAudioUrl: string | null = null;
-      if (audioBlob) {
+      // BACKGROUND TASK (Ne pas attendre pour débloquer l'interface)
+      void (async () => {
         try {
-          const storage = getStorage();
-          const ext = audioBlob.type.includes("mp4") ? "mp4" : "webm";
-          const audioRef = ref(storage, `interventions_audio/${user.uid}/${Date.now()}.${ext}`);
-          await withTimeout(uploadBytes(audioRef, audioBlob), 10000, "Audio upload timeout");
-          uploadedAudioUrl = await withTimeout(getDownloadURL(audioRef), 5000, "Audio get URL timeout");
-        } catch (err) {
-          console.error("Audio upload failed", err);
+          let lat = interventionLatLng?.lat;
+          let lng = interventionLatLng?.lng;
+          if (lat === undefined || lng === undefined) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            try {
+              const geo = await fetch(`/api/maps/geocode?q=${encodeURIComponent(interventionAddress.trim())}`, { signal: controller.signal });
+              const gj = (await geo.json()) as { location?: { lat: number; lng: number } };
+              lat = gj.location?.lat ?? 50.8466;
+              lng = gj.location?.lng ?? 4.3522;
+            } catch (err) {
+              lat = 50.8466;
+              lng = 4.3522;
+            } finally {
+              clearTimeout(timeoutId);
+            }
+          }
+
+          let uploadedAudioUrl: string | null = null;
+          
+          await setDoc(newDocRef, {
+            title,
+            address: interventionAddress.trim(),
+            time: hour,
+            status: "pending",
+            location: { lat, lng },
+            urgency,
+            problem: problemForDedupe,
+            category: "serrurerie",
+            createdAt: nowIso,
+            createdByUid: user.uid,
+            ...(tenantCompanyId ? { companyId: tenantCompanyId } : {}),
+            ...(photoDataUrls.length ? { attachmentThumbnails: photoDataUrls.slice(0, SMART_FORM_MAX_PHOTOS) } : {}),
+            ...(profile.firstName.trim() ? { clientFirstName: capitalizeName(profile.firstName) } : {}),
+            ...(profile.lastName.trim() ? { clientLastName: capitalizeName(profile.lastName) } : {}),
+            ...(profile.phone.trim() ? { clientPhone: profile.phone.trim() } : {}),
+            ...(interventionDate ? { requestedDate: interventionDate } : {}),
+            ...(interventionTime ? { requestedTime: interventionTime } : {}),
+          });
+
+          if (audioBlob) {
+            try {
+              const storage = getStorage();
+              const ext = audioBlob.type.includes("mp4") ? "mp4" : "webm";
+              const audioRef = ref(storage, `interventions_audio/${user.uid}/${Date.now()}.${ext}`);
+              await uploadBytes(audioRef, audioBlob);
+              uploadedAudioUrl = await getDownloadURL(audioRef);
+
+              await setDoc(newDocRef, {
+                audioUrl: uploadedAudioUrl
+              }, { merge: true });
+            } catch (err) {
+              console.error("Audio upload failed", err);
+            }
+          }
+
+          recordDuplicateAlertIfNeeded({
+            db,
+            newInterventionId: newDocRef.id,
+            companyId: tenantCompanyId,
+            address: interventionAddress.trim(),
+            problem: problemForDedupe,
+            createdByUid: user.uid,
+          }).catch(() => null);
+
+          deleteDoc(doc(db, "intervention_request_drafts", user.uid)).catch(() => null);
+        } catch (bgErr) {
+          console.error("Background submission error:", bgErr);
         }
-      }
-
-      const createdRef = await withTimeout(addDoc(collection(firestore, "interventions"), {
-        title,
-        address: interventionAddress.trim(),
-        time: hour,
-        status: "pending",
-        location: { lat, lng },
-        urgency,
-        problem: problemForDedupe,
-        category: "serrurerie",
-        createdAt: nowIso,
-        createdByUid: user.uid,
-        ...(uploadedAudioUrl ? { audioUrl: uploadedAudioUrl } : {}),
-        ...(tenantCompanyId ? { companyId: tenantCompanyId } : {}),
-        ...(photoDataUrls.length ? { attachmentThumbnails: photoDataUrls.slice(0, SMART_FORM_MAX_PHOTOS) } : {}),
-        ...(profile.firstName.trim() ? { clientFirstName: capitalizeName(profile.firstName) } : {}),
-        ...(profile.lastName.trim() ? { clientLastName: capitalizeName(profile.lastName) } : {}),
-        ...(profile.phone.trim() ? { clientPhone: profile.phone.trim() } : {}),
-        ...(interventionDate ? { requestedDate: interventionDate } : {}),
-        ...(interventionTime ? { requestedTime: interventionTime } : {}),
-      }), 15000, "Database timeout");
-
-      recordDuplicateAlertIfNeeded({
-        db: firestore,
-        newInterventionId: createdRef.id,
-        companyId: tenantCompanyId,
-        address: interventionAddress.trim(),
-        problem: problemForDedupe,
-        createdByUid: user.uid,
-      }).catch(() => null);
-
-      deleteDoc(doc(firestore, "intervention_request_drafts", user.uid)).catch(() => null);
+      })();
 
       setLastSubmittedRequest({
         problemLabel,
