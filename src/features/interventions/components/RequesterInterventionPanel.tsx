@@ -37,20 +37,28 @@ const GEOLOC_OPTIONS: PositionOptions = {
   maximumAge: 300_000,
 };
 
+function withTimeout<T>(promise: Promise<T>, ms: number, errorMsg: string = "Request timeout"): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(errorMsg)), ms);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
 async function ensureUserForInterventionSubmit() {
   if (!isConfigured) return null;
   if (!auth) return null;
   if (auth.currentUser) return auth.currentUser;
   try {
-    const cred = await signInAnonymously(auth);
+    const cred = await withTimeout(signInAnonymously(auth), 10000, "Auth timeout");
     return cred.user;
   } catch (err) {
     console.error("signInAnonymously error", err);
     return null;
   }
 }
-
-
 
 const AudioPlayer = ({ blob, onRemove }: { blob: Blob; onRemove: () => void }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -60,17 +68,29 @@ const AudioPlayer = ({ blob, onRemove }: { blob: Blob; onRemove: () => void }) =
   
   useEffect(() => {
     if (!(blob instanceof Blob)) return;
+    let url = "";
     try {
-      const url = URL.createObjectURL(blob);
+      url = URL.createObjectURL(blob);
       if (audioRef.current) {
         audioRef.current.src = url;
       }
-      return () => {
-        URL.revokeObjectURL(url);
-      };
     } catch (e) {
       console.error("Failed to create object URL:", e);
+      // Fallback pour Safari iOS quand le blob est vide ou corrompu
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (audioRef.current) {
+          audioRef.current.src = reader.result as string;
+        }
+      };
+      reader.readAsDataURL(blob);
     }
+    
+    return () => {
+      if (url) {
+        URL.revokeObjectURL(url);
+      }
+    };
   }, [blob]);
 
   const togglePlay = () => {
@@ -309,18 +329,31 @@ export default function RequesterInterventionPanel() {
       toast.error("Société active requise");
       return;
     }
-    const user = await ensureUserForInterventionSubmit();
-    if (!user || !firestore) return;
-
+    
     setIsSubmitting(true);
     try {
+      const user = await ensureUserForInterventionSubmit();
+      if (!user || !firestore) {
+        toast.error("Impossible de s'authentifier");
+        return;
+      }
+
       let lat = interventionLatLng?.lat;
       let lng = interventionLatLng?.lng;
       if (lat === undefined || lng === undefined) {
-        const geo = await fetch(`/api/maps/geocode?q=${encodeURIComponent(interventionAddress.trim())}`);
-        const gj = (await geo.json()) as { location?: { lat: number; lng: number } };
-        lat = gj.location?.lat ?? 50.8466;
-        lng = gj.location?.lng ?? 4.3522;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        try {
+          const geo = await fetch(`/api/maps/geocode?q=${encodeURIComponent(interventionAddress.trim())}`, { signal: controller.signal });
+          const gj = (await geo.json()) as { location?: { lat: number; lng: number } };
+          lat = gj.location?.lat ?? 50.8466;
+          lng = gj.location?.lng ?? 4.3522;
+        } catch (err) {
+          lat = 50.8466;
+          lng = 4.3522;
+        } finally {
+          clearTimeout(timeoutId);
+        }
       }
 
       const title = (problemLabel.trim() || description.trim()).slice(0, 140);
@@ -334,14 +367,14 @@ export default function RequesterInterventionPanel() {
           const storage = getStorage();
           const ext = audioBlob.type.includes("mp4") ? "mp4" : "webm";
           const audioRef = ref(storage, `interventions_audio/${user.uid}/${Date.now()}.${ext}`);
-          await uploadBytes(audioRef, audioBlob);
-          uploadedAudioUrl = await getDownloadURL(audioRef);
+          await withTimeout(uploadBytes(audioRef, audioBlob), 10000, "Audio upload timeout");
+          uploadedAudioUrl = await withTimeout(getDownloadURL(audioRef), 5000, "Audio get URL timeout");
         } catch (err) {
           console.error("Audio upload failed", err);
         }
       }
 
-      const createdRef = await addDoc(collection(firestore, "interventions"), {
+      const createdRef = await withTimeout(addDoc(collection(firestore, "interventions"), {
         title,
         address: interventionAddress.trim(),
         time: hour,
@@ -360,9 +393,9 @@ export default function RequesterInterventionPanel() {
         ...(profile.phone.trim() ? { clientPhone: profile.phone.trim() } : {}),
         ...(interventionDate ? { requestedDate: interventionDate } : {}),
         ...(interventionTime ? { requestedTime: interventionTime } : {}),
-      });
+      }), 15000, "Database timeout");
 
-      await recordDuplicateAlertIfNeeded({
+      recordDuplicateAlertIfNeeded({
         db: firestore,
         newInterventionId: createdRef.id,
         companyId: tenantCompanyId,
@@ -371,7 +404,7 @@ export default function RequesterInterventionPanel() {
         createdByUid: user.uid,
       }).catch(() => null);
 
-      await deleteDoc(doc(firestore, "intervention_request_drafts", user.uid)).catch(() => null);
+      deleteDoc(doc(firestore, "intervention_request_drafts", user.uid)).catch(() => null);
 
       setLastSubmittedRequest({
         problemLabel,

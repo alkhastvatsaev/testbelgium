@@ -538,8 +538,12 @@ export default function AiAssistant({
         const mime = mimeFromAudioUrl(effectiveUrl);
         const blob = new Blob([ab], { type: mime });
         if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = URL.createObjectURL(blob);
-        el.src = objectUrlRef.current;
+        try {
+          objectUrlRef.current = URL.createObjectURL(blob);
+          el.src = objectUrlRef.current;
+        } catch (e) {
+          console.error("AiAssistant createObjectURL failed", e);
+        }
         el.load();
         played = await tryPlayMediaElement(el);
       }

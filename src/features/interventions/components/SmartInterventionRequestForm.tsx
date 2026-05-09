@@ -195,17 +195,29 @@ const AudioPlayer = ({ blob, onRemove }: { blob: Blob; onRemove: () => void }) =
   
   useEffect(() => {
     if (!(blob instanceof Blob)) return;
+    let url = "";
     try {
-      const url = URL.createObjectURL(blob);
+      url = URL.createObjectURL(blob);
       if (audioRef.current) {
         audioRef.current.src = url;
       }
-      return () => {
-        URL.revokeObjectURL(url);
-      };
     } catch (e) {
       console.error("Failed to create object URL:", e);
+      // Fallback pour Safari iOS quand le blob est vide ou corrompu
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (audioRef.current) {
+          audioRef.current.src = reader.result as string;
+        }
+      };
+      reader.readAsDataURL(blob);
     }
+    
+    return () => {
+      if (url) {
+        URL.revokeObjectURL(url);
+      }
+    };
   }, [blob]);
 
   const togglePlay = () => {
