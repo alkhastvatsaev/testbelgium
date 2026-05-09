@@ -9,6 +9,9 @@ export interface Mission {
   date?: string;
   /** Clé stable pour dédoublonnage (ex: nom fichier audio) */
   key?: string;
+  phone?: string | null;
+  address?: string | null;
+  description?: string | null;
 }
 
 // Simple seeded pseudo-random number generator

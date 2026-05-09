@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
+import { motion, AnimatePresence } from 'framer-motion';
 import DailyMissions from '@/features/dashboard/components/DailyMissions';
 import QuoteRequests from '@/features/dashboard/components/QuoteRequests';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -8,6 +9,9 @@ import { useDateContext } from '@/context/DateContext';
 import { generateDailyMissions, type Mission } from '@/utils/mockMissions';
 import { useDashboardPagerOptional } from '@/features/dashboard/dashboardPagerContext';
 import { useGalaxyLayerBridgeOptional } from '@/features/map/GalaxyLayerBridgeContext';
+import { useCompanyWorkspaceOptional } from '@/context/CompanyWorkspaceContext';
+import { useBackOfficeInterventions } from '@/features/backoffice/useBackOfficeInterventions';
+import { interventionClientLabel, statusLabelFr, formatScheduledTimeOnly, interventionMatchesTab } from '@/features/interventions/technicianSchedule';
 
 export default function MapboxView() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -17,12 +21,51 @@ export default function MapboxView() {
   const galaxyBridge = useGalaxyLayerBridgeOptional();
   
   const { selectedDate } = useDateContext();
+  const workspace = useCompanyWorkspaceOptional();
+  const { interventions: firestoreInterventions } = useBackOfficeInterventions(workspace?.activeCompanyId ?? null);
+
   const missions = useMemo(() => generateDailyMissions(selectedDate), [selectedDate]);
   const [liveMissions, setLiveMissions] = useState<Mission[]>([]);
+  const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
   const selectedDateStr = useMemo(() => selectedDate.toLocaleDateString('en-CA'), [selectedDate]);
+
   const allMissions = useMemo(() => {
     const liveForDay = liveMissions.filter((m) => !m.date || m.date === selectedDateStr);
-    const all = [...liveForDay, ...missions];
+    
+    const realMissions: Mission[] = firestoreInterventions
+      .filter(iv => interventionMatchesTab(iv, "today", selectedDate))
+      .filter(iv => iv.location && typeof iv.location.lat === "number" && typeof iv.location.lng === "number")
+      .map(iv => {
+        let numericId = 0;
+        for (let i = 0; i < iv.id.length; i++) {
+          numericId = ((numericId << 5) - numericId) + iv.id.charCodeAt(i);
+          numericId |= 0;
+        }
+        return {
+          id: Math.abs(numericId),
+          key: iv.id,
+          clientName: interventionClientLabel(iv),
+          coordinates: [iv.location.lng, iv.location.lat],
+          time: formatScheduledTimeOnly(iv),
+          status: statusLabelFr(iv.status),
+          source: "live",
+          date: iv.scheduledDate || selectedDateStr,
+          phone: iv.clientPhone || iv.phone || undefined,
+          address: iv.address || undefined,
+          description: iv.problem || iv.transcription || undefined,
+        };
+      });
+
+    const all = [...realMissions, ...liveForDay, ...missions];
+    
+    // Deduplicate by key or id
+    const unique = new Map<string | number, Mission>();
+    all.forEach(m => {
+       const key = m.key ?? m.id;
+       if (!unique.has(key)) unique.set(key, m);
+    });
+    const deduped = Array.from(unique.values());
+
     const score = (t: string) => {
       if (!t) return 9999;
       if (t === "Maintenant") return -1;
@@ -32,8 +75,8 @@ export default function MapboxView() {
       if (!m) return 9999;
       return Number(m[1]) * 60 + Number(m[2]);
     };
-    return [...all].sort((a, b) => score(a.time) - score(b.time));
-  }, [missions, liveMissions, selectedDateStr]);
+    return [...deduped].sort((a, b) => score(a.time) - score(b.time));
+  }, [missions, liveMissions, firestoreInterventions, selectedDateStr, selectedDate]);
 
   useEffect(() => {
     if (!galaxyBridge) return;
@@ -102,21 +145,13 @@ export default function MapboxView() {
     if (!mapRef.current) {
       mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 
-      let initialCenter: [number, number] = [4.3522, 50.8466]; // Par défaut : Bruxelles
-      const bounds = new mapboxgl.LngLatBounds();
-      
-      if (allMissions.length > 0) {
-        allMissions.forEach(mission => {
-          bounds.extend(mission.coordinates as [number, number]);
-        });
-        initialCenter = bounds.getCenter().toArray() as [number, number];
-      }
+      const initialCenter: [number, number] = [4.3522, 50.8466]; // Par défaut : Bruxelles
 
       const map = new mapboxgl.Map({
         container: mapContainerRef.current,
         style: 'mapbox://styles/mapbox/standard',
         center: initialCenter,
-        zoom: 15.5,
+        zoom: 12.5,
         pitch: 0,
         bearing: 0,
         antialias: true,
@@ -223,6 +258,7 @@ export default function MapboxView() {
 
       el.addEventListener('click', (e) => {
         e.stopPropagation();
+        setSelectedMission(mission);
         map.flyTo({ center: mission.coordinates as [number, number], zoom: 17, pitch: 0 });
       });
 
@@ -234,17 +270,6 @@ export default function MapboxView() {
       markersRef.current[markerKey] = marker;
     });
 
-    if (allMissions.length > 0) {
-      setTimeout(() => {
-        map.fitBounds(bounds, {
-          padding: { top: 60, bottom: 60, left: 380, right: 60 },
-          pitch: 0,
-          bearing: 0,
-          duration: 1500,
-          essential: true
-        });
-      }, 300);
-    }
 
   }, [allMissions]);
 
@@ -275,6 +300,7 @@ export default function MapboxView() {
   }, [dashboardPageIndex]);
 
   const handleMissionClick = (mission: any) => {
+    setSelectedMission(mission);
     if (mapRef.current && mission.coordinates) {
       mapRef.current.flyTo({
         center: mission.coordinates,
@@ -326,6 +352,81 @@ export default function MapboxView() {
           <circle cx="12" cy="12" r="2" fill="currentColor" />
         </svg>
       </button>
+
+      {/* Overlay Description Mission */}
+      <AnimatePresence>
+        {selectedMission && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-transparent to-black/60 pointer-events-auto"
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-2xl p-8 mx-4 flex flex-col items-center text-center"
+            >
+              <button
+                onClick={() => setSelectedMission(null)}
+                className="absolute top-[2mm] right-0 p-2 !text-white hover:opacity-80 transition-all hover:scale-110 z-50"
+              >
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="#ffffff">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              
+              <div className="text-white w-full">
+                <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">{selectedMission.clientName}</h2>
+                <div className="flex items-center justify-center gap-4 text-white/90 mb-10 text-xl">
+                  <span className="px-4 py-1.5 font-semibold rounded-full bg-white/20">
+                    {selectedMission.status}
+                  </span>
+                  <span className="text-white/40">•</span>
+                  <span className="font-medium">{selectedMission.time}</span>
+                </div>
+
+                <div className="flex flex-col gap-8 mt-2 w-full max-w-lg mx-auto text-left">
+                  {selectedMission.phone && (
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-white/50 uppercase tracking-widest mb-1">Téléphone</span>
+                      <a href={`tel:${selectedMission.phone}`} className="text-2xl font-medium text-white hover:text-blue-400 transition-colors">
+                        {selectedMission.phone}
+                      </a>
+                    </div>
+                  )}
+                  {selectedMission.address && (
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-white/50 uppercase tracking-widest mb-1">Adresse</span>
+                      <a 
+                        href={`https://maps.google.com/?q=${encodeURIComponent(selectedMission.address)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-2xl font-medium text-white hover:text-blue-400 transition-colors flex items-center gap-2"
+                      >
+                        {selectedMission.address}
+                        <svg className="w-5 h-5 text-white/50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    </div>
+                  )}
+                  {selectedMission.description && (
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-white/50 uppercase tracking-widest mb-2">Description du problème</span>
+                      <p className="text-lg !text-white font-medium leading-relaxed bg-white/10 p-5 rounded-2xl border border-white/10 backdrop-blur-sm">
+                        {selectedMission.description}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <DailyMissions missions={allMissions} onMissionClick={handleMissionClick} />
       <QuoteRequests />
