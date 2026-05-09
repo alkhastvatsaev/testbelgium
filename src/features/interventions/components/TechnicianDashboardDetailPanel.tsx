@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, Clock3, MapPin, User, Play, Navigation, Phone, CheckCircle2 } from "lucide-react";
+import { Camera, Clock3, MapPin, User, Play, Navigation, Phone, CheckCircle2, Mic } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { doc, updateDoc } from "firebase/firestore";
 import { firestore } from "@/core/config/firebase";
@@ -16,7 +16,7 @@ import { capitalizeName, formatAddress } from "@/utils/stringUtils";
 import { cn } from "@/lib/utils";
 
 import {
-  formatScheduledLabel,
+  formatScheduledTimeOnly,
   interventionClientLabel,
 } from "@/features/interventions/technicianSchedule";
 import { useTechnicianFinishJob } from "@/context/TechnicianFinishJobContext";
@@ -46,9 +46,9 @@ export default function TechnicianDashboardDetailPanel({
         style={outfit}
         className="flex h-full w-full flex-col items-center justify-center rounded-[inherit] px-5 py-8 text-center"
       >
-        <p className="text-[14px] font-bold text-black">
+        <div className="text-[14px] font-bold text-black">
           Sélectionnez une mission pour voir les détails
-        </p>
+        </div>
       </div>
     );
   }
@@ -72,7 +72,7 @@ export default function TechnicianDashboardDetailPanel({
 
   const client = interventionClientLabel(liveIv);
   const showAdminInvoice = workspace?.activeRole === "admin";
-  const cardClass = "rounded-[20px] bg-white px-4 py-4 shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)] transition-all duration-300";
+  const cardClass = "rounded-[16px] bg-white px-4 py-3 shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)] transition-all duration-300";
 
   const handleUpdateStatus = async (newStatus: Intervention["status"]) => {
     if (!liveIv || isUpdating || !firestore) return;
@@ -106,32 +106,57 @@ export default function TechnicianDashboardDetailPanel({
   const clientDisplayName = `${prefix} ${displayLastName}`.trim() || "Non renseigné";
 
   const renderContactClient = () => (
-    <div className={cn(cardClass, "flex flex-col items-center text-center")}>
-      <p className="text-[18px] font-bold text-black">
-        {clientDisplayName}
-      </p>
+    <>
+      <div className={cn(cardClass, "flex flex-col items-center text-center")}>
+        <div className="text-[16px] font-bold text-black">
+          {formatScheduledTimeOnly(liveIv)}
+        </div>
+      </div>
+      <div className={cn(cardClass, "flex flex-col items-center text-center")}>
+        <div className="text-[16px] font-bold text-black">
+          {clientDisplayName}
+        </div>
+      </div>
       {(liveIv.clientPhone || liveIv.phone) && (
-        <p className="mt-2 flex items-center gap-2 text-[16px] font-bold text-black">
-          <Phone className="h-4 w-4" />
-          <a href={`tel:${liveIv.clientPhone || liveIv.phone}`} className="hover:underline">
+        <div className={cn(cardClass, "flex flex-col items-center text-center")}>
+          <a href={`tel:${liveIv.clientPhone || liveIv.phone}`} className="text-[15px] font-bold text-blue-600 hover:underline">
             {liveIv.clientPhone || liveIv.phone}
           </a>
-        </p>
+        </div>
       )}
       {liveIv.address && (
-        <div className="mt-4 flex w-full flex-col items-center border-t border-slate-100 pt-3">
+        <div className={cn(cardClass, "flex flex-col items-center text-center")}>
           <a
             href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(formatAddress(liveIv.address))}`}
             target="_blank"
             rel="noreferrer"
-            className="mt-1 text-[15px] font-medium leading-snug text-blue-600 hover:underline text-center"
+            className="text-[14px] font-bold leading-snug text-black hover:underline text-center"
           >
             {formatAddress(liveIv.address)}
           </a>
         </div>
       )}
-    </div>
+    </>
   );
+
+  const renderAudioAndTranscription = () => {
+    if (!liveIv.audioUrl && !liveIv.transcription) return null;
+    return (
+      <div className={cn(cardClass, "flex flex-col items-center text-center gap-3")}>
+        <div className="flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wide text-black">
+          <Mic className="h-3.5 w-3.5" aria-hidden /> Message Vocal
+        </div>
+        {liveIv.audioUrl && (
+          <audio controls src={liveIv.audioUrl} className="w-full max-w-[250px] h-10" />
+        )}
+        {liveIv.transcription && (
+          <div className="mt-1 text-[14px] font-bold text-black italic">
+            "{liveIv.transcription}"
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderPending = () => (
     <motion.div
@@ -141,22 +166,16 @@ export default function TechnicianDashboardDetailPanel({
       exit={{ opacity: 0, x: -20 }}
       className="flex flex-col gap-6 h-full justify-between pb-2"
     >
-      <div className="space-y-4">
+      <div className="space-y-2.5">
         {renderContactClient()}
-
-        <div className={cardClass}>
-          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-black">
-            <Clock3 className="h-3.5 w-3.5" aria-hidden /> Horaire prévu
-          </p>
-          <p className="mt-1 text-[16px] font-bold text-black">{formatScheduledLabel(liveIv)}</p>
-        </div>
         
-        <div className={cardClass}>
-          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-black">
+        <div className={cn(cardClass, "flex flex-col items-center text-center")}>
+          <div className="flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wide text-black">
             <User className="h-3.5 w-3.5" aria-hidden /> Intitulé
-          </p>
-          <p className="mt-1 text-[15px] font-bold text-black">{liveIv.title || "—"}</p>
+          </div>
+          <div className="mt-1 text-[14px] font-bold text-black">{liveIv.title || "—"}</div>
         </div>
+        {renderAudioAndTranscription()}
       </div>
 
       <button
@@ -178,12 +197,12 @@ export default function TechnicianDashboardDetailPanel({
       exit={{ opacity: 0, x: -20 }}
       className="flex flex-col gap-6 h-full justify-between pb-2"
     >
-      <div className="space-y-4">
-        <div className="rounded-[20px] bg-indigo-50/60 p-5 border border-indigo-100/60 shadow-[0_8px_24px_-8px_rgba(99,102,241,0.15)]">
+      <div className="space-y-2.5">
+        <div className="rounded-[16px] bg-indigo-50/60 p-4 border border-indigo-100/60 shadow-[0_8px_24px_-8px_rgba(99,102,241,0.15)]">
           <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[12px] font-bold uppercase tracking-wide text-black">Navigation GPS</p>
-                <p className="mt-2 text-[16px] font-bold text-black leading-snug">{formatAddress(liveIv.address) || "Pas d'adresse"}</p>
+                <div className="text-[11px] font-bold uppercase tracking-wide text-black">Navigation GPS</div>
+                <div className="mt-1 text-[15px] font-bold text-black leading-snug">{formatAddress(liveIv.address) || "Pas d'adresse"}</div>
              </div>
              {liveIv.address && (
                 <a 
@@ -198,6 +217,7 @@ export default function TechnicianDashboardDetailPanel({
         </div>
 
         {renderContactClient()}
+        {renderAudioAndTranscription()}
       </div>
 
       <button
@@ -219,13 +239,14 @@ export default function TechnicianDashboardDetailPanel({
       exit={{ opacity: 0, x: -20 }}
       className="flex flex-col gap-6 h-full justify-between pb-2"
     >
-      <div className="space-y-4">
+      <div className="space-y-2.5">
         {renderContactClient()}
         {liveIv.problem && (
           <div className={cardClass}>
-            <p className="whitespace-pre-wrap text-[15px] font-bold leading-relaxed text-black">{liveIv.problem}</p>
+            <div className="whitespace-pre-wrap text-[14px] font-bold leading-relaxed text-black text-center">{liveIv.problem}</div>
           </div>
         )}
+        {renderAudioAndTranscription()}
       </div>
 
 
@@ -247,17 +268,17 @@ export default function TechnicianDashboardDetailPanel({
       exit={{ opacity: 0, x: -20 }}
       className="flex flex-col gap-6 h-full pb-2"
     >
-      <div className="flex flex-col items-center justify-center py-10 bg-white/50 rounded-[20px] border border-emerald-100/50 mt-4 shadow-sm">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-4">
-          <CheckCircle2 className="h-8 w-8" />
+      <div className="flex flex-col items-center justify-center py-6 bg-white/50 rounded-[16px] border border-emerald-100/50 mt-4 shadow-sm">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-3">
+          <CheckCircle2 className="h-6 w-6" />
         </div>
-        <h3 className="text-[20px] font-bold text-black">Mission accomplie</h3>
-        <p className="text-[14px] font-bold text-black mt-1 text-center px-4">Cette intervention est terminée et clôturée.</p>
+        <h3 className="text-[18px] font-bold text-black">Mission accomplie</h3>
+        <div className="text-[13px] font-bold text-black mt-1 text-center px-4">Cette intervention est terminée et clôturée.</div>
       </div>
 
       {showAdminInvoice && (
         <div className={cardClass}>
-          <p className="text-[11px] font-bold uppercase tracking-wide text-black mb-3">Administration</p>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-black mb-3">Administration</div>
           <InterventionInvoiceButton iv={liveIv} variant="detailDrawer" />
         </div>
       )}

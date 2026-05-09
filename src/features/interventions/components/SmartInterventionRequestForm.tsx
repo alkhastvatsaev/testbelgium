@@ -45,8 +45,10 @@ import { resolveInterventionAddressFromCoords } from "@/features/interventions/s
 import { devUiPreviewEnabled } from "@/core/config/devUiPreview";
 import SmartFormAddressMiniMap from "@/features/interventions/components/SmartFormAddressMiniMap";
 import SmartFormAddressAutocomplete from "@/features/interventions/components/SmartFormAddressAutocomplete";
-import { useBrowserSpeechDictation } from "@/features/interventions/useBrowserSpeechDictation";
 import { capitalizeName } from "@/utils/stringUtils";
+import { useAudioRecorder } from "@/features/interventions/useAudioRecorder";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/core/config/firebase";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
@@ -54,10 +56,12 @@ const SMART_FORM_MAX_PHOTOS = 4;
 
 type DraftPayload = {
   address: string;
-  problemLabel: string;
+  problemLabel?: string;
   description: string;
   urgency: boolean;
   photoDataUrls: string[];
+  audioBlob?: Blob | null;
+  audioTranscription?: string;
   placeLatLng?: { lat: number; lng: number };
   firstName: string;
   lastName: string;
@@ -68,7 +72,6 @@ type DraftPayload = {
 
 const emptyDraft = (): DraftPayload => ({
   address: "",
-  problemLabel: "",
   description: "",
   urgency: false,
   photoDataUrls: [],
@@ -77,7 +80,7 @@ const emptyDraft = (): DraftPayload => ({
   phone: "",
 });
 
-type WizardStep = 1 | 2 | 3 | 4 | 5 | 6;
+type WizardStep = 1 | 2 | 3 | 4 | 5;
 
 function isPayloadEmpty(p: DraftPayload): boolean {
   return (
@@ -85,7 +88,6 @@ function isPayloadEmpty(p: DraftPayload): boolean {
     !p.firstName?.trim() &&
     !p.lastName?.trim() &&
     !p.phone?.trim() &&
-    !p.problemLabel?.trim() &&
     !p.description?.trim() &&
     !(p.photoDataUrls?.length ?? 0)
   );
@@ -94,11 +96,10 @@ function isPayloadEmpty(p: DraftPayload): boolean {
 function initialStepFromPayload(p: DraftPayload): WizardStep {
   if (isPayloadEmpty(p)) return 1;
   if (!smartFormAddressEligibleForStep2(p.address, p.placeLatLng)) return 1;
-  if (!p.problemLabel?.trim()) return 2;
-  if (!p.description?.trim()) return 3;
-  if (!p.photoDataUrls?.length) return 4;
-  if (!p.scheduledDate || !p.scheduledTime) return 5;
-  return 6;
+  if (!p.description?.trim() && !p.audioBlob && !p.audioTranscription?.trim()) return 2;
+  if (!p.photoDataUrls?.length) return 3;
+  if (!p.scheduledDate || !p.scheduledTime) return 4;
+  return 5;
 }
 
 function loadStorageDraft(): { payload: DraftPayload; updatedAt: number } | null {
@@ -192,8 +193,7 @@ export default function SmartInterventionRequestForm() {
   const stored = typeof window !== "undefined" ? loadStorageDraft() : null;
   const initialPayload = stored ? { ...emptyDraft(), ...stored.payload } : emptyDraft();
   const [address, setAddress] = useState(initialPayload.address);
-  const [problemLabel, setProblemLabel] = useState(initialPayload.problemLabel);
-  const [description, setDescription] = useState(initialPayload.description);
+  const [description, setDescription] = useState(initialPayload.description ?? "");
   const [urgency, setUrgency] = useState(initialPayload.urgency);
   const [photoDataUrls, setPhotoDataUrls] = useState<string[]>(initialPayload.photoDataUrls ?? []);
   const [placeLatLng, setPlaceLatLng] = useState<{ lat: number; lng: number } | undefined>(
@@ -204,19 +204,32 @@ export default function SmartInterventionRequestForm() {
   const [phone, setPhone] = useState(initialPayload.phone ?? "");
   const [scheduledDate, setScheduledDate] = useState(initialPayload.scheduledDate ?? "");
   const [scheduledTime, setScheduledTime] = useState(initialPayload.scheduledTime ?? "");
+  const [audioTranscription, setAudioTranscription] = useState(initialPayload.audioTranscription ?? "");
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(initialPayload.audioBlob ?? null);
+  
+  const audioRecorder = useAudioRecorder();
+
+  // Sync the audio recorder's state into our form's state
+  useEffect(() => {
+    if (audioRecorder.audioBlob !== null) {
+      setAudioBlob(audioRecorder.audioBlob);
+    }
+    if (audioRecorder.transcription !== "") {
+      setAudioTranscription(audioRecorder.transcription);
+    }
+  }, [audioRecorder.audioBlob, audioRecorder.transcription]);
+
   const [step, setStep] = useState<WizardStep>(() => initialStepFromPayload(initialPayload));
   const [takenSlots, setTakenSlots] = useState<Record<string, string[]>>({});
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [locatingAddress, setLocatingAddress] = useState(false);
   const [recapPhotosOpen, setRecapPhotosOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addressInputRef = useRef<HTMLInputElement>(null);
-  const aiTimer = useRef<number | null>(null);
 
   useEffect(() => {
-    if (step !== 6) setRecapPhotosOpen(false);
+    if (step !== 5) setRecapPhotosOpen(false);
   }, [step]);
 
   useEffect(() => {
@@ -246,8 +259,6 @@ export default function SmartInterventionRequestForm() {
         if (!p) return;
         const merged = { ...emptyDraft(), ...p };
         setAddress(merged.address);
-        setProblemLabel(merged.problemLabel);
-        setDescription(merged.description);
         setUrgency(Boolean(merged.urgency));
         setPhotoDataUrls(Array.isArray(merged.photoDataUrls) ? merged.photoDataUrls : []);
         setPlaceLatLng(merged.placeLatLng);
@@ -256,6 +267,7 @@ export default function SmartInterventionRequestForm() {
         setPhone(merged.phone ?? "");
         setScheduledDate(merged.scheduledDate ?? "");
         setScheduledTime(merged.scheduledTime ?? "");
+        setAudioTranscription(merged.audioTranscription ?? "");
         setStep(initialStepFromPayload(merged));
       } catch {
         /* ignore */
@@ -271,7 +283,6 @@ export default function SmartInterventionRequestForm() {
   useEffect(() => {
     const payload: DraftPayload = {
       address,
-      problemLabel,
       description,
       urgency,
       photoDataUrls,
@@ -281,6 +292,7 @@ export default function SmartInterventionRequestForm() {
       phone,
       scheduledDate,
       scheduledTime,
+      audioTranscription,
     };
     const updatedAt = Date.now();
     try {
@@ -311,7 +323,7 @@ export default function SmartInterventionRequestForm() {
     }, 850);
 
     return () => window.clearTimeout(timer);
-  }, [address, problemLabel, description, urgency, photoDataUrls, placeLatLng, firstName, lastName, phone, scheduledDate, scheduledTime]);
+  }, [address, urgency, photoDataUrls, placeLatLng, firstName, lastName, phone, scheduledDate, scheduledTime, audioTranscription]);
 
   /** Cohérence : sans adresse, revenir à l’étape adresse (1) */
   useEffect(() => {
@@ -390,38 +402,6 @@ export default function SmartInterventionRequestForm() {
     );
   }, []);
 
-  /** Suggestions IA / heuristique (étape description) */
-  useEffect(() => {
-    if (step !== 3) {
-      setSuggestions([]);
-      return;
-    }
-    const seed = `${problemLabel} ${description}`.trim();
-    if (seed.length < 4) {
-      setSuggestions([]);
-      return;
-    }
-
-    if (aiTimer.current != null) window.clearTimeout(aiTimer.current);
-    aiTimer.current = window.setTimeout(async () => {
-      try {
-        const res = await fetch("/api/ai/intervention-problem-suggestions", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ seed }),
-        });
-        const data = (await res.json()) as { suggestions?: string[] };
-        setSuggestions(Array.isArray(data.suggestions) ? data.suggestions.slice(0, 3) : []);
-      } catch {
-        setSuggestions([]);
-      }
-    }, 420);
-
-    return () => {
-      if (aiTimer.current != null) window.clearTimeout(aiTimer.current);
-    };
-  }, [problemLabel, description, step]);
-
   const ingestFiles = useCallback(async (files: FileList | File[]) => {
     const list = Array.from(files).filter((f) => f.type.startsWith("image/"));
     const max = SMART_FORM_MAX_PHOTOS;
@@ -444,24 +424,6 @@ export default function SmartInterventionRequestForm() {
     setPhotoDataUrls((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
-  const appendDescriptionFromVoice = useCallback((piece: string) => {
-    setDescription((prev) => {
-      const t = prev.trimEnd();
-      return t ? `${t} ${piece}` : piece;
-    });
-  }, []);
-
-  const {
-    listening: descriptionVoiceListening,
-    supported: descriptionVoiceSupported,
-    toggleListening: toggleDescriptionVoice,
-    stop: stopDescriptionVoice,
-  } = useBrowserSpeechDictation(appendDescriptionFromVoice);
-
-  useEffect(() => {
-    if (step !== 3) stopDescriptionVoice();
-  }, [step, stopDescriptionVoice]);
-
   const handleSubmit = async () => {
     if (!address.trim()) {
       toast.error("Adresse requise");
@@ -471,8 +433,8 @@ export default function SmartInterventionRequestForm() {
       toast.error("Adresse encore en cours de recherche");
       return;
     }
-    if (!problemLabel.trim() && !description.trim()) {
-      toast.error("Problème requis");
+    if (!description.trim() && !audioBlob && !audioTranscription.trim() && !audioRecorder.transcription) {
+      toast.error("Description ou audio requis");
       return;
     }
     if (workspace?.isTenantUser && !tenantCompanyId) {
@@ -495,11 +457,11 @@ export default function SmartInterventionRequestForm() {
         lng = gj.location?.lng ?? 4.3522;
       }
 
-      const title = (problemLabel.trim() || description.trim()).slice(0, 140);
+      const title = (description.trim() || audioTranscription.trim() || audioRecorder.transcription || "Demande d'intervention").slice(0, 140);
       const nowIso = new Date().toISOString();
       const hour = new Date().toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
 
-      const problemForDedupe = description.trim() || problemLabel.trim();
+      const problemForDedupe = description.trim() || audioTranscription.trim() || audioRecorder.transcription || "Demande d'intervention";
       const createdRef = await addDoc(collection(db, "interventions"), {
         title,
         address: address.trim(),
@@ -520,6 +482,22 @@ export default function SmartInterventionRequestForm() {
         ...(scheduledTime ? { scheduledTime } : {}),
       });
 
+      let audioUrl: string | undefined;
+      if (audioBlob && storage) {
+        try {
+          const audioRef = ref(storage, `interventions/${createdRef.id}/audio.webm`);
+          await uploadBytes(audioRef, audioBlob);
+          audioUrl = await getDownloadURL(audioRef);
+          
+          await setDoc(doc(db, "interventions", createdRef.id), {
+            audioUrl,
+            transcription: audioTranscription || null,
+          }, { merge: true });
+        } catch (uploadErr) {
+          console.error("Failed to upload audio blob:", uploadErr);
+        }
+      }
+
       await recordDuplicateAlertIfNeeded({
         db,
         newInterventionId: createdRef.id,
@@ -533,17 +511,16 @@ export default function SmartInterventionRequestForm() {
       localStorage.removeItem(SMART_INTERVENTION_DRAFT_STORAGE_KEY);
 
       setAddress("");
-      setProblemLabel("");
-      setDescription("");
       setUrgency(false);
       setPhotoDataUrls([]);
       setPlaceLatLng(undefined);
       setFirstName("");
       setLastName("");
       setPhone("");
-      setScheduledDate("");
       setScheduledTime("");
-      setSuggestions([]);
+      setAudioTranscription("");
+      setAudioBlob(null);
+      audioRecorder.resetRecording();
       setStep(1);
       toast.success("Demande enregistrée");
     } catch (e) {
@@ -555,12 +532,11 @@ export default function SmartInterventionRequestForm() {
   };
 
   const canSubmit =
-    step === 6 &&
+    step === 5 &&
     address.trim().length > 0 &&
-    (problemLabel.trim().length > 0 || description.trim().length > 0) &&
+    (description.trim().length > 0 || audioTranscription.trim().length > 0 || audioBlob !== null) &&
     !(workspace?.isTenantUser && !tenantCompanyId);
 
-  const canContinueDescription = description.trim().length > 0;
   const canContinueAddress =
     address !== GEOLOC_ADDRESS_PENDING && smartFormAddressEligibleForStep2(address, placeLatLng);
 
@@ -570,13 +546,13 @@ export default function SmartInterventionRequestForm() {
       style={outfit}
       className={cn(
         "flex min-h-0 flex-1 flex-col",
-        step === 6 ? "gap-1 overflow-hidden" : "gap-4 pb-1",
+        step === 5 ? "gap-1 overflow-hidden" : "gap-4 pb-1",
       )}
-      aria-label={`Demande d'intervention, étape ${step} sur 6`}
+      aria-label={`Demande d'intervention, étape ${step} sur 5`}
     >
       <div className="flex items-center justify-between gap-2" aria-hidden>
         <div className="flex flex-1 justify-center gap-1.5">
-          {([1, 2, 3, 4, 5, 6] as const).map((s) => (
+          {([1, 2, 3, 4, 5] as const).map((s) => (
             <span
               key={s}
               className={cn(
@@ -708,123 +684,90 @@ export default function SmartInterventionRequestForm() {
       ) : null}
 
       {step === 2 ? (
-        <div className="flex flex-col gap-4 -mt-4" role="region" aria-label="Étape 2 — Type de problème">
-          <p className="text-center text-[16px] font-extrabold tracking-tight text-slate-900">Type de problème</p>
-          <div className="grid grid-cols-3 justify-items-center gap-3 px-1" role="list" aria-label="Modèles de problème">
-            {SMART_FORM_TEMPLATES.map((t) => {
-              const active = problemLabel === t.label;
-              const tileLabel = t.labelLines ? `${t.labelLines[0]}\n${t.labelLines[1]}` : t.label;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="listitem"
-                  data-testid={`smart-form-template-${t.id}`}
-                  className={cn(
-                    "group relative flex aspect-square w-[95px] flex-col items-center justify-center rounded-[24px] border transition-all duration-[400ms] ease-out outline-none active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-blue-500/30",
-                    active
-                      ? "border-blue-200 bg-white shadow-[0_6px_18px_-4px_rgba(15,23,42,0.1),0_0_15px_rgba(59,130,246,0.15),0_5px_20px_rgba(59,130,246,0.12)] scale-[1.02]"
-                      : "border-black/[0.06] bg-white/95 shadow-[0_6px_18px_-4px_rgba(15,23,42,0.1)] hover:scale-[1.02] hover:border-blue-100 hover:shadow-[0_6px_18px_-4px_rgba(15,23,42,0.1),0_0_15px_rgba(59,130,246,0.08),0_5px_20px_rgba(59,130,246,0.06)]"
-                  )}
-                  onClick={() => {
-                    setProblemLabel(t.label);
-                    setDescription((d) => (d.trim() ? d : t.seed));
-                    setStep(3);
-                  }}
-                >
-                  <span
-                    className={cn(
-                      "block w-full text-center line-clamp-2 bg-gradient-to-br bg-clip-text text-[13px] font-bold leading-snug tracking-[-0.015em] text-transparent px-1",
-                      t.labelLines ? "whitespace-pre-line" : "text-balance whitespace-normal",
-                      active ? "from-blue-500 via-indigo-500 to-violet-600" : "from-slate-600 via-slate-800 to-black"
-                    )}
-                  >
-                    {tileLabel}
-                  </span>
-                </button>
-              );
-            })}
+        <div className="flex flex-col gap-4 items-center" role="region" aria-label="Étape 2 — Description">
+          <p className="text-center text-[16px] font-extrabold tracking-tight text-slate-900">
+            Décrivez votre problème vocalement
+          </p>
+          <div className="flex flex-col items-center justify-center gap-4 py-6">
+            <button
+              type="button"
+              onClick={audioRecorder.isRecording ? audioRecorder.stopRecording : audioRecorder.startRecording}
+              className={cn(
+                "flex h-16 w-16 items-center justify-center rounded-full shadow-lg transition-all outline-none focus-visible:ring-4 focus-visible:ring-blue-500/30",
+                audioRecorder.isRecording 
+                  ? "bg-red-500 text-white animate-pulse shadow-red-500/40" 
+                  : "bg-slate-900 text-white hover:bg-slate-800 hover:scale-105"
+              )}
+            >
+              {audioRecorder.isRecording ? (
+                <div className="h-6 w-6 rounded-sm bg-white" />
+              ) : (
+                <Mic className="h-6 w-6" />
+              )}
+            </button>
+            <p className="text-sm font-medium text-slate-500">
+              {audioRecorder.isRecording ? "Enregistrement en cours..." : "Appuyez pour parler"}
+            </p>
           </div>
-        </div>
-      ) : null}
+          
+          {(audioTranscription || audioRecorder.transcription || audioRecorder.interimTranscript) && (
+            <div className="w-full rounded-xl bg-slate-50 p-4 border border-slate-100">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Transcription :</p>
+              <p className="text-sm text-slate-700 italic">
+                "{audioTranscription || audioRecorder.transcription || audioRecorder.interimTranscript}"
+              </p>
+            </div>
+          )}
 
-      {step === 3 ? (
-        <div className="flex flex-col gap-3" role="region" aria-label="Étape 3 — Description">
-          <p className="text-center text-[15px] font-bold tracking-tight text-slate-900">Description</p>
-          <div className="relative">
+          <div className="w-full">
             <label className="block">
               <span className="sr-only">Description du problème</span>
               <textarea
                 data-testid="smart-form-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Détail"
-                rows={4}
-                className="w-full resize-none rounded-[14px] border border-black/[0.06] bg-white/95 py-2.5 pl-3 pr-12 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-900/15"
+                placeholder="Ou tapez votre description ici..."
+                rows={3}
+                className="w-full resize-none rounded-[14px] border border-black/[0.06] bg-white/95 py-2.5 px-3 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-900/15"
               />
             </label>
-            <button
-              type="button"
-              data-testid="smart-form-description-voice"
-              aria-pressed={descriptionVoiceListening}
-              aria-label={
-                descriptionVoiceListening ? "Arrêter la dictée vocale" : "Dicter la description (micro)"
-              }
-              title={
-                !descriptionVoiceSupported
-                  ? "Dictée vocale non prise en charge par ce navigateur"
-                  : descriptionVoiceListening
-                    ? "Arrêter"
-                    : "Dicter"
-              }
-              onClick={() => toggleDescriptionVoice()}
-              className={cn(
-                "absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 outline-none transition hover:bg-slate-100/90 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-slate-900/15",
-                !descriptionVoiceSupported && "opacity-40",
-                descriptionVoiceListening && "text-red-600 hover:bg-red-500/10 hover:text-red-700",
-              )}
-            >
-              {descriptionVoiceListening ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : (
-                <Mic className="h-4 w-4" aria-hidden />
-              )}
-            </button>
           </div>
 
-          {suggestions.length > 0 ? (
-            <div
-              className="mx-auto flex w-full max-w-md flex-col items-stretch gap-2"
-              aria-label="Suggestions"
+          <div className="mt-2 flex w-full gap-2">
+            {audioBlob && !audioRecorder.isRecording && (
+              <button
+                type="button"
+                onClick={() => {
+                  audioRecorder.resetRecording();
+                  setAudioBlob(null);
+                  setAudioTranscription("");
+                }}
+                className="flex-1 rounded-[14px] border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+              >
+                Recommencer l'audio
+              </button>
+            )}
+            <button
+              type="button"
+              data-testid="smart-form-continue"
+              disabled={audioRecorder.isRecording || (!description.trim() && !audioBlob && !audioTranscription.trim() && !audioRecorder.transcription)}
+              onClick={() => {
+                if (audioRecorder.isRecording) return;
+                setStep(3);
+              }}
+              className={cn(
+                "min-h-[48px] flex-1 rounded-[14px] bg-slate-900 px-4 text-sm font-bold text-white shadow-lg transition hover:bg-slate-800 disabled:opacity-40",
+                audioBlob && !audioRecorder.isRecording ? "" : "w-full"
+              )}
             >
-              {suggestions.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  data-testid="smart-form-suggestion"
-                  className="w-full rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] px-3 py-2.5 text-center text-[12px] font-semibold leading-snug text-emerald-900"
-                  onClick={() => setDescription(s)}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          <button
-            type="button"
-            data-testid="smart-form-continue"
-            disabled={!canContinueDescription}
-            onClick={() => setStep(4)}
-            className="min-h-[48px] w-full rounded-[14px] bg-slate-900 px-4 text-sm font-bold text-white shadow-lg transition hover:bg-slate-800 disabled:opacity-40"
-          >
-            Continuer
-          </button>
+              Continuer
+            </button>
+          </div>
         </div>
       ) : null}
 
-      {step === 4 ? (
-        <div className="flex flex-col gap-3" role="region" aria-label="Étape 4 — Photos">
+      {step === 3 ? (
+        <div className="flex flex-col gap-3" role="region" aria-label="Étape 3 — Photos">
           <span className="sr-only">Photos</span>
           <div
             data-testid="smart-form-dropzone"
@@ -910,7 +853,7 @@ export default function SmartInterventionRequestForm() {
           <button
             type="button"
             data-testid="smart-form-continue"
-            onClick={() => setStep(5)}
+            onClick={() => setStep(4)}
             className="min-h-[48px] w-full rounded-[14px] bg-slate-900 px-4 text-sm font-bold text-white shadow-lg transition hover:bg-slate-800"
           >
             Continuer
@@ -918,8 +861,8 @@ export default function SmartInterventionRequestForm() {
         </div>
       ) : null}
 
-      {step === 5 ? (
-        <div className="flex flex-col gap-4" role="region" aria-label="Étape 5 — Date et Heure">
+      {step === 4 ? (
+        <div className="flex flex-col gap-4" role="region" aria-label="Étape 4 — Date et Heure">
           <p className="text-center text-[16px] font-extrabold tracking-tight text-slate-900">Quand êtes-vous disponible ?</p>
           <div className="flex flex-col gap-3">
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-1" aria-label="Jours disponibles">
@@ -988,7 +931,7 @@ export default function SmartInterventionRequestForm() {
             type="button"
             data-testid="smart-form-continue"
             disabled={!scheduledDate || !scheduledTime}
-            onClick={() => setStep(6)}
+            onClick={() => setStep(5)}
             className="mt-2 min-h-[48px] w-full rounded-[14px] bg-slate-900 px-4 text-sm font-bold text-white shadow-lg transition hover:bg-slate-800 disabled:opacity-40"
           >
             Continuer
@@ -996,11 +939,11 @@ export default function SmartInterventionRequestForm() {
         </div>
       ) : null}
 
-      {step === 6 ? (
+      {step === 5 ? (
         <div
           className="flex min-h-0 min-w-0 flex-1 flex-col"
           role="region"
-          aria-label="Étape 6 — Récapitulatif"
+          aria-label="Étape 5 — Récapitulatif"
         >
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto pb-2 pr-1">
             <div
@@ -1064,37 +1007,10 @@ export default function SmartInterventionRequestForm() {
                   <div className="min-h-0 flex-1 overflow-hidden">
                     {address.trim() ? (
                       <p
-                        className="line-clamp-2 break-words text-xs font-semibold leading-tight text-slate-800"
+                        className="line-clamp-2 break-words text-[13px] font-bold leading-tight text-slate-800"
                         title={address.trim()}
                       >
                         {address.trim()}
-                      </p>
-                    ) : (
-                      <p className="text-xs font-normal italic leading-snug text-slate-400">Non renseigné</p>
-                    )}
-                  </div>
-                </div>
-
-                <div
-                  role="group"
-                  aria-label={`Problème : ${problemLabel.trim() || "non renseigné"}`}
-                  className={RECAP_SQUARE_TILE_CLASS}
-                >
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className={RECAP_SQUARE_ICON_CHIP} aria-hidden>
-                      <Zap className="h-3.5 w-3.5" strokeWidth={2.25} />
-                    </span>
-                    <span className="text-[10px] font-bold uppercase leading-none tracking-[0.08em] text-slate-400">
-                      Motif
-                    </span>
-                  </div>
-                  <div className="min-h-0 flex-1 overflow-hidden">
-                    {problemLabel.trim() ? (
-                      <p
-                        className="line-clamp-2 break-words text-xs font-semibold leading-tight text-slate-800"
-                        title={problemLabel.trim()}
-                      >
-                        {problemLabel.trim()}
                       </p>
                     ) : (
                       <p className="text-xs font-normal italic leading-snug text-slate-400">Non renseigné</p>
@@ -1129,6 +1045,35 @@ export default function SmartInterventionRequestForm() {
                   </div>
                 </div>
 
+                <div
+                  role="group"
+                  aria-label={audioTranscription ? `Message vocal : ${audioTranscription}` : "Pas de message vocal"}
+                  className={RECAP_SQUARE_TILE_CLASS}
+                >
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className={RECAP_SQUARE_ICON_CHIP} aria-hidden>
+                      <Mic className="h-3.5 w-3.5" strokeWidth={2.25} />
+                    </span>
+                    <span className="text-[10px] font-bold uppercase leading-none tracking-[0.08em] text-slate-400">
+                      Vocal
+                    </span>
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-hidden">
+                    {audioTranscription ? (
+                      <p
+                        className="line-clamp-2 whitespace-pre-wrap break-words text-[11px] font-medium italic leading-tight text-slate-700"
+                        title={audioTranscription}
+                      >
+                        "{audioTranscription}"
+                      </p>
+                    ) : audioBlob ? (
+                      <p className="text-xs font-medium text-slate-700">Audio enregistré</p>
+                    ) : (
+                      <p className="text-xs italic leading-snug text-slate-400">Aucun vocal</p>
+                    )}
+                  </div>
+                </div>
+
                 {scheduledDate && scheduledTime && (
                   <div
                     role="group"
@@ -1144,8 +1089,8 @@ export default function SmartInterventionRequestForm() {
                       </span>
                     </div>
                     <div className="min-h-0 flex-1 overflow-hidden">
-                      <p className="text-sm font-bold text-slate-800">
-                        {new Intl.DateTimeFormat("fr-BE", { weekday: "long", day: "numeric", month: "long" }).format(new Date(scheduledDate))} à {scheduledTime}
+                      <p className="text-xs font-semibold text-slate-800">
+                        {new Intl.DateTimeFormat("fr-BE", { weekday: "long", day: "numeric", month: "long" }).format(new Date(scheduledDate))} <span className="font-medium text-slate-500">à {scheduledTime}</span>
                       </p>
                     </div>
                   </div>

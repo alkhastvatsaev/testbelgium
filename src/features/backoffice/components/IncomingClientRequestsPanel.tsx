@@ -204,7 +204,7 @@ export default function IncomingClientRequestsPanel() {
               {selectedRequest.address && (
                 <div>
                   <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Adresse</span>
-                  <p className="text-[15px] text-slate-800 mt-1">{formatAddress(selectedRequest.address)}</p>
+                  <p className="text-[15px] font-bold text-slate-800 mt-1">{formatAddress(selectedRequest.address)}</p>
                 </div>
               )}
 
@@ -214,6 +214,20 @@ export default function IncomingClientRequestsPanel() {
                   {selectedRequest.problem || selectedRequest.title || "Non spécifié"}
                 </p>
               </div>
+
+              {(selectedRequest.audioUrl || selectedRequest.transcription) && (
+                <div>
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Message Vocal</span>
+                  {selectedRequest.audioUrl && (
+                    <audio controls src={selectedRequest.audioUrl} className="w-full h-10 mt-2" />
+                  )}
+                  {selectedRequest.transcription && (
+                    <div className="mt-2 rounded-[12px] bg-slate-50 p-3 border border-slate-100">
+                      <p className="text-[14px] text-slate-700 italic">"{selectedRequest.transcription}"</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Date souhaitée */}
               <div>
@@ -265,7 +279,7 @@ export default function IncomingClientRequestsPanel() {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-[15px] font-semibold text-blue-900 mt-1">
+                  <p className="text-[14px] font-semibold text-blue-900 mt-1">
                     {selectedRequest.requestedDate 
                       ? `${selectedRequest.requestedDate} ${selectedRequest.requestedTime ? `à ${selectedRequest.requestedTime}` : ""}`
                       : "Non spécifiée"}

@@ -49,59 +49,7 @@ async function ensureUserForInterventionSubmit() {
   }
 }
 
-const STATIC_SUGGESTIONS: Record<string, string[]> = {
-  "Serrure bloquée": [
-    "Clé coincée à l'intérieur", "Clé tourne dans le vide", "Perte de clés",
-    "Serrure vandalisée", "Porte forcée", "Bruit mécanique",
-    "Impossible de fermer", "Verrou cassé", "Urgence absolue"
-  ],
-  "Cylindre": [
-    "Remplacement suite à un vol", "Cylindre haute sécurité", "Changement locataire",
-    "Cylindre défectueux", "Perte de clés", "Clé coincée",
-    "Mise à niveau", "Nouvelle installation", "Clé tourne dans le vide"
-  ],
-  "Rideau métallique": [
-    "Bloqué à mi-hauteur", "Moteur HS", "Lames abîmées",
-    "Désaxé", "Télécommande KO", "Boîte à clé cassée",
-    "Grince fortement", "Ne descend plus", "Ne monte plus"
-  ],
-  "Porte blindée": [
-    "Affaissement", "Serrure bloquée", "Tentative d'effraction",
-    "Perte de clés", "Poignée arrachée", "Frottement au sol",
-    "Pêne bloqué", "Cylindre à changer", "Fermeture difficile"
-  ],
-  "Porte claquée": [
-    "Clé à l'intérieur", "Clé sur la serrure", "Radio nécessaire",
-    "Urgence absolue", "Porte blindée", "Porte simple",
-    "Bébé à l'intérieur", "Clé perdue", "Serrure fermée à clé"
-  ],
-  "Digicode / badge": [
-    "Ne s'allume plus", "Code refusé", "Bouton cassé",
-    "Badge non reconnu", "Vandalisé", "Bip sans effet",
-    "Clavier arraché", "Alimentation coupée", "Besoin d'un nouveau code"
-  ],
-  "Clé cassée": [
-    "Bout de clé coincé", "Extracteur nécessaire", "Double disponible",
-    "Aucun double", "Serrure bloquée", "Tentative d'extraction",
-    "Clé usée", "Clé coincée", "Changement cylindre"
-  ],
-  "Coffre fort": [
-    "Perte de code", "Clé perdue", "Mécanisme bloqué",
-    "Changement combinaison", "Pile faible", "Électronique HS",
-    "Tentative de vol", "Besoin de percer", "Porte coincée"
-  ],
-  "Copie de clé": [
-    "Clé avec carte", "Clé simple", "Clé haute sécurité",
-    "Besoin immédiat", "Clé technique", "Clé de voiture",
-    "Clé cassée", "Grande quantité", "Modèle rare"
-  ]
-};
 
-const MUTUALLY_EXCLUSIVE_GROUPS: string[][] = [
-  ["Clé à l'intérieur", "Clé sur la serrure"],
-  ["Double disponible", "Aucun double"],
-  ["Clé coincée à l'intérieur", "Perte de clés"]
-];
 
 export default function RequesterInterventionPanel() {
   const {
@@ -125,8 +73,6 @@ export default function RequesterInterventionPanel() {
 
   const { problemLabel, description, urgency, photoDataUrls, interventionAddress, interventionLatLng, interventionDate, interventionTime } = requestData;
 
-  const suggestions = STATIC_SUGGESTIONS[problemLabel] || [];
-
   // Use profile.defaultAddress if interventionAddress is empty
   useEffect(() => {
     if (!interventionAddress && profile.defaultAddress) {
@@ -149,6 +95,7 @@ export default function RequesterInterventionPanel() {
     listening: descriptionVoiceListening,
     supported: descriptionVoiceSupported,
     toggleListening: toggleDescriptionVoice,
+    interimTranscript,
   } = useBrowserSpeechDictation(appendDescriptionFromVoice);
 
   // Geolocation
@@ -409,70 +356,62 @@ export default function RequesterInterventionPanel() {
               animate="animate"
               exit="exit"
               transition={springTransition}
-              className="absolute inset-0 flex flex-col overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+              className="absolute inset-0 flex flex-col items-center justify-center p-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
-              {suggestions.length > 0 && (
-                <div className="flex min-h-full flex-1 items-center justify-center py-4">
-                  <div className="-translate-y-3 grid w-full max-w-[440px] grid-cols-3 gap-3 px-1">
-                    {suggestions.map((sugg, index) => {
-                      const isSelected = description.includes(sugg);
-
-                      return (
-                        <motion.button
-                          key={index}
-                          type="button"
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.96 }}
-                          onClick={() => {
-                            if (isSelected) {
-                              setRequestData((prev) => ({
-                                ...prev,
-                                description: prev.description.replace(sugg, "").replace(/\s{2,}/g, " ").trim(),
-                              }));
-                            } else {
-                              setRequestData((prev) => {
-                                let newDesc = prev.description;
-                                MUTUALLY_EXCLUSIVE_GROUPS.forEach((group) => {
-                                  if (group.includes(sugg)) {
-                                    group.forEach((exSugg) => {
-                                      if (exSugg !== sugg) {
-                                        newDesc = newDesc.replace(exSugg, "").replace(/\s{2,}/g, " ").trim();
-                                      }
-                                    });
-                                  }
-                                });
-                                return {
-                                  ...prev,
-                                  description: newDesc ? `${newDesc} ${sugg}`.trim() : sugg,
-                                };
-                              });
-                            }
-                          }}
-                          className={cn(
-                            "group relative flex w-full aspect-square flex-col items-center justify-center p-1 text-center outline-none rounded-[22px] transition-all duration-200",
-                            isSelected
-                              ? "bg-white border border-blue-200 text-slate-800 shadow-[0_4px_20px_-4px_rgba(59,130,246,0.45)]"
-                              : "bg-white border border-black/5 hover:border-black/10 text-slate-800 shadow-sm",
-                          )}
-                        >
-                          <div className="flex flex-col items-center justify-center gap-1">
-                            <span className="text-[11px] font-bold tracking-tight leading-tight line-clamp-3">
-                              {t(sugg)}
-                            </span>
-                          </div>
-                          {isSelected ? (
-                            <div className="absolute top-2 right-2 h-4 w-4 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-sm">
-                              <Check className="h-2.5 w-2.5" />
-                            </div>
-                          ) : null}
-                        </motion.button>
-                      );
-                    })}
-                  </div>
+              <div className="flex flex-col items-center justify-center w-full max-w-sm gap-8 -mt-10">
+                <div className="text-center space-y-2">
+                  <h3 className="text-xl font-bold text-slate-800">Décrivez le problème</h3>
+                  <p className="text-sm text-slate-500">Appuyez sur le micro et parlez</p>
                 </div>
-              )}
+                
+                <button
+                  type="button"
+                  onClick={toggleDescriptionVoice}
+                  disabled={!descriptionVoiceSupported}
+                  className={cn(
+                    "relative flex h-24 w-24 items-center justify-center rounded-full transition-all duration-300 shadow-sm border border-black/5",
+                    descriptionVoiceListening
+                      ? "bg-red-50 text-red-500 shadow-[0_0_40px_rgba(239,68,68,0.3)] scale-110 border-red-200"
+                      : "bg-slate-50 text-slate-600 hover:bg-slate-100 hover:scale-105"
+                  )}
+                >
+                  {descriptionVoiceListening ? (
+                    <Loader2 className="h-10 w-10 animate-spin" />
+                  ) : (
+                    <Mic className="h-10 w-10" />
+                  )}
+                  {descriptionVoiceListening && (
+                    <span className="absolute -bottom-6 text-[11px] font-bold text-red-500 animate-pulse uppercase tracking-wider">
+                      Écoute...
+                    </span>
+                  )}
+                </button>
 
-
+                <div className="w-full relative mt-4">
+                  <textarea
+                    value={description}
+                    onChange={(e) => setRequestData(prev => ({...prev, description: e.target.value}))}
+                    placeholder="Votre description s'affichera ici..."
+                    className={cn(
+                      inputClass,
+                      "min-h-[120px] resize-none text-center p-4 pt-6 w-full bg-slate-50/50 shadow-inner rounded-[24px] text-slate-700"
+                    )}
+                  />
+                  {description && (
+                    <button 
+                      onClick={() => setRequestData(prev => ({...prev, description: ""}))}
+                      className="absolute top-3 right-3 p-1.5 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                  {interimTranscript && (
+                    <div className="mt-3 p-3 rounded-2xl bg-slate-100/80 text-sm text-slate-600 italic text-center animate-pulse border border-slate-200">
+                      {interimTranscript}
+                    </div>
+                  )}
+                </div>
+              </div>
             </motion.div>
           )}
 

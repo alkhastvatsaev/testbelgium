@@ -43,6 +43,7 @@ function getSpeechRecognitionCtor(): (new () => SpeechRec) | null {
 export function useBrowserSpeechDictation(appendTranscript: (text: string) => void) {
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState("");
   const recRef = useRef<SpeechRec | null>(null);
   const appendRef = useRef(appendTranscript);
   appendRef.current = appendTranscript;
@@ -63,6 +64,7 @@ export function useBrowserSpeechDictation(appendTranscript: (text: string) => vo
     }
     recRef.current = null;
     setListening(false);
+    setInterimTranscript("");
   }, []);
 
   useEffect(
@@ -93,14 +95,21 @@ export function useBrowserSpeechDictation(appendTranscript: (text: string) => vo
     const recognition = new Ctor();
     recognition.lang = "fr-BE";
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.onresult = (event: SpeechRecognitionEventLike) => {
+      let currentInterim = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const row = event.results[i];
-        if (!row?.isFinal) continue;
-        const piece = row[0]?.transcript?.trim();
-        if (piece) appendRef.current(piece);
+        const piece = row[0]?.transcript;
+        if (!piece) continue;
+
+        if (row.isFinal) {
+          appendRef.current(piece.trim());
+        } else {
+          currentInterim += piece;
+        }
       }
+      setInterimTranscript(currentInterim);
     };
     recognition.onerror = (ev: SpeechRecognitionErrorLike) => {
       const err = ev.error;
@@ -112,16 +121,19 @@ export function useBrowserSpeechDictation(appendTranscript: (text: string) => vo
       }
       recRef.current = null;
       setListening(false);
+      setInterimTranscript("");
     };
     recognition.onend = () => {
       recRef.current = null;
       setListening(false);
+      setInterimTranscript("");
     };
 
     recRef.current = recognition;
     try {
       recognition.start();
       setListening(true);
+      setInterimTranscript("");
     } catch {
       toast.error("Impossible de démarrer le micro");
       recRef.current = null;
@@ -129,5 +141,5 @@ export function useBrowserSpeechDictation(appendTranscript: (text: string) => vo
     }
   }, [listening, stop]);
 
-  return { listening, supported, toggleListening, stop };
+  return { listening, supported, toggleListening, stop, interimTranscript };
 }

@@ -1,5 +1,6 @@
 /** @jest-environment jsdom */
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithPager } from "@/test-utils/renderWithPager";
 import { CompanyWorkspaceProvider } from "@/context/CompanyWorkspaceContext";
 import CompanyHubPage from "@/features/company/components/CompanyHubPage";
 import { OfflineSyncProvider } from "@/context/OfflineSyncContext";
@@ -16,7 +17,7 @@ jest.mock("sonner", () => ({
 }));
 
 function renderTechnicianHub() {
-  return render(
+  return renderWithPager(
     <TechnicianQueryProvider>
       <OfflineSyncProvider>
         <TechnicianCaseIntentProvider>
@@ -30,19 +31,23 @@ function renderTechnicianHub() {
 }
 
 function renderBackOfficeHub() {
-  return render(
+  return renderWithPager(
     <CompanyWorkspaceProvider>
       <BackOfficeHubPage slotIndex={BACKOFFICE_HUB_PAGE_INDEX} />
     </CompanyWorkspaceProvider>,
   );
 }
 
+import { I18nProvider } from "@/core/i18n/I18nContext";
+
 describe("Dashboard hub pages", () => {
   it("hub société : trois colonnes avec formulaire, organisation et portail client", () => {
-    render(
-      <CompanyWorkspaceProvider>
-        <CompanyHubPage />
-      </CompanyWorkspaceProvider>,
+    renderWithPager(
+      <I18nProvider>
+        <CompanyWorkspaceProvider>
+          <CompanyHubPage />
+        </CompanyWorkspaceProvider>
+      </I18nProvider>,
     );
 
     expect(screen.getByTestId("dashboard-secondary-placeholder")).toBeInTheDocument();
@@ -59,18 +64,16 @@ describe("Dashboard hub pages", () => {
     renderTechnicianHub();
 
     expect(screen.getByTestId(`dashboard-pager-slot-${TECHNICIAN_HUB_SLOT_INDEX}`)).toBeInTheDocument();
-    expect(screen.getByTestId("technician-offline-sync-panel")).toBeInTheDocument();
-    expect(screen.getByTestId("technician-dashboard")).toBeInTheDocument();
-    expect(screen.getByTestId("finish-job-empty")).toBeInTheDocument();
-    expect(screen.getByTestId("technician-push-panel")).toBeInTheDocument();
-    expect(screen.getByTestId("technician-invoice-automation-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("technician-dashboard-list")).toBeInTheDocument();
+    expect(screen.getByTestId("technician-dashboard-detail-empty")).toBeInTheDocument();
+    expect(screen.getByTestId("technician-dashboard-images-empty")).toBeInTheDocument();
   });
 
   it("hub back-office : doublons, tableau temps réel et calendrier", () => {
     renderBackOfficeHub();
 
     expect(screen.getByTestId(`dashboard-pager-slot-${BACKOFFICE_HUB_PAGE_INDEX}`)).toBeInTheDocument();
-    expect(screen.getByTestId("duplicate-alerts-gate")).toBeInTheDocument();
+    expect(screen.getByTestId("incoming-requests-gate")).toBeInTheDocument();
     expect(screen.getByTestId("back-office-gate")).toBeInTheDocument();
     expect(screen.getByTestId("calendar-integration-gate")).toBeInTheDocument();
   });

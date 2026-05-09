@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import DashboardTriplePanelLayout from "@/features/dashboard/components/DashboardTriplePanelLayout";
 import TechnicianDashboardListPanel from "@/features/interventions/components/TechnicianDashboardListPanel";
 import TechnicianDashboardDetailPanel from "@/features/interventions/components/TechnicianDashboardDetailPanel";
@@ -9,6 +9,11 @@ import { useTechnicianCaseIntent } from "@/context/TechnicianCaseIntentContext";
 import {
   TECHNICIAN_HUB_ANCHOR_MISSIONS,
 } from "@/features/interventions/technicianHubNavigation";
+import { useTechnicianAssignments } from "@/features/interventions/useTechnicianAssignments";
+import { interventionMatchesTab, sortInterventionsByScheduleAsc } from "@/features/interventions/technicianSchedule";
+import { useDashboardSelectedDate } from "@/context/DateContext";
+import { auth } from "@/core/config/firebase";
+import { devUiPreviewEnabled } from "@/core/config/devUiPreview";
 
 type Props = { slotIndex: number };
 
@@ -21,12 +26,29 @@ export default function TechnicianHubPage({ slotIndex }: Props) {
   const { pendingCaseId, setPendingCaseId } = useTechnicianCaseIntent();
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
+  const { interventions } = useTechnicianAssignments();
+  const dashboardSelectedDate = useDashboardSelectedDate();
+
+  const tabAnchorDate = useMemo(() => {
+    const previewAnonymous =
+      devUiPreviewEnabled &&
+      (!auth || !auth.currentUser || auth.currentUser.isAnonymous);
+    return previewAnonymous ? dashboardSelectedDate : new Date();
+  }, [dashboardSelectedDate]);
+
+  const filteredSorted = useMemo(() => {
+    const matched = interventions.filter((iv) => interventionMatchesTab(iv, "today", tabAnchorDate));
+    return sortInterventionsByScheduleAsc(matched);
+  }, [interventions, tabAnchorDate]);
+
   useEffect(() => {
     if (pendingCaseId) {
       setSelectedCaseId(pendingCaseId);
       setPendingCaseId(null);
+    } else if (!selectedCaseId && filteredSorted.length > 0) {
+      setSelectedCaseId(filteredSorted[0].id);
     }
-  }, [pendingCaseId, setPendingCaseId]);
+  }, [pendingCaseId, setPendingCaseId, selectedCaseId, filteredSorted]);
 
   return (
     <DashboardTriplePanelLayout
