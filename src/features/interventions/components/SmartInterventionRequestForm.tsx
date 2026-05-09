@@ -29,6 +29,8 @@ import {
   UserRound,
   X,
   Zap,
+  Play,
+  Pause,
 } from "lucide-react";
 import { toast } from "sonner";
 import { auth, firestore, isConfigured } from "@/core/config/firebase";
@@ -185,6 +187,98 @@ const SMART_FORM_CONTACT_INPUT_CLASS =
 const SMART_FORM_CONTACT_LABEL_CLASS =
   "mb-1 block text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500";
 
+const AudioPlayer = ({ blob, onRemove }: { blob: Blob; onRemove: () => void }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  useEffect(() => {
+    if (!(blob instanceof Blob)) return;
+    try {
+      const url = URL.createObjectURL(blob);
+      if (audioRef.current) {
+        audioRef.current.src = url;
+      }
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    } catch (e) {
+      console.error("Failed to create object URL:", e);
+    }
+  }, [blob]);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setProgress(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const formatTime = (time: number) => {
+    if (!time || isNaN(time)) return "0:00";
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <div className="flex w-full items-center gap-3 rounded-[16px] border border-slate-200 bg-white p-3 shadow-sm transition-all hover:shadow-md">
+      <audio 
+        ref={audioRef} 
+        onTimeUpdate={handleTimeUpdate} 
+        onLoadedMetadata={handleLoadedMetadata}
+        onEnded={() => setIsPlaying(false)}
+        className="hidden" 
+      />
+      <button 
+        type="button"
+        onClick={togglePlay}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white transition hover:scale-105 hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900/20"
+        aria-label={isPlaying ? "Mettre en pause" : "Lire l'audio"}
+      >
+        {isPlaying ? <Pause className="h-4 w-4" fill="currentColor" /> : <Play className="h-4 w-4 ml-0.5" fill="currentColor" />}
+      </button>
+      <div className="flex flex-1 flex-col gap-1.5">
+        <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+          <div 
+            className="absolute left-0 top-0 h-full bg-slate-900 transition-all duration-100"
+            style={{ width: duration > 0 ? `${(progress / duration) * 100}%` : "0%" }}
+          />
+        </div>
+        <div className="flex justify-between text-[10px] font-bold tracking-wider text-slate-400">
+          <span>{formatTime(progress)}</span>
+          <span>{duration > 0 ? formatTime(duration) : "0:00"}</span>
+        </div>
+      </div>
+      <div className="h-8 w-px bg-slate-100" />
+      <button 
+        type="button"
+        onClick={onRemove}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-rose-50 hover:text-rose-500 focus-visible:ring-2 focus-visible:ring-rose-500/20"
+        aria-label="Supprimer le vocal"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
+  );
+};
+
 export default function SmartInterventionRequestForm() {
   const workspace = useCompanyWorkspaceOptional();
   const tenantCompanyId =
@@ -205,7 +299,9 @@ export default function SmartInterventionRequestForm() {
   const [scheduledDate, setScheduledDate] = useState(initialPayload.scheduledDate ?? "");
   const [scheduledTime, setScheduledTime] = useState(initialPayload.scheduledTime ?? "");
   const [audioTranscription, setAudioTranscription] = useState(initialPayload.audioTranscription ?? "");
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(initialPayload.audioBlob ?? null);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(
+    initialPayload.audioBlob instanceof Blob ? initialPayload.audioBlob : null
+  );
   
   const audioRecorder = useAudioRecorder();
 
@@ -688,27 +784,40 @@ export default function SmartInterventionRequestForm() {
           <p className="text-center text-[16px] font-extrabold tracking-tight text-slate-900">
             Décrivez votre problème vocalement
           </p>
-          <div className="flex flex-col items-center justify-center gap-4 py-6">
-            <button
-              type="button"
-              onClick={audioRecorder.isRecording ? audioRecorder.stopRecording : audioRecorder.startRecording}
-              className={cn(
-                "flex h-16 w-16 items-center justify-center rounded-full shadow-lg transition-all outline-none focus-visible:ring-4 focus-visible:ring-blue-500/30",
-                audioRecorder.isRecording 
-                  ? "bg-red-500 text-white animate-pulse shadow-red-500/40" 
-                  : "bg-slate-900 text-white hover:bg-slate-800 hover:scale-105"
-              )}
-            >
-              {audioRecorder.isRecording ? (
-                <div className="h-6 w-6 rounded-sm bg-white" />
-              ) : (
-                <Mic className="h-6 w-6" />
-              )}
-            </button>
-            <p className="text-sm font-medium text-slate-500">
-              {audioRecorder.isRecording ? "Enregistrement en cours..." : "Appuyez pour parler"}
-            </p>
-          </div>
+          {!audioBlob ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-6">
+              <button
+                type="button"
+                onClick={audioRecorder.isRecording ? audioRecorder.stopRecording : audioRecorder.startRecording}
+                className={cn(
+                  "flex h-16 w-16 items-center justify-center rounded-full shadow-lg transition-all outline-none focus-visible:ring-4 focus-visible:ring-blue-500/30",
+                  audioRecorder.isRecording 
+                    ? "bg-red-500 text-white animate-pulse shadow-red-500/40" 
+                    : "bg-slate-900 text-white hover:bg-slate-800 hover:scale-105"
+                )}
+              >
+                {audioRecorder.isRecording ? (
+                  <div className="h-6 w-6 rounded-sm bg-white" />
+                ) : (
+                  <Mic className="h-6 w-6" />
+                )}
+              </button>
+              <p className="text-sm font-medium text-slate-500">
+                {audioRecorder.isRecording ? "Enregistrement en cours..." : "Appuyez pour parler"}
+              </p>
+            </div>
+          ) : (
+            <div className="w-full py-2">
+              <AudioPlayer 
+                blob={audioBlob} 
+                onRemove={() => {
+                  audioRecorder.resetRecording();
+                  setAudioBlob(null);
+                  setAudioTranscription("");
+                }} 
+              />
+            </div>
+          )}
           
           {(audioTranscription || audioRecorder.transcription || audioRecorder.interimTranscript) && (
             <div className="w-full rounded-xl bg-slate-50 p-4 border border-slate-100">
@@ -734,19 +843,6 @@ export default function SmartInterventionRequestForm() {
           </div>
 
           <div className="mt-2 flex w-full gap-2">
-            {audioBlob && !audioRecorder.isRecording && (
-              <button
-                type="button"
-                onClick={() => {
-                  audioRecorder.resetRecording();
-                  setAudioBlob(null);
-                  setAudioTranscription("");
-                }}
-                className="flex-1 rounded-[14px] border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-              >
-                Recommencer l'audio
-              </button>
-            )}
             <button
               type="button"
               data-testid="smart-form-continue"
@@ -755,10 +851,7 @@ export default function SmartInterventionRequestForm() {
                 if (audioRecorder.isRecording) return;
                 setStep(3);
               }}
-              className={cn(
-                "min-h-[48px] flex-1 rounded-[14px] bg-slate-900 px-4 text-sm font-bold text-white shadow-lg transition hover:bg-slate-800 disabled:opacity-40",
-                audioBlob && !audioRecorder.isRecording ? "" : "w-full"
-              )}
+              className="min-h-[48px] w-full rounded-[14px] bg-slate-900 px-4 text-sm font-bold text-white shadow-lg transition hover:bg-slate-800 disabled:opacity-40"
             >
               Continuer
             </button>

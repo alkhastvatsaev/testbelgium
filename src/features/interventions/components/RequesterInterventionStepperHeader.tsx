@@ -3,11 +3,17 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRequesterHub } from "@/features/interventions/context/RequesterHubContext";
+import { toast } from "sonner";
 
 export default function RequesterInterventionStepperHeader() {
-  const { currentStep, setCurrentStep } = useRequesterHub();
+  const { currentStep, setCurrentStep, requestData, triggerValidation } = useRequesterHub();
 
   const handleNext = () => {
+    if (currentStep === 2 && requestData.photoDataUrls.length === 0) {
+      toast.error("Veuillez ajouter au moins une photo");
+      triggerValidation();
+      return;
+    }
     if (currentStep < 4) setCurrentStep((prev) => prev + 1);
   };
   const handleBack = () => {

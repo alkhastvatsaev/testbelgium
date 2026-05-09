@@ -24,6 +24,8 @@ export interface InterventionRequestData {
   interventionLatLng?: { lat: number; lng: number };
   interventionDate?: string;
   interventionTime?: string;
+  audioBlob?: Blob | null;
+  audioUrl?: string | null;
 }
 
 interface RequesterHubContextValue {
@@ -61,6 +63,8 @@ const defaultRequestData: InterventionRequestData = {
   interventionAddress: "",
   interventionDate: "",
   interventionTime: "",
+  audioBlob: null,
+  audioUrl: null,
 };
 
 const RequesterHubContext = createContext<RequesterHubContextValue | null>(null);

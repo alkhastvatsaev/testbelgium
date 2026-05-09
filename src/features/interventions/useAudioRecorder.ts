@@ -18,6 +18,7 @@ export function useAudioRecorder() {
     supported: isDictationSupported,
     toggleListening,
     stop: stopDictation,
+    interimTranscript,
   } = useBrowserSpeechDictation((text) => {
     setTranscription((prev) => (prev ? prev + " " + text : text));
   });
@@ -86,6 +87,7 @@ export function useAudioRecorder() {
     stopRecording,
     resetRecording,
     isDictationSupported,
+    interimTranscript,
     setTranscription // Optional if they want to edit it
   };
 }

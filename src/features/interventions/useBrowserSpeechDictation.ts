@@ -39,14 +39,22 @@ function getSpeechRecognitionCtor(): (new () => SpeechRec) | null {
 
 /**
  * Dictée navigateur (Web Speech API). Ajoute du texte via `appendTranscript`.
+ * Enregistre également l'audio via `MediaRecorder` et appelle `onAudioRecorded` à la fin.
  */
-export function useBrowserSpeechDictation(appendTranscript: (text: string) => void) {
+export function useBrowserSpeechDictation(appendTranscript: (text: string) => void, onAudioRecorded?: (blob: Blob) => void) {
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState("");
   const recRef = useRef<SpeechRec | null>(null);
+  
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
   const appendRef = useRef(appendTranscript);
   appendRef.current = appendTranscript;
+
+  const onAudioRecordedRef = useRef(onAudioRecorded);
+  onAudioRecordedRef.current = onAudioRecorded;
 
   useEffect(() => {
     setSupported(getSpeechRecognitionCtor() !== null);
@@ -63,6 +71,12 @@ export function useBrowserSpeechDictation(appendTranscript: (text: string) => vo
       }
     }
     recRef.current = null;
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    mediaRecorderRef.current = null;
+
     setListening(false);
     setInterimTranscript("");
   }, []);
@@ -75,11 +89,16 @@ export function useBrowserSpeechDictation(appendTranscript: (text: string) => vo
         /* ignore */
       }
       recRef.current = null;
+
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      mediaRecorderRef.current = null;
     },
     [],
   );
 
-  const toggleListening = useCallback(() => {
+  const toggleListening = useCallback(async () => {
     const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) {
       toast.error("Dictée vocale indisponible", {
@@ -89,6 +108,29 @@ export function useBrowserSpeechDictation(appendTranscript: (text: string) => vo
     }
     if (listening) {
       stop();
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const type = mediaRecorder.mimeType || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type });
+        onAudioRecordedRef.current?.(blob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+    } catch (err) {
+      toast.error("Accès au micro refusé.");
       return;
     }
 
@@ -120,11 +162,17 @@ export function useBrowserSpeechDictation(appendTranscript: (text: string) => vo
         toast.message("Dictée", { description: "Micro arrêté ou indisponible." });
       }
       recRef.current = null;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
       setListening(false);
       setInterimTranscript("");
     };
     recognition.onend = () => {
       recRef.current = null;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
       setListening(false);
       setInterimTranscript("");
     };
@@ -137,6 +185,9 @@ export function useBrowserSpeechDictation(appendTranscript: (text: string) => vo
     } catch {
       toast.error("Impossible de démarrer le micro");
       recRef.current = null;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
       setListening(false);
     }
   }, [listening, stop]);
