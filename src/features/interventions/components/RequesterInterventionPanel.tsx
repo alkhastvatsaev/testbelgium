@@ -20,6 +20,7 @@ import SmartFormAddressAutocomplete from "@/features/interventions/components/Sm
 import SmartFormAddressMiniMap from "@/features/interventions/components/SmartFormAddressMiniMap";
 import RequesterInterventionStepperHeader from "./RequesterInterventionStepperHeader";
 import { useBrowserSpeechDictation } from "@/features/interventions/useBrowserSpeechDictation";
+import { capitalizeName } from "@/utils/stringUtils";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
@@ -294,8 +295,8 @@ export default function RequesterInterventionPanel() {
         createdByUid: user.uid,
         ...(tenantCompanyId ? { companyId: tenantCompanyId } : {}),
         ...(photoDataUrls.length ? { attachmentThumbnails: photoDataUrls.slice(0, SMART_FORM_MAX_PHOTOS) } : {}),
-        ...(profile.firstName.trim() ? { clientFirstName: profile.firstName.trim() } : {}),
-        ...(profile.lastName.trim() ? { clientLastName: profile.lastName.trim() } : {}),
+        ...(profile.firstName.trim() ? { clientFirstName: capitalizeName(profile.firstName) } : {}),
+        ...(profile.lastName.trim() ? { clientLastName: capitalizeName(profile.lastName) } : {}),
         ...(profile.phone.trim() ? { clientPhone: profile.phone.trim() } : {}),
         ...(interventionDate ? { requestedDate: interventionDate } : {}),
         ...(interventionTime ? { requestedTime: interventionTime } : {}),
@@ -345,9 +346,6 @@ export default function RequesterInterventionPanel() {
 
   return (
     <div data-testid="requester-intervention-panel" style={outfit} className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white">
-      <div className="shrink-0">
-        <RequesterInterventionStepperHeader />
-      </div>
       {/* Body with AnimatePresence */}
       <div className="relative flex-1 overflow-hidden">
         <AnimatePresence mode="wait" initial={false}>
@@ -642,6 +640,9 @@ Envoyer la demande
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+      <div className="shrink-0">
+        <RequesterInterventionStepperHeader />
       </div>
     </div>
   );

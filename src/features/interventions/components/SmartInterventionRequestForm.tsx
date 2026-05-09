@@ -46,6 +46,7 @@ import { devUiPreviewEnabled } from "@/core/config/devUiPreview";
 import SmartFormAddressMiniMap from "@/features/interventions/components/SmartFormAddressMiniMap";
 import SmartFormAddressAutocomplete from "@/features/interventions/components/SmartFormAddressAutocomplete";
 import { useBrowserSpeechDictation } from "@/features/interventions/useBrowserSpeechDictation";
+import { capitalizeName } from "@/utils/stringUtils";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
@@ -512,8 +513,8 @@ export default function SmartInterventionRequestForm() {
         createdByUid: user.uid,
         ...(tenantCompanyId ? { companyId: tenantCompanyId } : {}),
         ...(photoDataUrls.length ? { attachmentThumbnails: photoDataUrls.slice(0, SMART_FORM_MAX_PHOTOS) } : {}),
-        ...(firstName.trim() ? { clientFirstName: firstName.trim() } : {}),
-        ...(lastName.trim() ? { clientLastName: lastName.trim() } : {}),
+        ...(firstName.trim() ? { clientFirstName: capitalizeName(firstName) } : {}),
+        ...(lastName.trim() ? { clientLastName: capitalizeName(lastName) } : {}),
         ...(phone.trim() ? { clientPhone: phone.trim() } : {}),
         ...(scheduledDate ? { scheduledDate } : {}),
         ...(scheduledTime ? { scheduledTime } : {}),

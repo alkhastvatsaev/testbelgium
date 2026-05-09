@@ -118,7 +118,6 @@ export default function TechnicianDayPanel() {
                     </div>
  
                     <div>
-                      <p className="font-mono text-[11px] font-semibold text-slate-500">Dossier {nextMission.id}</p>
                       <p className="mt-0.5 line-clamp-2 text-[15px] leading-tight font-bold text-slate-900">
                         {nextMission.title || nextMission.address || "Détails à préciser"}
                       </p>

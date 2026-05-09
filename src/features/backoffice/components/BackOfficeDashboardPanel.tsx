@@ -50,7 +50,7 @@ import {
 import { buildInterventionHistory } from "@/features/backoffice/interventionHistory";
 import { computeTodayActivitySummary } from "@/features/backoffice/todayActivity";
 import { useBackOfficeInterventions } from "@/features/backoffice/useBackOfficeInterventions";
-import InterventionScheduleEditor from "@/features/interventions/components/InterventionScheduleEditor";
+
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
@@ -155,6 +155,12 @@ function BackOfficeDetailDrawer({
               <span className="font-medium text-slate-600">Lieu</span>
               <p className="mt-1 leading-snug text-slate-800">{merged.address?.trim() || "—"}</p>
             </div>
+            {merged.problem?.trim() ? (
+              <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3 text-center">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Problème</span>
+                <p className="mt-1.5 font-semibold leading-snug text-slate-800">{merged.problem}</p>
+              </div>
+            ) : null}
             {merged.phone?.trim() ? (
               <div>
                 <span className="font-medium text-slate-600">Tél.</span>
@@ -176,7 +182,7 @@ function BackOfficeDetailDrawer({
           </div>
         </div>
 
-        <InterventionScheduleEditor intervention={merged} isAdmin={isAdmin} />
+
 
         <div className="rounded-[18px] border border-black/[0.06] bg-white/90 px-4 py-4 shadow-sm">
           <h3 className="sr-only">Historique</h3>
@@ -556,7 +562,9 @@ export default function BackOfficeDashboardPanel() {
                       >
                         <td className="max-w-[180px] px-3 py-2">
                           <p className="truncate font-bold text-slate-900">{interventionClientLabel(iv)}</p>
-                          <p className="font-mono text-[10px] font-semibold text-slate-400">{iv.id}</p>
+                          {(iv.clientPhone || iv.phone) && (
+                            <p className="font-bold text-slate-900 mt-0.5 text-[13px]">{iv.clientPhone || iv.phone}</p>
+                          )}
                         </td>
                         <td className="px-3 py-2">
                           <Badge variant={bucketBadgeVariant(bucket)}>{backofficeRowStatusLabel(iv.status)}</Badge>

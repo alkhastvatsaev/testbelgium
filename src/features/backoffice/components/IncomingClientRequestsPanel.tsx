@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { useBackOfficeInterventions } from "@/features/backoffice/useBackOfficeInterventions";
 import type { Intervention } from "@/features/interventions/types";
 import { DEMO_TECHNICIAN_UID } from "@/core/config/devUiPreview";
+import { capitalizeName, formatAddress } from "@/utils/stringUtils";
+import { guessGenderPrefixFromName } from "@/utils/genderDetection";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
@@ -116,7 +118,16 @@ export default function IncomingClientRequestsPanel() {
         {!loading && pendingRequests.length > 0 ? (
           <>
             {pendingRequests.map((req, index) => {
-              const clientName = [req.clientFirstName, req.clientLastName].filter(Boolean).join(" ") || req.clientName || "Client Anonyme";
+              let fName = req.clientFirstName;
+              let lName = req.clientLastName;
+              if (!fName && !lName && req.clientName) {
+                const parts = req.clientName.trim().split(" ");
+                fName = parts[0];
+                lName = parts.slice(1).join(" ");
+              }
+              const prefix = fName ? guessGenderPrefixFromName(fName) : "";
+              const displayLName = capitalizeName(lName || fName || "");
+              const clientName = `${prefix} ${displayLName}`.trim() || "Client Anonyme";
               
               const cardClass = "shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)] hover:shadow-[0_14px_32px_-10px_rgba(15,23,42,0.18)]";
 
@@ -165,20 +176,35 @@ export default function IncomingClientRequestsPanel() {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
-              <div>
-                <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Client</span>
-                <p className="text-[16px] font-semibold text-slate-900 mt-1">
-                  {[selectedRequest.clientFirstName, selectedRequest.clientLastName].filter(Boolean).join(" ") || selectedRequest.clientName || "Client Anonyme"}
-                </p>
-                {selectedRequest.clientPhone && (
-                  <p className="text-[14px] text-slate-500 mt-0.5">{selectedRequest.clientPhone}</p>
-                )}
-              </div>
+              {(() => {
+                let fName = selectedRequest.clientFirstName;
+                let lName = selectedRequest.clientLastName;
+                if (!fName && !lName && selectedRequest.clientName) {
+                  const parts = selectedRequest.clientName.trim().split(" ");
+                  fName = parts[0];
+                  lName = parts.slice(1).join(" ");
+                }
+                const prefix = fName ? guessGenderPrefixFromName(fName) : "";
+                const displayLName = capitalizeName(lName || fName || "");
+                const clientDisplayName = `${prefix} ${displayLName}`.trim() || "Client Anonyme";
+
+                return (
+                  <div>
+                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Client</span>
+                    <p className="text-[16px] font-bold text-black mt-1">
+                      {clientDisplayName}
+                    </p>
+                    {selectedRequest.clientPhone && (
+                      <p className="text-[14px] font-bold text-black mt-0.5">{selectedRequest.clientPhone}</p>
+                    )}
+                  </div>
+                );
+              })()}
 
               {selectedRequest.address && (
                 <div>
                   <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Adresse</span>
-                  <p className="text-[15px] text-slate-800 mt-1">{selectedRequest.address}</p>
+                  <p className="text-[15px] text-slate-800 mt-1">{formatAddress(selectedRequest.address)}</p>
                 </div>
               )}
 

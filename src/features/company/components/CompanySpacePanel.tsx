@@ -42,10 +42,10 @@ const iconRail =
   "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/95 text-slate-500 shadow-[0_4px_14px_-6px_rgba(15,23,42,0.1)]";
 
 const inputClass =
-  "min-w-0 flex-1 rounded-[14px] border border-black/[0.06] bg-white/95 px-3 py-2 text-sm text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-slate-900/15";
+  "min-w-0 flex-1 rounded-[14px] border border-black/[0.06] bg-white/95 px-3 py-2 text-sm font-bold text-black outline-none focus-visible:ring-2 focus-visible:ring-slate-900/15";
 
 const selectClass =
-  "min-w-0 flex-1 cursor-pointer appearance-none rounded-[14px] border border-black/[0.06] bg-white/95 py-2 pl-3 pr-10 text-sm text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-slate-900/15";
+  "min-w-0 flex-1 cursor-pointer appearance-none rounded-[14px] border border-black/[0.06] bg-white/95 py-2 pl-3 pr-10 text-sm font-bold text-black outline-none focus-visible:ring-2 focus-visible:ring-slate-900/15";
 
 function PanelShell({ children }: { children: ReactNode }) {
   return (
@@ -289,7 +289,7 @@ export default function CompanySpacePanel() {
           <button
             type="button"
             data-testid="company-open-intervention-form-btn"
-            className="min-w-0 flex-1 rounded-[14px] border border-black/[0.06] bg-white/95 px-3 py-2 text-left text-sm font-medium text-slate-800 outline-none transition-colors hover:bg-white focus-visible:ring-2 focus-visible:ring-slate-900/15"
+            className="min-w-0 flex-1 rounded-[14px] border border-black/[0.06] bg-white/95 px-3 py-2 text-left text-sm font-bold text-black outline-none transition-colors hover:bg-white focus-visible:ring-2 focus-visible:ring-slate-900/15"
             aria-label="Ouvrir le formulaire de demande d’intervention"
             onClick={() => navigateCompanyHub(pager, COMPANY_HUB_ANCHOR_SMART_FORM)}
           >

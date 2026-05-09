@@ -77,7 +77,23 @@ export function formatScheduledLabel(iv: Intervention): string {
   });
 }
 
+export function formatScheduledTimeOnly(iv: Intervention): string {
+  if (iv.scheduledTime) return iv.scheduledTime;
+  if (iv.requestedTime) return iv.requestedTime;
+  if (iv.hour && iv.hour.trim() !== "") return iv.hour;
+  if (iv.time && iv.time.trim() !== "") return iv.time;
+  
+  if (iv.urgency) return "Urgent";
+  
+  return "—";
+}
+
 export function interventionClientLabel(iv: Intervention): string {
+  const first = iv.clientFirstName?.trim();
+  const last = iv.clientLastName?.trim();
+  if (first || last) {
+    return [first, last].filter(Boolean).join(" ");
+  }
   const n = iv.clientName?.trim();
   if (n) return n;
   const t = iv.title?.trim();

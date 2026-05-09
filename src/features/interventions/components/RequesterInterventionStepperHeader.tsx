@@ -15,7 +15,7 @@ export default function RequesterInterventionStepperHeader() {
   };
 
   return (
-    <div className="flex shrink-0 items-center justify-between bg-white px-4 py-3">
+    <div className="flex shrink-0 items-center justify-between bg-white px-4 pt-1 pb-0">
       <button
         type="button"
         onClick={handleBack}

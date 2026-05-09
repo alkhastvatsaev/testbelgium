@@ -1,27 +1,32 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import DashboardTriplePanelLayout from "@/features/dashboard/components/DashboardTriplePanelLayout";
-import TechnicianDayPanel from "@/features/interventions/components/TechnicianDayPanel";
-import TechnicianDashboardPanel from "@/features/interventions/components/TechnicianDashboardPanel";
-import TechnicianFinishJobPanel from "@/features/interventions/components/TechnicianFinishJobPanel";
-import TechnicianInvoiceAutomationPanel from "@/features/interventions/components/TechnicianInvoiceAutomationPanel";
-import TechnicianOfflineSyncPanel from "@/features/offline/components/TechnicianOfflineSyncPanel";
+import TechnicianDashboardListPanel from "@/features/interventions/components/TechnicianDashboardListPanel";
+import TechnicianDashboardDetailPanel from "@/features/interventions/components/TechnicianDashboardDetailPanel";
+import TechnicianDashboardImagesPanel from "@/features/interventions/components/TechnicianDashboardImagesPanel";
+import { useTechnicianCaseIntent } from "@/context/TechnicianCaseIntentContext";
 import {
-  TECHNICIAN_HUB_ANCHOR_FINISH,
-  TECHNICIAN_HUB_ANCHOR_INVOICE,
   TECHNICIAN_HUB_ANCHOR_MISSIONS,
 } from "@/features/interventions/technicianHubNavigation";
 
 type Props = { slotIndex: number };
 
-const railGap = "flex flex-col gap-6 pb-4";
-
 /**
  * Une page carrousel = tout le poste **technicien** : Ma Journée (gauche), missions (centre),
- * clôture + facturation auto (droite).
+ * photos client (droite).
  */
 export default function TechnicianHubPage({ slotIndex }: Props) {
   const humanPage = slotIndex + 1;
+  const { pendingCaseId, setPendingCaseId } = useTechnicianCaseIntent();
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (pendingCaseId) {
+      setSelectedCaseId(pendingCaseId);
+      setPendingCaseId(null);
+    }
+  }, [pendingCaseId, setPendingCaseId]);
 
   return (
     <DashboardTriplePanelLayout
@@ -31,24 +36,20 @@ export default function TechnicianHubPage({ slotIndex }: Props) {
       rightTestId={`dashboard-pager-slot-${slotIndex}-panel-right`}
       leftAriaLabel={`Page ${humanPage} — technicien : ma journée`}
       centerAriaLabel={`Page ${humanPage} — technicien : missions`}
-      rightAriaLabel={`Page ${humanPage} — technicien : clôture`}
-      left={<TechnicianDayPanel />}
+      rightAriaLabel={`Page ${humanPage} — technicien : photos`}
+      left={
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
+          <TechnicianDashboardListPanel selectedCaseId={selectedCaseId} onSelect={setSelectedCaseId} />
+        </div>
+      }
       center={
-        <section id={TECHNICIAN_HUB_ANCHOR_MISSIONS} className="scroll-mt-2">
-          <TechnicianDashboardPanel />
+        <section id={TECHNICIAN_HUB_ANCHOR_MISSIONS} className="scroll-mt-2 flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
+          <TechnicianDashboardDetailPanel caseId={selectedCaseId} />
         </section>
       }
       right={
-        <div className={railGap}>
-          <section id={TECHNICIAN_HUB_ANCHOR_FINISH} className="scroll-mt-2 flex min-h-0 flex-1 flex-col">
-            <TechnicianFinishJobPanel />
-          </section>
-          <section id={TECHNICIAN_HUB_ANCHOR_INVOICE} className="scroll-mt-2 shrink-0">
-            <TechnicianInvoiceAutomationPanel />
-          </section>
-          <section className="shrink-0">
-            <TechnicianOfflineSyncPanel />
-          </section>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
+          <TechnicianDashboardImagesPanel caseId={selectedCaseId} />
         </div>
       }
     />
