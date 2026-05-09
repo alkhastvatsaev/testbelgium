@@ -31,6 +31,9 @@ export interface Intervention {
   /** Planification optionnelle (AAAA-MM-JJ + HH:mm), sinon repli sur createdAt. */
   scheduledDate?: string | null;
   scheduledTime?: string | null;
+  /** Souhaits du client lors de la demande. */
+  requestedDate?: string | null;
+  requestedTime?: string | null;
   /** Miniatures JPEG compressées (data URLs), usage interne / prévisualisation. */
   attachmentThumbnails?: string[];
   /** Fin d’intervention — URLs Storage (JPEG). */

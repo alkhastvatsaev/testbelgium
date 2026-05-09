@@ -3,7 +3,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRequesterHub } from "../context/RequesterHubContext";
-import { ImagePlus, Loader2, MapPin, Mic, SendHorizontal, Trash2, Check } from "lucide-react";
+import { ImagePlus, Loader2, MapPin, Mic, SendHorizontal, Trash2, Check, Calendar, Clock } from "lucide-react";
+import { SmartTimeSlotPicker } from "./SmartTimeSlotPicker";
 import { toast } from "sonner";
 import { addDoc, collection, deleteDoc, doc } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
@@ -121,7 +122,7 @@ export default function RequesterInterventionPanel() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { problemLabel, description, urgency, photoDataUrls, interventionAddress, interventionLatLng } = requestData;
+  const { problemLabel, description, urgency, photoDataUrls, interventionAddress, interventionLatLng, interventionDate, interventionTime } = requestData;
 
   const suggestions = STATIC_SUGGESTIONS[problemLabel] || [];
 
@@ -277,7 +278,7 @@ export default function RequesterInterventionPanel() {
 
       const title = (problemLabel.trim() || description.trim()).slice(0, 140);
       const nowIso = new Date().toISOString();
-      const hour = new Date().toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
+      const hour = interventionTime || new Date().toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
       const problemForDedupe = description.trim() || problemLabel.trim();
 
       const createdRef = await addDoc(collection(firestore, "interventions"), {
@@ -296,6 +297,8 @@ export default function RequesterInterventionPanel() {
         ...(profile.firstName.trim() ? { clientFirstName: profile.firstName.trim() } : {}),
         ...(profile.lastName.trim() ? { clientLastName: profile.lastName.trim() } : {}),
         ...(profile.phone.trim() ? { clientPhone: profile.phone.trim() } : {}),
+        ...(interventionDate ? { requestedDate: interventionDate } : {}),
+        ...(interventionTime ? { requestedTime: interventionTime } : {}),
       });
 
       await recordDuplicateAlertIfNeeded({
@@ -547,6 +550,28 @@ export default function RequesterInterventionPanel() {
           {currentStep === 3 && (
             <motion.div
               key="step3"
+              variants={stepVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={springTransition}
+              className="absolute inset-0 flex flex-col gap-6 px-10 py-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+            >
+              <div className="flex flex-col gap-6">
+                <SmartTimeSlotPicker
+                  companyId={tenantCompanyId}
+                  selectedDate={interventionDate || ""}
+                  selectedTime={interventionTime || ""}
+                  onDateSelect={(date) => setRequestData((prev) => ({ ...prev, interventionDate: date }))}
+                  onTimeSelect={(time) => setRequestData((prev) => ({ ...prev, interventionTime: time }))}
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {currentStep === 4 && (
+            <motion.div
+              key="step4"
               variants={stepVariants}
               initial="initial"
               animate="animate"

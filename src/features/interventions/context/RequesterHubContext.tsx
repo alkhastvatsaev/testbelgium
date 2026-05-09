@@ -22,6 +22,8 @@ export interface InterventionRequestData {
   photoDataUrls: string[];
   interventionAddress: string;
   interventionLatLng?: { lat: number; lng: number };
+  interventionDate?: string;
+  interventionTime?: string;
 }
 
 interface RequesterHubContextValue {
@@ -57,6 +59,8 @@ const defaultRequestData: InterventionRequestData = {
   urgency: false,
   photoDataUrls: [],
   interventionAddress: "",
+  interventionDate: "",
+  interventionTime: "",
 };
 
 const RequesterHubContext = createContext<RequesterHubContextValue | null>(null);

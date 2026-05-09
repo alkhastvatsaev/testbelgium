@@ -7,8 +7,11 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
+  query,
   setDoc,
   Timestamp,
+  where,
 } from "firebase/firestore";
 import { onAuthStateChanged, signInAnonymously, type User } from "firebase/auth";
 import {
@@ -19,6 +22,8 @@ import {
   Loader2,
   MapPin,
   Mic,
+  Calendar,
+  Clock,
   SendHorizontal,
   Trash2,
   UserRound,
@@ -56,6 +61,8 @@ type DraftPayload = {
   firstName: string;
   lastName: string;
   phone: string;
+  scheduledDate?: string;
+  scheduledTime?: string;
 };
 
 const emptyDraft = (): DraftPayload => ({
@@ -69,7 +76,7 @@ const emptyDraft = (): DraftPayload => ({
   phone: "",
 });
 
-type WizardStep = 1 | 2 | 3 | 4 | 5;
+type WizardStep = 1 | 2 | 3 | 4 | 5 | 6;
 
 function isPayloadEmpty(p: DraftPayload): boolean {
   return (
@@ -89,7 +96,8 @@ function initialStepFromPayload(p: DraftPayload): WizardStep {
   if (!p.problemLabel?.trim()) return 2;
   if (!p.description?.trim()) return 3;
   if (!p.photoDataUrls?.length) return 4;
-  return 5;
+  if (!p.scheduledDate || !p.scheduledTime) return 5;
+  return 6;
 }
 
 function loadStorageDraft(): { payload: DraftPayload; updatedAt: number } | null {
@@ -193,7 +201,10 @@ export default function SmartInterventionRequestForm() {
   const [firstName, setFirstName] = useState(initialPayload.firstName ?? "");
   const [lastName, setLastName] = useState(initialPayload.lastName ?? "");
   const [phone, setPhone] = useState(initialPayload.phone ?? "");
+  const [scheduledDate, setScheduledDate] = useState(initialPayload.scheduledDate ?? "");
+  const [scheduledTime, setScheduledTime] = useState(initialPayload.scheduledTime ?? "");
   const [step, setStep] = useState<WizardStep>(() => initialStepFromPayload(initialPayload));
+  const [takenSlots, setTakenSlots] = useState<Record<string, string[]>>({});
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [locatingAddress, setLocatingAddress] = useState(false);
@@ -204,7 +215,7 @@ export default function SmartInterventionRequestForm() {
   const aiTimer = useRef<number | null>(null);
 
   useEffect(() => {
-    if (step !== 5) setRecapPhotosOpen(false);
+    if (step !== 6) setRecapPhotosOpen(false);
   }, [step]);
 
   useEffect(() => {
@@ -242,6 +253,8 @@ export default function SmartInterventionRequestForm() {
         setFirstName(merged.firstName ?? "");
         setLastName(merged.lastName ?? "");
         setPhone(merged.phone ?? "");
+        setScheduledDate(merged.scheduledDate ?? "");
+        setScheduledTime(merged.scheduledTime ?? "");
         setStep(initialStepFromPayload(merged));
       } catch {
         /* ignore */
@@ -265,6 +278,8 @@ export default function SmartInterventionRequestForm() {
       firstName,
       lastName,
       phone,
+      scheduledDate,
+      scheduledTime,
     };
     const updatedAt = Date.now();
     try {
@@ -295,12 +310,46 @@ export default function SmartInterventionRequestForm() {
     }, 850);
 
     return () => window.clearTimeout(timer);
-  }, [address, problemLabel, description, urgency, photoDataUrls, placeLatLng, firstName, lastName, phone]);
+  }, [address, problemLabel, description, urgency, photoDataUrls, placeLatLng, firstName, lastName, phone, scheduledDate, scheduledTime]);
 
   /** Cohérence : sans adresse, revenir à l’étape adresse (1) */
   useEffect(() => {
     if (step > 1 && !address.trim()) setStep(1);
   }, [address, step]);
+
+  /** Chargement des créneaux pris depuis Firestore pour l'étape 5 */
+  useEffect(() => {
+    if (step !== 5) return;
+    const fetchSlots = async () => {
+      const db = firestore;
+      if (!db) return;
+      try {
+        let q;
+        if (tenantCompanyId) {
+          q = query(
+            collection(db, "interventions"),
+            where("companyId", "==", tenantCompanyId),
+            where("status", "in", ["pending", "accepted", "in_progress", "resolved"])
+          );
+        } else {
+          return;
+        }
+        const snap = await getDocs(q);
+        const slots: Record<string, string[]> = {};
+        snap.forEach(d => {
+          const data = d.data();
+          if (data.scheduledDate && data.scheduledTime) {
+            if (!slots[data.scheduledDate]) slots[data.scheduledDate] = [];
+            slots[data.scheduledDate].push(data.scheduledTime);
+          }
+        });
+        setTakenSlots(slots);
+      } catch (err) {
+        console.error("Erreur récupération dispos", err);
+      }
+    };
+    void fetchSlots();
+  }, [step, tenantCompanyId]);
 
   const fillAddressFromGeolocation = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -466,6 +515,8 @@ export default function SmartInterventionRequestForm() {
         ...(firstName.trim() ? { clientFirstName: firstName.trim() } : {}),
         ...(lastName.trim() ? { clientLastName: lastName.trim() } : {}),
         ...(phone.trim() ? { clientPhone: phone.trim() } : {}),
+        ...(scheduledDate ? { scheduledDate } : {}),
+        ...(scheduledTime ? { scheduledTime } : {}),
       });
 
       await recordDuplicateAlertIfNeeded({
@@ -489,6 +540,8 @@ export default function SmartInterventionRequestForm() {
       setFirstName("");
       setLastName("");
       setPhone("");
+      setScheduledDate("");
+      setScheduledTime("");
       setSuggestions([]);
       setStep(1);
       toast.success("Demande enregistrée");
@@ -501,7 +554,7 @@ export default function SmartInterventionRequestForm() {
   };
 
   const canSubmit =
-    step === 5 &&
+    step === 6 &&
     address.trim().length > 0 &&
     (problemLabel.trim().length > 0 || description.trim().length > 0) &&
     !(workspace?.isTenantUser && !tenantCompanyId);
@@ -516,13 +569,13 @@ export default function SmartInterventionRequestForm() {
       style={outfit}
       className={cn(
         "flex min-h-0 flex-1 flex-col",
-        step === 5 ? "gap-1 overflow-hidden" : "gap-4 pb-1",
+        step === 6 ? "gap-1 overflow-hidden" : "gap-4 pb-1",
       )}
-      aria-label={`Demande d'intervention, étape ${step} sur 5`}
+      aria-label={`Demande d'intervention, étape ${step} sur 6`}
     >
       <div className="flex items-center justify-between gap-2" aria-hidden>
         <div className="flex flex-1 justify-center gap-1.5">
-          {([1, 2, 3, 4, 5] as const).map((s) => (
+          {([1, 2, 3, 4, 5, 6] as const).map((s) => (
             <span
               key={s}
               className={cn(
@@ -865,10 +918,88 @@ export default function SmartInterventionRequestForm() {
       ) : null}
 
       {step === 5 ? (
+        <div className="flex flex-col gap-4" role="region" aria-label="Étape 5 — Date et Heure">
+          <p className="text-center text-[16px] font-extrabold tracking-tight text-slate-900">Quand êtes-vous disponible ?</p>
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-1" aria-label="Jours disponibles">
+              {Array.from({ length: 14 }).map((_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() + i);
+                const isoDate = d.toISOString().split("T")[0];
+                const active = scheduledDate === isoDate;
+                const dayName = new Intl.DateTimeFormat("fr-BE", { weekday: "short" }).format(d);
+                const dayNum = d.getDate();
+                const monthName = new Intl.DateTimeFormat("fr-BE", { month: "short" }).format(d);
+                return (
+                  <button
+                    key={isoDate}
+                    type="button"
+                    onClick={() => {
+                      setScheduledDate(isoDate);
+                      setScheduledTime("");
+                    }}
+                    className={cn(
+                      "flex min-w-[70px] shrink-0 flex-col items-center justify-center rounded-[16px] border py-2.5 transition-all outline-none",
+                      active
+                        ? "border-slate-900 bg-slate-900 text-white shadow-md scale-105"
+                        : "border-black/[0.06] bg-white/90 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                    )}
+                  >
+                    <span className="text-[11px] font-bold uppercase tracking-wider opacity-80">{dayName}</span>
+                    <span className="text-xl font-black">{dayNum}</span>
+                    <span className="text-[10px] font-bold uppercase opacity-80">{monthName}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {scheduledDate ? (
+              <div className="mt-2 grid grid-cols-4 gap-2 px-1">
+                {["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"].map((time) => {
+                  const active = scheduledTime === time;
+                  const taken = takenSlots[scheduledDate]?.includes(time);
+                  return (
+                    <button
+                      key={time}
+                      type="button"
+                      disabled={taken}
+                      onClick={() => setScheduledTime(time)}
+                      className={cn(
+                        "rounded-[12px] border py-2 text-sm font-bold transition-all outline-none",
+                        taken
+                          ? "border-transparent bg-slate-100 text-slate-400 opacity-60 cursor-not-allowed"
+                          : active
+                            ? "border-blue-500 bg-blue-500 text-white shadow-md scale-105"
+                            : "border-black/[0.06] bg-white/90 text-slate-700 hover:border-blue-200 hover:bg-blue-50"
+                      )}
+                    >
+                      {time}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-center text-sm text-slate-500 italic mt-4">Veuillez sélectionner une date ci-dessus.</p>
+            )}
+          </div>
+
+          <button
+            type="button"
+            data-testid="smart-form-continue"
+            disabled={!scheduledDate || !scheduledTime}
+            onClick={() => setStep(6)}
+            className="mt-2 min-h-[48px] w-full rounded-[14px] bg-slate-900 px-4 text-sm font-bold text-white shadow-lg transition hover:bg-slate-800 disabled:opacity-40"
+          >
+            Continuer
+          </button>
+        </div>
+      ) : null}
+
+      {step === 6 ? (
         <div
           className="flex min-h-0 min-w-0 flex-1 flex-col"
           role="region"
-          aria-label="Étape 5 — Récapitulatif"
+          aria-label="Étape 6 — Récapitulatif"
         >
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto pb-2 pr-1">
             <div
@@ -996,6 +1127,28 @@ export default function SmartInterventionRequestForm() {
                     )}
                   </div>
                 </div>
+
+                {scheduledDate && scheduledTime && (
+                  <div
+                    role="group"
+                    aria-label={`Créneau prévu : ${scheduledDate} à ${scheduledTime}`}
+                    className={cn(RECAP_SQUARE_TILE_CLASS, "col-span-2")}
+                  >
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className={RECAP_SQUARE_ICON_CHIP} aria-hidden>
+                        <Calendar className="h-3.5 w-3.5" strokeWidth={2.25} />
+                      </span>
+                      <span className="text-[10px] font-bold uppercase leading-none tracking-[0.08em] text-slate-400">
+                        Date & Heure
+                      </span>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-hidden">
+                      <p className="text-sm font-bold text-slate-800">
+                        {new Intl.DateTimeFormat("fr-BE", { weekday: "long", day: "numeric", month: "long" }).format(new Date(scheduledDate))} à {scheduledTime}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button

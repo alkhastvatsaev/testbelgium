@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ClipboardList, ArrowLeft, Trash2, UserPlus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { firestore } from "@/core/config/firebase";
 
@@ -12,6 +12,7 @@ import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
 import { cn } from "@/lib/utils";
 import { useBackOfficeInterventions } from "@/features/backoffice/useBackOfficeInterventions";
 import type { Intervention } from "@/features/interventions/types";
+import { DEMO_TECHNICIAN_UID } from "@/core/config/devUiPreview";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
@@ -22,11 +23,14 @@ export default function IncomingClientRequestsPanel() {
   const { interventions, loading } = useBackOfficeInterventions(cid);
 
   const [selectedRequest, setSelectedRequest] = useState<Intervention | null>(null);
+  const [isEditingDateTime, setIsEditingDateTime] = useState(false);
+  const [editDate, setEditDate] = useState("");
+  const [editTime, setEditTime] = useState("");
 
   // Filtre pour ne garder que les demandes en attente
   const pendingRequests = interventions
     .filter((inv) => inv.status === "pending")
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
   const handleDelete = async (id: string) => {
     if (!firestore) return;
@@ -45,11 +49,31 @@ export default function IncomingClientRequestsPanel() {
       // Pour l'instant, on passe le statut en_route ou in_progress
       await updateDoc(doc(firestore, "interventions", id), {
         status: "in_progress",
+        assignedTechnicianUid: DEMO_TECHNICIAN_UID,
       });
-      toast.success("Demande assignée");
+      toast.success("Demande assignée à Mansour");
       setSelectedRequest(null);
     } catch (e) {
       toast.error("Erreur lors de l'assignation");
+    }
+  };
+
+  const handleUpdateDateTime = async () => {
+    if (!selectedRequest || !firestore) return;
+    try {
+      await updateDoc(doc(firestore, "interventions", selectedRequest.id), {
+        requestedDate: editDate,
+        requestedTime: editTime,
+      });
+      toast.success("Horaire mis à jour");
+      setSelectedRequest({
+        ...selectedRequest,
+        requestedDate: editDate,
+        requestedTime: editTime,
+      });
+      setIsEditingDateTime(false);
+    } catch (error) {
+      toast.error("Erreur lors de la mise à jour");
     }
   };
 
@@ -127,7 +151,10 @@ export default function IncomingClientRequestsPanel() {
             {/* Header with Back button */}
             <div className="flex items-center justify-between p-4 border-b border-slate-100/50">
               <button 
-                onClick={() => setSelectedRequest(null)}
+                onClick={() => {
+                  setSelectedRequest(null);
+                  setIsEditingDateTime(false);
+                }}
                 className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -162,11 +189,87 @@ export default function IncomingClientRequestsPanel() {
                 </p>
               </div>
 
+              {/* Date souhaitée */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Date & Heure souhaitées</span>
+                  {!isEditingDateTime && (
+                    <button 
+                      onClick={() => {
+                        setEditDate(selectedRequest.requestedDate || "");
+                        setEditTime(selectedRequest.requestedTime || "");
+                        setIsEditingDateTime(true);
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                    >
+                      {selectedRequest.requestedDate ? "Modifier" : "Ajouter"}
+                    </button>
+                  )}
+                </div>
+                
+                {isEditingDateTime ? (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <div className="flex gap-2">
+                      <input 
+                        type="date" 
+                        value={editDate}
+                        onChange={(e) => setEditDate(e.target.value)}
+                        className="flex-1 rounded-[12px] border border-slate-200 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800 bg-white"
+                      />
+                      <input 
+                        type="time" 
+                        value={editTime}
+                        onChange={(e) => setEditTime(e.target.value)}
+                        className="flex-1 rounded-[12px] border border-slate-200 px-3 py-2 text-sm focus:border-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800 bg-white"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 mt-1">
+                      <button 
+                        onClick={() => setIsEditingDateTime(false)}
+                        className="text-xs px-3 py-1.5 rounded-[8px] bg-slate-100 text-slate-600 font-medium hover:bg-slate-200 transition-colors"
+                      >
+                        Annuler
+                      </button>
+                      <button 
+                        onClick={handleUpdateDateTime}
+                        className="text-xs px-3 py-1.5 rounded-[8px] bg-slate-900 text-white font-medium hover:bg-slate-800 transition-colors"
+                      >
+                        Enregistrer
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[15px] font-semibold text-blue-900 mt-1">
+                    {selectedRequest.requestedDate 
+                      ? `${selectedRequest.requestedDate} ${selectedRequest.requestedTime ? `à ${selectedRequest.requestedTime}` : ""}`
+                      : "Non spécifiée"}
+                  </p>
+                )}
+              </div>
+
               {selectedRequest.urgency && (
                 <div>
                    <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-[12px] font-semibold tracking-wide text-amber-800 uppercase mt-2">
                      Urgence: {selectedRequest.urgency}
                    </span>
+                </div>
+              )}
+
+              {selectedRequest.attachmentThumbnails && selectedRequest.attachmentThumbnails.length > 0 && (
+                <div>
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Photos</span>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {selectedRequest.attachmentThumbnails.map((photo, i) => (
+                      <div key={i} className="aspect-square relative rounded-[12px] overflow-hidden border border-slate-100 bg-slate-50 shadow-sm">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={photo}
+                          alt={`Photo du problème ${i + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

@@ -8,7 +8,7 @@ export default function RequesterInterventionStepperHeader() {
   const { currentStep, setCurrentStep } = useRequesterHub();
 
   const handleNext = () => {
-    if (currentStep < 3) setCurrentStep((prev) => prev + 1);
+    if (currentStep < 4) setCurrentStep((prev) => prev + 1);
   };
   const handleBack = () => {
     if (currentStep > 0) setCurrentStep((prev) => prev - 1);
@@ -27,7 +27,7 @@ export default function RequesterInterventionStepperHeader() {
       </button>
 
       <div className="flex gap-1.5" aria-label="Progression du formulaire" role="status">
-        {[0, 1, 2, 3].map((step) => (
+        {[0, 1, 2, 3, 4].map((step) => (
           <div
             key={step}
             className={cn(
@@ -39,7 +39,7 @@ export default function RequesterInterventionStepperHeader() {
       </div>
 
       <div className="w-8">
-        {currentStep > 0 && currentStep < 3 ? (
+        {currentStep > 0 && currentStep < 4 ? (
           <button
             type="button"
             onClick={handleNext}

@@ -23,32 +23,18 @@ export type UseTechnicianAssignmentsResult = {
 export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
   const queryClient = useQueryClient();
   const dashboardDate = useDashboardSelectedDate();
-  const assignmentsDateKey = dashboardDate.toLocaleDateString("en-CA");
   const [firebaseUid, setFirebaseUid] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [snapshotReady, setSnapshotReady] = useState(false);
 
-  const skipFirestoreAssignments =
-    devUiPreviewEnabled &&
-    (!isConfigured ||
-      !firestore ||
-      !auth ||
-      !auth.currentUser ||
-      auth.currentUser.isAnonymous);
-
-  const queryUid = skipFirestoreAssignments ? DEMO_TECHNICIAN_UID : firebaseUid;
-
   const assignmentsQueryKey = useMemo(
-    () =>
-      skipFirestoreAssignments
-        ? ([TECHNICIAN_ASSIGNMENTS_QUERY_KEY, queryUid, assignmentsDateKey] as const)
-        : ([TECHNICIAN_ASSIGNMENTS_QUERY_KEY, queryUid] as const),
-    [skipFirestoreAssignments, queryUid, assignmentsDateKey],
+    () => [TECHNICIAN_ASSIGNMENTS_QUERY_KEY, firebaseUid] as const,
+    [firebaseUid],
   );
 
   const assignmentsQuery = useQuery({
     queryKey: assignmentsQueryKey,
-    enabled: Boolean(skipFirestoreAssignments || (firestore && firebaseUid)),
+    enabled: Boolean(firebaseUid),
     staleTime: Infinity,
     gcTime: 1000 * 60 * 60 * 24 * 14,
     refetchOnReconnect: false,
@@ -57,39 +43,38 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
       queryClient.getQueryData<Intervention[]>(assignmentsQueryKey as readonly unknown[]) ?? [],
   });
 
-  const interventions = assignmentsQuery.data ?? [];
+  const firestoreInterventions = assignmentsQuery.data ?? [];
 
-  const loading = skipFirestoreAssignments
-    ? false
-    : Boolean(
-        isConfigured &&
-          firestore &&
-          auth &&
-          firebaseUid &&
-          !snapshotReady &&
-          interventions.length === 0 &&
-          !error,
-      );
+  const interventions = useMemo(() => {
+    if (devUiPreviewEnabled && firebaseUid === DEMO_TECHNICIAN_UID) {
+      const mockRows = generateDailyAssignmentsAsInterventions(dashboardDate);
+      const map = new Map(mockRows.map(r => [r.id, r]));
+      firestoreInterventions.forEach(r => map.set(r.id, r));
+      return Array.from(map.values());
+    }
+    return firestoreInterventions;
+  }, [firestoreInterventions, dashboardDate, firebaseUid]);
 
-  useEffect(() => {
-    if (!skipFirestoreAssignments) return () => {};
-    setFirebaseUid(DEMO_TECHNICIAN_UID);
-    setSnapshotReady(true);
-    setError(null);
-    queryClient.setQueryData(
-      [TECHNICIAN_ASSIGNMENTS_QUERY_KEY, DEMO_TECHNICIAN_UID, assignmentsDateKey],
-      generateDailyAssignmentsAsInterventions(dashboardDate),
-    );
-    return () => {};
-  }, [queryClient, skipFirestoreAssignments, assignmentsDateKey, dashboardDate]);
+  const loading = Boolean(
+    isConfigured &&
+      firestore &&
+      auth &&
+      firebaseUid &&
+      !snapshotReady &&
+      firestoreInterventions.length === 0 &&
+      !error,
+  );
 
   useEffect(() => {
-    if (skipFirestoreAssignments) return () => {};
-
     if (!isConfigured || !firestore || !auth) {
-      setSnapshotReady(true);
-      setFirebaseUid(null);
-      queryClient.removeQueries({ queryKey: [TECHNICIAN_ASSIGNMENTS_QUERY_KEY] });
+      if (devUiPreviewEnabled) {
+        setFirebaseUid(DEMO_TECHNICIAN_UID);
+        setSnapshotReady(true);
+        setError(null);
+      } else {
+        setSnapshotReady(true);
+        setFirebaseUid(null);
+      }
       return () => {};
     }
 
@@ -99,33 +84,39 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
       unsubSnap?.();
       unsubSnap = undefined;
 
+      const effectiveUid = devUiPreviewEnabled && (!user || user.isAnonymous) 
+        ? DEMO_TECHNICIAN_UID 
+        : user?.uid;
+
       queryClient.removeQueries({
         predicate: (q) =>
           Array.isArray(q.queryKey) &&
           q.queryKey[0] === TECHNICIAN_ASSIGNMENTS_QUERY_KEY &&
-          q.queryKey[1] !== user?.uid,
+          q.queryKey[1] !== effectiveUid,
       });
 
-      if (!user) {
+      if (!effectiveUid) {
         setFirebaseUid(null);
         setError(null);
         setSnapshotReady(true);
-        queryClient.removeQueries({ queryKey: [TECHNICIAN_ASSIGNMENTS_QUERY_KEY] });
         return;
       }
 
-      setFirebaseUid(user.uid);
+      setFirebaseUid(effectiveUid);
       setSnapshotReady(false);
       setError(null);
 
       const db = firestore!;
-      const qsnap = query(collection(db, "interventions"), where("assignedTechnicianUid", "==", user.uid));
+      const qsnap = query(
+        collection(db, "interventions"),
+        where("assignedTechnicianUid", "==", effectiveUid)
+      );
 
       unsubSnap = onSnapshot(
         qsnap,
         (snapshot) => {
           const rows = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention));
-          queryClient.setQueryData([TECHNICIAN_ASSIGNMENTS_QUERY_KEY, user.uid], rows);
+          queryClient.setQueryData([TECHNICIAN_ASSIGNMENTS_QUERY_KEY, effectiveUid], rows);
           setSnapshotReady(true);
           setError(null);
         },
@@ -133,13 +124,6 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
           console.error("[useTechnicianAssignments]", e);
           setError(e.message || "Erreur Firestore");
           setSnapshotReady(true);
-          const prev = queryClient.getQueryData<Intervention[]>([
-            TECHNICIAN_ASSIGNMENTS_QUERY_KEY,
-            user.uid,
-          ]);
-          if (!prev) {
-            queryClient.setQueryData([TECHNICIAN_ASSIGNMENTS_QUERY_KEY, user.uid], []);
-          }
         },
       );
     });
@@ -148,7 +132,7 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
       unsubSnap?.();
       unsubAuth();
     };
-  }, [queryClient, skipFirestoreAssignments]);
+  }, [queryClient]);
 
   return { interventions, loading, error, firebaseUid };
 }
