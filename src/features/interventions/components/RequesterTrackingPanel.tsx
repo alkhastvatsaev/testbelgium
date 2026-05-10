@@ -123,7 +123,7 @@ export default function RequesterTrackingPanel() {
       if (latestIntervention) {
         setProfile((prev) => ({
           ...prev,
-          type: latestIntervention.clientCompanyName ? "societe" : "particulier",
+          type: "particulier",
           firstName: latestIntervention.clientFirstName || prev.firstName,
           lastName: latestIntervention.clientLastName || prev.lastName,
           companyName: latestIntervention.clientCompanyName || prev.companyName,

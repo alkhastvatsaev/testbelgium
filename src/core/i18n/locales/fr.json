@@ -18,5 +18,16 @@
     "map_action_desc": "Ouvrir la carte des interventions",
     "tech_action_title": "Techniciens",
     "tech_action_desc": "Voir les techniciens disponibles"
+  },
+  "auth": {
+    "email_required": "Saisissez une adresse e-mail",
+    "link_sent": "Lien envoyé",
+    "check_inbox": "Vérifiez votre boîte mail.",
+    "send_failed": "Envoi impossible",
+    "firebase_not_configured": "Authentification non disponible",
+    "session": "Session",
+    "dashboard": "Tableau de bord",
+    "signout": "Déconnexion",
+    "receive_link_label": "Recevoir un lien de connexion par e-mail"
   }
 }

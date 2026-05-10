@@ -3,7 +3,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { auth, firestore, isConfigured } from "@/core/config/firebase";
-import { DEMO_TECHNICIAN_UID, devUiPreviewEnabled } from "@/core/config/devUiPreview";
+import {
+  DEMO_TECHNICIAN_UID,
+  devUiPreviewEnabled,
+  realInterventionsOnly,
+  stripKnownSyntheticInterventions,
+} from "@/core/config/devUiPreview";
 import { useDashboardSelectedDate } from "@/context/DateContext";
 import type { Intervention } from "@/features/interventions/types";
 import { TECHNICIAN_ASSIGNMENTS_QUERY_KEY } from "@/features/offline/technicianQueryKeys";
@@ -46,13 +51,17 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
   const firestoreInterventions = assignmentsQuery.data ?? [];
 
   const interventions = useMemo(() => {
-    if (devUiPreviewEnabled && firebaseUid === DEMO_TECHNICIAN_UID) {
+    if (
+      devUiPreviewEnabled &&
+      firebaseUid === DEMO_TECHNICIAN_UID &&
+      !realInterventionsOnly
+    ) {
       const mockRows = generateDailyAssignmentsAsInterventions(dashboardDate);
       const map = new Map(mockRows.map(r => [r.id, r]));
       firestoreInterventions.forEach(r => map.set(r.id, r));
-      return Array.from(map.values());
+      return stripKnownSyntheticInterventions(Array.from(map.values()));
     }
-    return firestoreInterventions;
+    return stripKnownSyntheticInterventions(firestoreInterventions);
   }, [firestoreInterventions, dashboardDate, firebaseUid]);
 
   const loading = Boolean(

@@ -6,6 +6,7 @@ import {
   interventionMatchesTab,
   sortInterventionsByScheduleAsc,
   statusLabelFr,
+  dailyMissionCardTone,
 } from "@/features/interventions/technicianSchedule";
 
 const baseLoc = { lat: 50.84, lng: 4.35 };
@@ -102,6 +103,17 @@ describe("technicianSchedule", () => {
     };
     const sorted = sortInterventionsByScheduleAsc([a, b]);
     expect(sorted.map((x) => x.id)).toEqual(["early", "late"]);
+  });
+
+  it("dailyMissionCardTone aligne interventions réelles et libellés mock", () => {
+    expect(dailyMissionCardTone(statusLabelFr("done"))).toBe("done");
+    expect(dailyMissionCardTone(statusLabelFr("invoiced"))).toBe("done");
+    expect(dailyMissionCardTone(statusLabelFr("in_progress"))).toBe("active");
+    expect(dailyMissionCardTone(statusLabelFr("en_route"))).toBe("active");
+    expect(dailyMissionCardTone(statusLabelFr("pending"))).toBe("upcoming");
+    expect(dailyMissionCardTone("À venir")).toBe("upcoming");
+    expect(dailyMissionCardTone("Terminé")).toBe("done");
+    expect(dailyMissionCardTone("En cours")).toBe("active");
   });
 
   it("interventionClientLabel et statusLabelFr", () => {

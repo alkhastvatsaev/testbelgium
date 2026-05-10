@@ -17,6 +17,6 @@ This project follows a strict testing architecture to prevent regressions and as
 
 ## Glossaire UI — hub société (carrousel)
 
-- **Qui demande ?** : rail gauche (`CompanyHubPage`) — `RequesterProfilePanel` dans une section `data-testid="company-hub-rail-demande"`. Ancre scroll : `COMPANY_HUB_ANCHOR_WORKSPACE` (`company-hub-workspace`). Le triptyque expose aussi `dashboard-secondary-panel-left`.
+- **Qui demande ?** : rail gauche (`CompanyHubPage`) — `RequesterProfilePanel` (`Particulier` / `Login`). Onglet Login : `ClientPortalAuthPanel` en `authRailMode` (`data-testid="requester-login-rail"`). Section `data-testid="company-hub-rail-demande"`. Ancre : `COMPANY_HUB_ANCHOR_WORKSPACE` (`company-hub-workspace`). `dashboard-secondary-panel-left`.
 - **Que faut-il réparer ?** : rail central — `RequesterInterventionPanel` (`data-testid="requester-intervention-panel"`). Ancre : `COMPANY_HUB_ANCHOR_SMART_FORM` (`company-hub-smart-form`). `dashboard-secondary-panel-center`.
 - **Suivi et chat** : rail droit — `data-testid="company-hub-rail-portail"` : onglets `company-hub-right-tab-tracking` / `company-hub-right-tab-chat` (`RequesterTrackingPanel`, `IvanaClientChatPanel`). `dashboard-secondary-panel-right`. (Le composant `CompanySpacePanel` reste utilisé ailleurs dans l’app, mais plus comme rail central de cette page.)

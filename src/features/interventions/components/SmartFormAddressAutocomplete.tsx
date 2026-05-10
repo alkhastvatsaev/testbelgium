@@ -290,11 +290,11 @@ const SmartFormAddressAutocomplete = forwardRef<HTMLInputElement, Props>(functio
               >
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-semibold leading-snug text-slate-900">
+                  <span className="block truncate text-[15px] font-semibold leading-snug text-slate-900">
                     {main}
                   </span>
                   {sub ? (
-                    <span className="mt-0.5 block truncate text-[11px] font-medium leading-snug text-slate-500">
+                    <span className="mt-0.5 block truncate text-sm font-medium leading-snug text-slate-500">
                       {sub}
                     </span>
                   ) : null}
@@ -337,7 +337,7 @@ const SmartFormAddressAutocomplete = forwardRef<HTMLInputElement, Props>(functio
         aria-activedescendant={activeIdx >= 0 ? `${listId}-opt-${activeIdx}` : undefined}
         placeholder="Adresse"
         autoComplete="off"
-        className="w-full rounded-[14px] border border-black/[0.06] bg-white/95 py-2.5 pl-3 pr-12 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400 placeholder:font-medium focus-visible:ring-2 focus-visible:ring-slate-900/15 disabled:opacity-50"
+        className="w-full rounded-[14px] border border-black/[0.06] bg-white/95 py-3 pl-3 pr-12 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 placeholder:font-medium focus-visible:ring-2 focus-visible:ring-slate-900/15 disabled:opacity-50"
       />
 
       {apiKey && loading ? (

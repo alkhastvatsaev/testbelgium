@@ -18,5 +18,16 @@
     "map_action_desc": "Open interventie kaart",
     "tech_action_title": "Technici",
     "tech_action_desc": "Bekijk beschikbare technici"
+  },
+  "auth": {
+    "email_required": "Voer een e-mailadres in",
+    "link_sent": "Link verzonden",
+    "check_inbox": "Controleer uw inbox.",
+    "send_failed": "Verzenden mislukt",
+    "firebase_not_configured": "Authenticatie niet beschikbaar",
+    "session": "Sessie",
+    "dashboard": "Dashboard",
+    "signout": "Afmelden",
+    "receive_link_label": "Ontvang een aanmeldlink per e-mail"
   }
 }

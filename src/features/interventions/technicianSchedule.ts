@@ -119,3 +119,17 @@ export function statusLabelFr(status: Intervention["status"]): string {
       return String(status);
   }
 }
+
+/** Teinte visuelle des tuiles « missions du jour » (ombres / dégradés). */
+export type DailyMissionCardTone = "done" | "active" | "upcoming";
+
+/**
+ * Associe le libellé affiché sur une mission (voir {@link statusLabelFr}, ou mock `À venir` / `Terminé` / …)
+ * à la même logique couleur que les missions générées.
+ */
+export function dailyMissionCardTone(statusLabel: string): DailyMissionCardTone {
+  const s = statusLabel.trim();
+  if (s === "Terminé" || s === "Facturé") return "done";
+  if (s === "En cours" || s === "En route") return "active";
+  return "upcoming";
+}

@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { auth, firestore, isConfigured } from "@/core/config/firebase";
-import { DEMO_COMPANY_ID, devUiPreviewEnabled } from "@/core/config/devUiPreview";
+import {
+  DEMO_COMPANY_ID,
+  devUiPreviewEnabled,
+  isSyntheticInterventionId,
+  realInterventionsOnly,
+} from "@/core/config/devUiPreview";
 import type { DuplicateAlertDoc, DuplicateAlertRow } from "@/features/interventions/duplicateAlertTypes";
 
 /** Flux temps réel des alertes doublons pour une société (filtrage « open » côté client). */
@@ -21,7 +26,7 @@ export function useOpenDuplicateAlerts(companyId: string | null) {
   useEffect(() => {
     if (skipFirestoreDemo) {
       const cid = (companyId ?? "").trim() || DEMO_COMPANY_ID;
-      if (cid !== DEMO_COMPANY_ID) {
+      if (realInterventionsOnly || cid !== DEMO_COMPANY_ID) {
         setRows([]);
       } else {
         const similarInterventionId = `mock-day-${new Date().toLocaleDateString("en-CA")}-0`;
@@ -63,7 +68,13 @@ export function useOpenDuplicateAlerts(companyId: string | null) {
       q,
       (snap) => {
         const parsed = snap.docs.map((d) => ({ id: d.id, ...(d.data() as DuplicateAlertDoc) }));
-        setRows(parsed);
+        setRows(
+          parsed.filter(
+            (r) =>
+              !isSyntheticInterventionId(r.similarInterventionId) &&
+              !isSyntheticInterventionId(r.newInterventionId),
+          ),
+        );
         setLoading(false);
       },
       () => {
@@ -72,7 +83,7 @@ export function useOpenDuplicateAlerts(companyId: string | null) {
     );
 
     return () => unsub();
-  }, [companyId, skipFirestoreDemo]);
+  }, [companyId, skipFirestoreDemo, realInterventionsOnly]);
 
   const openAlerts = useMemo(() => rows.filter((r) => r.status === "open"), [rows]);
 

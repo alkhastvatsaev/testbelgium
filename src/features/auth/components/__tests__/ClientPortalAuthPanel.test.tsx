@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import type { ReactElement } from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import * as firebaseAuth from "firebase/auth";
 import { I18nProvider } from "@/core/i18n/I18nContext";
 import ClientPortalAuthPanel from "../ClientPortalAuthPanel";
@@ -32,11 +32,11 @@ function renderWithI18n(ui: ReactElement) {
 }
 
 describe("ClientPortalAuthPanel", () => {
-  it("affiche lien magique + SSO Google / Microsoft", () => {
+  it("affiche mot de passe et lien magique", () => {
     renderWithI18n(<ClientPortalAuthPanel />);
     expect(screen.getByTestId("client-portal-container")).toBeInTheDocument();
-    expect(screen.getByTestId("client-portal-google")).toBeInTheDocument();
-    expect(screen.getByTestId("client-portal-microsoft")).toBeInTheDocument();
+    expect(screen.getByTestId("client-portal-password")).toBeInTheDocument();
+    expect(screen.getByTestId("client-portal-password-signin")).toBeInTheDocument();
     expect(screen.getByTestId("client-portal-magic-send")).toBeInTheDocument();
   });
 
@@ -47,5 +47,23 @@ describe("ClientPortalAuthPanel", () => {
     });
     fireEvent.click(screen.getByTestId("client-portal-magic-send"));
     expect(firebaseAuth.sendSignInLinkToEmail).toHaveBeenCalled();
+  });
+
+  it("appelle signInWithEmailAndPassword avec e-mail et mot de passe", async () => {
+    renderWithI18n(<ClientPortalAuthPanel />);
+    fireEvent.change(screen.getByTestId("client-portal-email"), {
+      target: { value: "client@test.example" },
+    });
+    fireEvent.change(screen.getByTestId("client-portal-password"), {
+      target: { value: "secret-pass" },
+    });
+    fireEvent.click(screen.getByTestId("client-portal-password-signin"));
+    await waitFor(() => {
+      expect(firebaseAuth.signInWithEmailAndPassword).toHaveBeenCalledWith(
+        expect.anything(),
+        "client@test.example",
+        "secret-pass",
+      );
+    });
   });
 });

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Building2, MapPin, Phone, User, UserRound } from "lucide-react";
+import ClientPortalAuthPanel from "@/features/auth/components/ClientPortalAuthPanel";
 import { useRequesterHub, RequesterType } from "../context/RequesterHubContext";
 import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
 import { cn } from "@/lib/utils";
@@ -55,39 +56,27 @@ export default function RequesterProfilePanel() {
           </button>
           <button
             type="button"
-            data-testid="requester-type-societe"
-            onClick={() => handleTypeChange("societe")}
+            data-testid="requester-type-login"
+            onClick={() => handleTypeChange("login")}
             className={cn(
               "flex min-h-[42px] flex-1 items-center justify-center gap-2 rounded-[14px] text-[13px] font-bold transition-all",
-              profile.type === "societe"
+              profile.type === "login"
                 ? "bg-white text-slate-900 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.18)]"
                 : "text-slate-500 hover:text-slate-700",
             )}
           >
             <Building2 className="h-4 w-4" />
-            Société
+            Login
           </button>
         </div>
 
+        {profile.type === "login" ? (
+          <div data-testid="requester-login-rail" className="min-h-0 flex-1 flex flex-col overflow-hidden">
+            <ClientPortalAuthPanel authRailMode />
+          </div>
+        ) : (
+          <>
         <div className="flex flex-col gap-2.5 rounded-[24px] border border-black/[0.05] bg-white/70 p-3 shadow-[0_18px_44px_-28px_rgba(15,23,42,0.2)]">
-          {profile.type === "societe" && (
-            <motion.div
-              animate={isInvalid(profile.companyName) ? shakeControls : undefined}
-              className={cn(glassRow, isInvalid(profile.companyName) && "ring-2 ring-red-500 bg-red-50/80")}
-            >
-              <span className={iconRail}>
-                <Building2 className={cn("h-5 w-5 opacity-70", isInvalid(profile.companyName) && "text-red-500 opacity-100")} />
-              </span>
-              <input
-                type="text"
-                placeholder="Nom de la société"
-                value={profile.companyName}
-                onChange={(e) => setProfile((prev) => ({ ...prev, companyName: e.target.value }))}
-                className={cn(inputClass, isInvalid(profile.companyName) && "placeholder:text-red-300")}
-              />
-            </motion.div>
-          )}
-
           <motion.div
             animate={isInvalid(profile.firstName) ? shakeControls : undefined}
             className={cn(glassRow, isInvalid(profile.firstName) && "ring-2 ring-red-500 bg-red-50/80")}
@@ -154,6 +143,8 @@ export default function RequesterProfilePanel() {
             />
           </motion.div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

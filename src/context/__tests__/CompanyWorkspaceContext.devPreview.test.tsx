@@ -7,6 +7,9 @@ import { useTechnicianAssignments } from "@/features/interventions/useTechnician
 
 jest.mock("@/core/config/devUiPreview", () => ({
   devUiPreviewEnabled: true,
+  realInterventionsOnly: false,
+  stripKnownSyntheticInterventions: <T extends { id: string }>(rows: T[]) => rows,
+  excludeSyntheticInterventions: <T extends { id: string }>(rows: T[]) => rows,
   DEMO_COMPANY_ID: "demo-local-company",
   DEMO_TECHNICIAN_UID: "demo-tech-local",
 }));

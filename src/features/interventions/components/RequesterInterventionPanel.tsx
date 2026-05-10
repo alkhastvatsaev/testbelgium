@@ -29,7 +29,7 @@ const SMART_FORM_MAX_PHOTOS = 4;
 const GEOLOC_ADDRESS_PENDING = "Recherche de l'adresse…";
 
 const inputClass =
-  "min-w-0 flex-1 rounded-[14px] border border-black/[0.06] bg-white/95 px-3 py-2 text-sm text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-slate-900/15";
+  "min-w-0 flex-1 rounded-[14px] border border-black/[0.06] bg-white/95 px-4 py-3 text-base text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-slate-900/15";
 
 const GEOLOC_OPTIONS: PositionOptions = {
   enableHighAccuracy: false,
@@ -141,7 +141,7 @@ const AudioPlayer = ({ blob, onRemove }: { blob: Blob; onRemove: () => void }) =
       </button>
       
       <div className="flex flex-1 flex-col gap-1.5">
-        <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
+        <div className="flex items-center justify-between text-sm font-semibold text-slate-500">
           <span>{formatTime(progress)}</span>
           <span>{formatTime(duration)}</span>
         </div>
@@ -324,18 +324,24 @@ export default function RequesterInterventionPanel() {
     !isSubmitting;
 
   const handleSubmit = async () => {
-    // Validate profile fields
-    const missingProfileFields = [];
-    if (!profile.firstName.trim()) missingProfileFields.push("firstName");
-    if (!profile.lastName.trim()) missingProfileFields.push("lastName");
-    if (!profile.phone.trim()) missingProfileFields.push("phone");
-    if (!profile.defaultAddress.trim()) missingProfileFields.push("defaultAddress");
-    if (profile.type === "societe" && !profile.companyName.trim()) missingProfileFields.push("companyName");
+    if (profile.type === "login") {
+      const u = auth?.currentUser;
+      if (!u || u.isAnonymous) {
+        toast.error("Connectez-vous via l’onglet Login (panneau gauche).");
+        return;
+      }
+    } else {
+      const missingProfileFields: string[] = [];
+      if (!profile.firstName.trim()) missingProfileFields.push("firstName");
+      if (!profile.lastName.trim()) missingProfileFields.push("lastName");
+      if (!profile.phone.trim()) missingProfileFields.push("phone");
+      if (!profile.defaultAddress.trim()) missingProfileFields.push("defaultAddress");
 
-    if (missingProfileFields.length > 0) {
-      triggerValidation();
-      toast.error("Veuillez remplir vos informations (Panneau de gauche)");
-      return;
+      if (missingProfileFields.length > 0) {
+        triggerValidation();
+        toast.error("Veuillez remplir vos informations (Panneau de gauche)");
+        return;
+      }
     }
 
     if (!interventionAddress.trim()) {
@@ -411,6 +417,19 @@ export default function RequesterInterventionPanel() {
             }
           }
 
+          const portalUser =
+            profile.type === "login" && auth?.currentUser && !auth.currentUser.isAnonymous
+              ? auth.currentUser
+              : null;
+          let clientFirstRaw = profile.firstName.trim();
+          let clientLastRaw = profile.lastName.trim();
+          if (portalUser && !clientFirstRaw && !clientLastRaw && portalUser.displayName?.trim()) {
+            const parts = portalUser.displayName.trim().split(/\s+/);
+            clientFirstRaw = parts[0] ?? "";
+            clientLastRaw = parts.slice(1).join(" ");
+          }
+          const clientPhoneRaw = (profile.phone.trim() || (portalUser?.phoneNumber ?? "").trim());
+
           await setDoc(newDocRef, {
             title,
             address: interventionAddress.trim(),
@@ -424,9 +443,9 @@ export default function RequesterInterventionPanel() {
             createdByUid: user.uid,
             ...(tenantCompanyId ? { companyId: tenantCompanyId } : {}),
             ...(photoDataUrls.length ? { attachmentThumbnails: photoDataUrls.slice(0, SMART_FORM_MAX_PHOTOS) } : {}),
-            ...(profile.firstName.trim() ? { clientFirstName: capitalizeName(profile.firstName) } : {}),
-            ...(profile.lastName.trim() ? { clientLastName: capitalizeName(profile.lastName) } : {}),
-            ...(profile.phone.trim() ? { clientPhone: profile.phone.trim() } : {}),
+            ...(clientFirstRaw ? { clientFirstName: capitalizeName(clientFirstRaw) } : {}),
+            ...(clientLastRaw ? { clientLastName: capitalizeName(clientLastRaw) } : {}),
+            ...(clientPhoneRaw ? { clientPhone: clientPhoneRaw } : {}),
             ...(interventionDate ? { requestedDate: interventionDate } : {}),
             ...(interventionTime ? { requestedTime: interventionTime } : {}),
             ...(demoAudioUrlForDoc ? { audioUrl: demoAudioUrlForDoc } : {}),
@@ -565,15 +584,15 @@ export default function RequesterInterventionPanel() {
                         <div className="flex flex-col items-center justify-center gap-1">
                           {tpl.labelLines ? (
                             <>
-                              <span className="text-[11px] font-bold tracking-tight leading-tight">
+                              <span className="text-sm font-bold tracking-tight leading-snug">
                                 {t(tpl.labelLines[0])}
                               </span>
-                              <span className="text-[11px] font-bold tracking-tight leading-tight">
+                              <span className="text-sm font-bold tracking-tight leading-snug">
                                 {t(tpl.labelLines[1])}
                               </span>
                             </>
                           ) : (
-                            <span className="text-[11px] font-bold tracking-tight leading-tight line-clamp-3">
+                            <span className="text-sm font-bold tracking-tight leading-snug line-clamp-3">
                               {t(tpl.label)}
                             </span>
                           )}
@@ -598,7 +617,7 @@ export default function RequesterInterventionPanel() {
             >
               <div className="flex flex-col items-center justify-center w-full max-w-sm gap-8 -mt-10">
                 <div className="text-center space-y-2">
-                  <h3 className="text-xl font-bold text-slate-800">Décrivez le problème</h3>
+                  <h3 className="text-2xl font-bold text-slate-800">Décrivez le problème</h3>
                 </div>
                 
                 <button
@@ -638,7 +657,7 @@ export default function RequesterInterventionPanel() {
                     )}
                   </AnimatePresence>
                   {descriptionVoiceListening && (
-                    <span className="absolute -bottom-6 text-[11px] font-bold text-red-500 animate-pulse uppercase tracking-wider">
+                    <span className="absolute -bottom-7 text-sm font-bold text-red-500 animate-pulse uppercase tracking-wide">
                       Écoute...
                     </span>
                   )}
@@ -663,14 +682,14 @@ export default function RequesterInterventionPanel() {
                     </button>
                   )}
                   {interimTranscript && (
-                    <div className="mt-3 p-3 rounded-2xl bg-slate-100/80 text-sm text-slate-600 italic text-center animate-pulse border border-slate-200">
+                    <div className="mt-3 p-3 rounded-2xl bg-slate-100/80 text-base text-slate-600 italic text-center animate-pulse border border-slate-200">
                       {interimTranscript}
                     </div>
                   )}
                   {audioBlob && !descriptionVoiceListening && (
                     <div className="mt-3 flex flex-col items-center gap-2 w-full">
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Message Vocal enregistré</span>
+                        <span className="text-sm font-bold uppercase tracking-wide text-slate-400">Message Vocal enregistré</span>
                         <button
                           type="button"
                           onClick={() => {
@@ -762,7 +781,7 @@ export default function RequesterInterventionPanel() {
                             <div className="rounded-full bg-white shadow-sm p-3 transition-transform duration-300 group-hover:scale-105">
                               <ImagePlus className={cn("h-6 w-6", i === 0 && validationFailedCount > 0 ? "text-red-500" : "text-slate-800")} />
                             </div>
-                            <span className="text-[14px] font-bold tracking-tight">
+                            <span className="text-base font-bold tracking-tight">
                               {i === 0 && validationFailedCount > 0 ? "Photo requise" : "Ajouter"}
                             </span>
                           </button>
@@ -859,7 +878,7 @@ export default function RequesterInterventionPanel() {
                     type="button"
                     disabled={!canSubmit}
                     onClick={handleSubmit}
-                    className="flex w-full items-center justify-center gap-2 rounded-[20px] bg-black py-4 text-[16px] font-bold text-white transition hover:bg-slate-900 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
+                    className="flex w-full items-center justify-center gap-2 rounded-[20px] bg-black py-4 text-lg font-bold text-white transition hover:bg-slate-900 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
                   >
                     {isSubmitting ? (
                       <Loader2 className="h-5 w-5 animate-spin" />

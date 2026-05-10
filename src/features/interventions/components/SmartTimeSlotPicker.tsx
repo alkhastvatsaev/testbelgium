@@ -51,7 +51,7 @@ function PremiumCalendar({ selectedDate, onSelect }: { selectedDate: string, onS
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <span className="text-[16px] font-bold text-slate-800 capitalize tracking-tight">
+        <span className="text-lg font-bold text-slate-800 capitalize tracking-tight">
           {format(currentMonth, "MMMM yyyy", { locale: fr })}
         </span>
         <button 
@@ -65,7 +65,7 @@ function PremiumCalendar({ selectedDate, onSelect }: { selectedDate: string, onS
 
       <div className="grid grid-cols-7 mb-2">
         {weekDays.map((day, i) => (
-          <div key={i} className="text-center text-[12px] font-bold text-slate-400">
+          <div key={i} className="text-center text-sm font-bold text-slate-400">
             {day}
           </div>
         ))}
@@ -84,7 +84,7 @@ function PremiumCalendar({ selectedDate, onSelect }: { selectedDate: string, onS
                 disabled={isPast}
                 onClick={() => onSelect(format(day, dateFormat))}
                 className={cn(
-                  "h-10 w-10 flex items-center justify-center rounded-full text-[14px] font-bold transition-all",
+                  "h-11 w-11 flex items-center justify-center rounded-full text-base font-bold transition-all",
                   !isCurrentMonth ? "text-slate-300" : isPast ? "text-slate-300 cursor-not-allowed" : "text-slate-700 hover:bg-slate-100 active:scale-95",
                   isSelected && "bg-black text-white shadow-md hover:bg-slate-900",
                   isSameDay(day, today) && !isSelected && !isPast && "border-2 border-slate-200 text-slate-800"
@@ -181,12 +181,12 @@ export function SmartTimeSlotPicker({
       {/* 1. Prochaines disponibilités */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <label className="text-[15px] font-bold text-slate-800 flex items-center gap-2">
-            <CalendarIcon className="h-4 w-4" />
+          <label className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5 shrink-0" />
             Prochaines disponibilités
           </label>
           {loading && (
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
+            <div className="flex items-center gap-1.5 text-sm font-medium text-slate-500 bg-slate-100 px-2.5 py-1.5 rounded-full">
               <Loader2 className="h-3 w-3 animate-spin" />
               Recherche...
             </div>
@@ -195,7 +195,7 @@ export function SmartTimeSlotPicker({
 
         <div className="flex flex-col gap-2">
           {!loading && nextAvailableSlots.length === 0 ? (
-            <div className="text-amber-600 font-medium bg-amber-50 p-4 rounded-xl border border-amber-100 text-sm text-center">
+            <div className="text-amber-600 font-medium bg-amber-50 p-4 rounded-xl border border-amber-100 text-base text-center">
               Aucune disponibilité trouvée pour les prochains jours.
             </div>
           ) : (
@@ -226,12 +226,12 @@ export function SmartTimeSlotPicker({
                     )}
                   >
                     <div className="flex flex-col items-start gap-1">
-                      <span className={cn("text-[13px] font-medium", isSelected ? "text-white/80" : "text-slate-500")}>
+                      <span className={cn("text-base font-medium", isSelected ? "text-white/80" : "text-slate-500")}>
                         {dateLabel}
                       </span>
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 opacity-70" />
-                        <span className="text-lg font-bold">{slot.time}</span>
+                        <span className="text-xl font-bold">{slot.time}</span>
                       </div>
                     </div>
                     
@@ -249,7 +249,7 @@ export function SmartTimeSlotPicker({
                 <button
                   type="button"
                   onClick={() => setVisibleSlotsCount((prev) => prev + 8)}
-                  className="flex items-center justify-center gap-1.5 py-3 mt-1 text-[14px] font-bold text-slate-500 hover:text-slate-800 transition-colors rounded-xl hover:bg-slate-50"
+                  className="flex items-center justify-center gap-1.5 py-3 mt-1 text-base font-bold text-slate-500 hover:text-slate-800 transition-colors rounded-xl hover:bg-slate-50"
                 >
                   Afficher plus d'horaires
                   <ChevronDown className="h-4 w-4" />
@@ -265,7 +265,7 @@ export function SmartTimeSlotPicker({
           <div className="w-full border-t border-slate-200"></div>
         </div>
         <div className="relative flex justify-center">
-          <span className="bg-[#FAFAFA] px-3 text-[11px] text-slate-400 uppercase font-bold tracking-wider">
+          <span className="bg-[#FAFAFA] px-3 text-sm text-slate-400 uppercase font-bold tracking-wide">
             Ou
           </span>
         </div>
@@ -273,8 +273,8 @@ export function SmartTimeSlotPicker({
 
       {/* 2. Choisir une date spécifique */}
       <div className="flex flex-col gap-4 pb-8">
-        <label className="text-[15px] font-bold text-slate-800 flex items-center gap-2">
-          <CalendarPlus className="h-4 w-4" />
+        <label className="text-lg font-bold text-slate-800 flex items-center gap-2">
+          <CalendarPlus className="h-5 w-5 shrink-0" />
           Programmer plus tard
         </label>
         
@@ -289,7 +289,7 @@ export function SmartTimeSlotPicker({
 
           {selectedDate && (
             <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-              <span className="text-[13px] font-bold text-slate-500">
+              <span className="text-base font-bold text-slate-500">
                 Disponibilités le {format(parse(selectedDate, "yyyy-MM-dd", new Date()), "d MMMM", { locale: fr })}
               </span>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -302,7 +302,7 @@ export function SmartTimeSlotPicker({
                       type="button"
                       onClick={() => onTimeSelect(time)}
                       className={cn(
-                        "flex items-center justify-center rounded-[12px] border py-3 text-sm font-bold transition-all",
+                        "flex items-center justify-center rounded-[12px] border py-3.5 text-base font-bold transition-all",
                         isSelected
                           ? "border-black bg-black text-white shadow-md"
                           : "border-black/[0.08] bg-white text-slate-700 hover:border-black/[0.2] hover:bg-slate-50 active:scale-95"
@@ -314,7 +314,7 @@ export function SmartTimeSlotPicker({
                 })}
               </div>
               {specificDateSlots.filter(s => !s.disabled).length === 0 && (
-                <div className="text-amber-600 font-medium bg-amber-50 p-4 rounded-xl text-[13px] border border-amber-100 text-center">
+                <div className="text-amber-600 font-medium bg-amber-50 p-4 rounded-xl text-base border border-amber-100 text-center">
                   L'artisan n'a aucune disponibilité pour cette date.
                 </div>
               )}

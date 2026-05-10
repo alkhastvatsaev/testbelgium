@@ -18,5 +18,16 @@
     "map_action_desc": "Open interventions map",
     "tech_action_title": "Technicians",
     "tech_action_desc": "View available technicians"
+  },
+  "auth": {
+    "email_required": "Enter an email address",
+    "link_sent": "Link sent",
+    "check_inbox": "Check your inbox.",
+    "send_failed": "Could not send",
+    "firebase_not_configured": "Authentication unavailable",
+    "session": "Session",
+    "dashboard": "Dashboard",
+    "signout": "Sign out",
+    "receive_link_label": "Get a sign-in link by email"
   }
 }

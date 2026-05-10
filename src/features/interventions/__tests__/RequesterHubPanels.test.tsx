@@ -62,6 +62,13 @@ jest.mock("@/features/interventions/smartFormReverseGeocode", () => ({
   resolveInterventionAddressFromCoords: jest.fn(),
 }));
 
+jest.mock("@/features/auth/components/ClientPortalAuthPanel", () => ({
+  __esModule: true,
+  default: ({ authRailMode }: { authRailMode?: boolean }) => (
+    <div data-testid="client-portal-stub" data-auth-rail={authRailMode ? "1" : undefined} />
+  ),
+}));
+
 describe("Requester hub panels", () => {
   const mockUseRequesterHub = useRequesterHub as jest.Mock;
   const setProfile = jest.fn();
@@ -105,6 +112,25 @@ describe("Requester hub panels", () => {
     expect(screen.getByPlaceholderText("Téléphone")).toBeInTheDocument();
     expect(screen.queryByPlaceholderText("Code portail / Accès")).not.toBeInTheDocument();
     expect(screen.queryByTestId("requester-access-toggle")).not.toBeInTheDocument();
+  });
+
+  it("affiche le bloc de connexion portail sur l’onglet Login", () => {
+    mockUseRequesterHub.mockReturnValue({
+      ...mockUseRequesterHub(),
+      profile: {
+        type: "login",
+        firstName: "",
+        lastName: "",
+        companyName: "",
+        phone: "",
+        defaultAddress: "",
+        accessCode: "",
+      },
+    });
+    render(<RequesterProfilePanel />);
+    expect(screen.getByTestId("requester-login-rail")).toBeInTheDocument();
+    expect(screen.getByTestId("client-portal-stub")).toHaveAttribute("data-auth-rail", "1");
+    expect(screen.queryByPlaceholderText("Prénom")).not.toBeInTheDocument();
   });
 
   it("affiche les choix de problème dans le panel central", () => {

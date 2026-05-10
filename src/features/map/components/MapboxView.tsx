@@ -8,11 +8,18 @@ import RequesterTrackingPanel from '@/features/interventions/components/Requeste
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useDateContext } from '@/context/DateContext';
 import { generateDailyMissions, type Mission } from '@/utils/mockMissions';
+import { realInterventionsOnly } from '@/core/config/devUiPreview';
 import { useDashboardPagerOptional } from '@/features/dashboard/dashboardPagerContext';
 import { useGalaxyLayerBridgeOptional } from '@/features/map/GalaxyLayerBridgeContext';
 import { useCompanyWorkspaceOptional } from '@/context/CompanyWorkspaceContext';
 import { useBackOfficeInterventions } from '@/features/backoffice/useBackOfficeInterventions';
-import { interventionClientLabel, statusLabelFr, formatScheduledTimeOnly, interventionMatchesTab } from '@/features/interventions/technicianSchedule';
+import {
+  interventionClientLabel,
+  statusLabelFr,
+  formatScheduledTimeOnly,
+  interventionMatchesTab,
+  dailyMissionCardTone,
+} from '@/features/interventions/technicianSchedule';
 import { cn } from '@/lib/utils';
 
 export default function MapboxView() {
@@ -26,7 +33,10 @@ export default function MapboxView() {
   const workspace = useCompanyWorkspaceOptional();
   const { interventions: firestoreInterventions } = useBackOfficeInterventions(workspace?.activeCompanyId ?? null);
 
-  const missions = useMemo(() => generateDailyMissions(selectedDate), [selectedDate]);
+  const missions = useMemo(
+    () => (realInterventionsOnly ? [] : generateDailyMissions(selectedDate)),
+    [selectedDate],
+  );
   const [liveMissions, setLiveMissions] = useState<Mission[]>([]);
   const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
   const selectedDateStr = useMemo(() => selectedDate.toLocaleDateString('en-CA'), [selectedDate]);
@@ -94,6 +104,7 @@ export default function MapboxView() {
   }, [galaxyBridge, selectedDateStr]);
 
   useEffect(() => {
+    if (realInterventionsOnly) return;
     let cancelled = false;
     const loadLocal = async () => {
       try {
@@ -139,7 +150,17 @@ export default function MapboxView() {
     return () => {
       cancelled = true;
     };
-  }, [selectedDateStr]);
+  }, [selectedDateStr, realInterventionsOnly]);
+
+  useEffect(() => {
+    if (!realInterventionsOnly) return;
+    setLiveMissions((prev) =>
+      prev.filter((m) => {
+        const k = m.key;
+        return typeof k !== "string" || !k.endsWith(".intervention.json");
+      }),
+    );
+  }, [realInterventionsOnly]);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -199,8 +220,9 @@ export default function MapboxView() {
       bounds.extend(mission.coordinates as [number, number]);
 
       const isLive = mission.source === "live";
-      const isDone = mission.status === 'Terminé';
-      const inProgress = mission.status === 'En cours';
+      const tone = dailyMissionCardTone(mission.status);
+      const isDone = tone === "done";
+      const inProgress = tone === "active";
 
       const shadowClass = isDone
         ? "shadow-[0_0_10px_rgba(40,224,90,0.65),0_6px_20px_rgba(40,224,90,0.75)]"

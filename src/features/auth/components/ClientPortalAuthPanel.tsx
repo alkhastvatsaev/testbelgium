@@ -1,15 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  GoogleAuthProvider,
-  OAuthProvider,
+  getMultiFactorResolver,
   sendSignInLinkToEmail,
-  signInWithRedirect,
+  signInWithEmailAndPassword,
   signOut,
+  type MultiFactorResolver,
+  type RecaptchaVerifier,
 } from "firebase/auth";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { Building2, LayoutDashboard, LogOut, Mail, Search, MapPin, Clock, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import {
+  Building2,
+  LayoutDashboard,
+  LogOut,
+  Mail,
+  Search,
+  MapPin,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Lock,
+  Shield,
+} from "lucide-react";
 import { toast } from "sonner";
 import { auth, firestore, isConfigured } from "@/core/config/firebase";
 import { useDashboardPagerOptional } from "@/features/dashboard/dashboardPagerContext";
@@ -18,6 +32,14 @@ import { syncClientPortalProfile } from "@/features/auth/clientPortalProfile";
 import { useTranslation } from "@/core/i18n/I18nContext";
 import { Intervention } from "@/features/interventions/types";
 import { cn } from "@/lib/utils";
+import {
+  completePhoneMfa,
+  completeTotpMfa,
+  createInvisibleRecaptcha,
+  mfaHintKind,
+  pickDefaultMfaHintIndex,
+  sendPhoneMfaSms,
+} from "@/features/auth/clientPortalPasswordMfa";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
@@ -49,14 +71,82 @@ const STATUS_COLORS: Record<string, string> = {
   invoiced: "bg-slate-100 text-slate-800 border-slate-200",
 };
 
-export default function ClientPortalAuthPanel() {
+/** Messages explicites — Firebase renvoie souvent auth/operation-not-allowed ou unauthorized-continue-uri. */
+function magicLinkSendErrorFeedback(e: unknown, continueOrigin: string): { title: string; description?: string } {
+  const code =
+    e !== null && typeof e === "object" && "code" in e && typeof (e as { code: unknown }).code === "string"
+      ? (e as { code: string }).code
+      : "";
+  switch (code) {
+    case "auth/operation-not-allowed":
+      return {
+        title: "Connexion par lien non activée",
+        description:
+          "Firebase Console → Authentication → Méthode de connexion → E-mail : activer « Lien par e-mail (connexion sans mot de passe) ».",
+      };
+    case "auth/unauthorized-continue-uri":
+    case "auth/invalid-continue-uri":
+      return {
+        title: "Domaine non autorisé pour le lien",
+        description: `Ajoutez ce domaine dans Authentication → Paramètres → Domaines autorisés : ${continueOrigin}`,
+      };
+    case "auth/invalid-email":
+      return { title: "Adresse e-mail invalide" };
+    case "auth/missing-email":
+      return { title: "Saisissez une adresse e-mail" };
+    case "auth/too-many-requests":
+      return {
+        title: "Trop de demandes",
+        description: "Réessayez dans quelques minutes.",
+      };
+    default:
+      return {
+        title: "Envoi impossible",
+        description: code ? code : undefined,
+      };
+  }
+}
+
+export type ClientPortalAuthPanelProps = {
+  /** Rail gauche hub demandeur : connexion uniquement (sans suivi par nom). */
+  authRailMode?: boolean;
+};
+
+export default function ClientPortalAuthPanel({ authRailMode = false }: ClientPortalAuthPanelProps) {
   const pager = useDashboardPagerOptional();
   const { t } = useTranslation();
   
   // Login State
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [signingIn, setSigningIn] = useState(false);
   const [sending, setSending] = useState(false);
+  const [mfaResolver, setMfaResolver] = useState<MultiFactorResolver | null>(null);
+  const [mfaHintIndex, setMfaHintIndex] = useState(0);
+  const [phoneVerificationId, setPhoneVerificationId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaBusy, setMfaBusy] = useState(false);
+  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
   const user = auth?.currentUser ?? null;
+
+  const clearRecaptcha = () => {
+    try {
+      recaptchaRef.current?.clear();
+    } catch {
+      /* ignore */
+    }
+    recaptchaRef.current = null;
+  };
+
+  const resetMfaUi = () => {
+    clearRecaptcha();
+    setMfaResolver(null);
+    setPhoneVerificationId(null);
+    setMfaCode("");
+    setMfaBusy(false);
+  };
+
+  useEffect(() => () => clearRecaptcha(), []);
 
   // Search State
   const [searchName, setSearchName] = useState("");
@@ -84,27 +174,121 @@ export default function ClientPortalAuthPanel() {
       window.localStorage.setItem(EMAIL_LINK_STORAGE_KEY, email.trim());
       toast.success(t('auth.link_sent'), { description: t('auth.check_inbox') });
     } catch (e) {
-      console.error(e);
-      toast.error(t('auth.send_failed'));
+      console.error("[ClientPortalAuthPanel] sendSignInLinkToEmail", e);
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const { title, description } = magicLinkSendErrorFeedback(e, origin);
+      toast.error(title, description ? { description } : undefined);
     } finally {
       setSending(false);
     }
   };
 
-  const signInGoogle = () => {
-    if (!auth) return;
-    const p = new GoogleAuthProvider();
-    p.setCustomParameters({ prompt: "select_account" });
-    void signInWithRedirect(auth, p);
+  const getOrCreateInvisibleRecaptcha = (): RecaptchaVerifier => {
+    if (!auth) throw new Error("auth");
+    if (!recaptchaRef.current) {
+      recaptchaRef.current = createInvisibleRecaptcha(auth, "client-portal-recaptcha-container");
+    }
+    return recaptchaRef.current;
   };
 
-  const signInMicrosoft = () => {
+  const handlePasswordSignIn = async () => {
     if (!auth) return;
-    const p = new OAuthProvider("microsoft.com");
-    p.addScope("email");
-    p.addScope("profile");
-    p.setCustomParameters({ prompt: "select_account" });
-    void signInWithRedirect(auth, p);
+    if (!email.trim() || !password) {
+      toast.error("E-mail et mot de passe requis");
+      return;
+    }
+    resetMfaUi();
+    setSigningIn(true);
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+      toast.success("Connexion réussie");
+      setPassword("");
+    } catch (e: unknown) {
+      const err = e as { code?: string };
+      if (err.code === "auth/multi-factor-auth-required") {
+        try {
+          const resolver = getMultiFactorResolver(auth, e as Parameters<typeof getMultiFactorResolver>[1]);
+          setMfaResolver(resolver);
+          const idx = pickDefaultMfaHintIndex(resolver);
+          setMfaHintIndex(idx);
+          setPhoneVerificationId(null);
+          setMfaCode("");
+          const kind = mfaHintKind(resolver.hints[idx] ?? { factorId: "" });
+          toast.message(
+            kind === "totp"
+              ? "Code 2FA — application d’authentification"
+              : "Code 2FA — envoyez le SMS puis saisissez le code",
+          );
+        } catch (inner) {
+          console.error(inner);
+          toast.error("Impossible de démarrer la double authentification");
+        }
+        return;
+      }
+      if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
+        toast.error("E-mail ou mot de passe incorrect");
+      } else if (err.code === "auth/user-not-found") {
+        toast.error("Aucun compte avec cet e-mail");
+      } else if (err.code === "auth/too-many-requests") {
+        toast.error("Trop de tentatives, réessayez plus tard");
+      } else {
+        toast.error("Connexion impossible");
+      }
+    } finally {
+      setSigningIn(false);
+    }
+  };
+
+  const handleSendPhoneMfa = async () => {
+    if (!auth || !mfaResolver) return;
+    setMfaBusy(true);
+    try {
+      const verifier = getOrCreateInvisibleRecaptcha();
+      const vid = await sendPhoneMfaSms(auth, mfaResolver, mfaHintIndex, verifier);
+      setPhoneVerificationId(vid);
+      toast.success("SMS envoyé");
+    } catch (e) {
+      console.error(e);
+      toast.error("Envoi SMS impossible (domaine autorisé & reCAPTCHA)");
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
+  const handleConfirmMfa = async () => {
+    if (!mfaResolver || !mfaCode.trim()) {
+      toast.error("Saisissez le code 2FA");
+      return;
+    }
+    const hint = mfaResolver.hints[mfaHintIndex];
+    if (!hint) {
+      toast.error("Second facteur inconnu");
+      return;
+    }
+    const kind = mfaHintKind(hint);
+    setMfaBusy(true);
+    try {
+      if (kind === "totp") {
+        await completeTotpMfa(mfaResolver, hint.uid, mfaCode);
+      } else if (kind === "phone") {
+        if (!phoneVerificationId) {
+          toast.error("Demandez d’abord le SMS");
+          return;
+        }
+        await completePhoneMfa(mfaResolver, phoneVerificationId, mfaCode);
+      } else {
+        toast.error("Type de 2FA non pris en charge");
+        return;
+      }
+      toast.success("Connexion réussie");
+      resetMfaUi();
+      setPassword("");
+    } catch (e) {
+      console.error(e);
+      toast.error("Code 2FA incorrect ou expiré");
+    } finally {
+      setMfaBusy(false);
+    }
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -180,8 +364,17 @@ export default function ClientPortalAuthPanel() {
   }
 
   return (
-    <div data-testid="client-portal-container" style={outfit} className="flex min-h-0 flex-1 flex-col gap-5 pb-1 w-full max-w-[440px] mx-auto">
-      
+    <div
+      data-testid="client-portal-container"
+      data-auth-rail={authRailMode ? "true" : undefined}
+      style={outfit}
+      className={cn(
+        "flex min-h-0 flex-1 flex-col gap-5 pb-1 w-full",
+        authRailMode ? "max-w-none" : "max-w-[440px] mx-auto",
+      )}
+    >
+      {!authRailMode && (
+      <>
       {/* 1. SECTION SUIVI (Tracking) */}
       <div className="flex flex-col rounded-[24px] border border-black/[0.06] bg-gradient-to-b from-white/96 via-white/90 to-slate-50/85 p-6 shadow-[0_12px_40px_-16px_rgba(15,23,42,0.12)] backdrop-blur-xl">
         <h3 className="text-[18px] font-extrabold text-slate-800 mb-1">Suivi de demande</h3>
@@ -361,6 +554,8 @@ export default function ClientPortalAuthPanel() {
           </span>
         </div>
       </div>
+      </>
+      )}
 
       {/* 2. SECTION CONNEXION (Full Portal) */}
       {user ? (
@@ -401,53 +596,130 @@ export default function ClientPortalAuthPanel() {
         <div className="flex flex-col items-center gap-5 rounded-[24px] border border-black/[0.06] bg-gradient-to-b from-white/96 via-white/90 to-slate-50/85 px-6 py-8 shadow-[0_20px_50px_-24px_rgba(15,23,42,0.12)] backdrop-blur-xl">
           <div className="text-center w-full mb-2">
             <h3 className="text-[18px] font-extrabold text-slate-800">Espace Client</h3>
-            <p className="text-[13px] font-medium text-slate-500 mt-1">Connectez-vous pour voir l'historique complet, les factures et vos devis.</p>
           </div>
 
-          <div className="flex w-full gap-2">
+          <div className="flex w-full flex-col gap-3">
             <label htmlFor="client-portal-email-input" className="sr-only">
-              {t('auth.email_label')}
+              E-mail
             </label>
             <input
               id="client-portal-email-input"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={t('auth.email_placeholder')}
+              placeholder="E-mail"
               data-testid="client-portal-email"
               autoComplete="email"
-              className="min-w-0 flex-1 rounded-[14px] border border-black/[0.06] bg-white px-4 py-3 text-[14px] font-medium text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900/15 shadow-sm"
+              className="w-full rounded-[14px] border border-black/[0.06] bg-white px-4 py-3 text-[14px] font-medium text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900/15 shadow-sm"
             />
+            <label htmlFor="client-portal-password-input" className="sr-only">
+              Mot de passe
+            </label>
+            <div className="relative w-full">
+              <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
+              <input
+                id="client-portal-password-input"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Mot de passe"
+                data-testid="client-portal-password"
+                autoComplete="current-password"
+                disabled={Boolean(mfaResolver)}
+                className="w-full rounded-[14px] border border-black/[0.06] bg-white py-3 pl-10 pr-4 text-[14px] font-medium text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900/15 shadow-sm disabled:opacity-50"
+              />
+            </div>
             <button
               type="button"
-              data-testid="client-portal-magic-send"
-              disabled={sending}
-              onClick={() => void sendMagicLink()}
-              className="inline-flex shrink-0 items-center justify-center rounded-[14px] bg-slate-900 px-4 py-3 text-white disabled:opacity-45 hover:bg-black transition-colors"
-              aria-label={t('auth.receive_link_label')}
+              data-testid="client-portal-password-signin"
+              disabled={signingIn || Boolean(mfaResolver) || !email.trim() || !password}
+              onClick={() => void handlePasswordSignIn()}
+              className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-slate-900 py-3 text-[14px] font-bold text-white shadow-[0_8px_16px_-6px_rgba(15,23,42,0.35)] disabled:opacity-45 hover:bg-black transition-colors"
             >
-              <Mail className="h-5 w-5" aria-hidden />
+              {signingIn ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Shield className="h-4 w-4" aria-hidden />}
+              Se connecter
             </button>
           </div>
 
-          <div className="flex w-full flex-col gap-2.5">
+          <div id="client-portal-recaptcha-container" className="sr-only" aria-hidden />
+
+          {mfaResolver && mfaResolver.hints[mfaHintIndex] && (
+            <div
+              data-testid="client-portal-mfa-panel"
+              className="flex w-full flex-col gap-3 rounded-[18px] border border-indigo-200/80 bg-indigo-50/60 p-4"
+            >
+              <p className="text-[13px] font-bold text-indigo-950">
+                Double authentification ({mfaHintKind(mfaResolver.hints[mfaHintIndex]) === "totp" ? "application" : "SMS"})
+              </p>
+              {mfaHintKind(mfaResolver.hints[mfaHintIndex]) === "phone" && (
+                <button
+                  type="button"
+                  data-testid="client-portal-mfa-send-sms"
+                  disabled={mfaBusy || Boolean(phoneVerificationId)}
+                  onClick={() => void handleSendPhoneMfa()}
+                  className="rounded-[12px] bg-white px-3 py-2.5 text-[13px] font-bold text-indigo-800 shadow-sm ring-1 ring-indigo-200/80 disabled:opacity-50"
+                >
+                  {phoneVerificationId ? "SMS envoyé" : "Envoyer le code SMS"}
+                </button>
+              )}
+              <label htmlFor="client-portal-mfa-code" className="sr-only">
+                Code 2FA
+              </label>
+              <input
+                id="client-portal-mfa-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value)}
+                placeholder={mfaHintKind(mfaResolver.hints[mfaHintIndex]) === "totp" ? "Code à 6 chiffres (authenticator)" : "Code SMS"}
+                data-testid="client-portal-mfa-code"
+                className="w-full rounded-[14px] border border-black/[0.06] bg-white px-4 py-3 text-[14px] font-mono font-semibold tracking-widest text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  data-testid="client-portal-mfa-confirm"
+                  disabled={mfaBusy || !mfaCode.trim()}
+                  onClick={() => void handleConfirmMfa()}
+                  className="flex-1 rounded-[12px] bg-indigo-600 py-2.5 text-[13px] font-bold text-white disabled:opacity-45"
+                >
+                  {mfaBusy ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Valider 2FA"}
+                </button>
+                <button
+                  type="button"
+                  data-testid="client-portal-mfa-cancel"
+                  disabled={mfaBusy}
+                  onClick={() => resetMfaUi()}
+                  className="rounded-[12px] border border-black/[0.08] bg-white px-3 py-2.5 text-[13px] font-bold text-slate-700"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="relative w-full py-1">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-black/[0.06]" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-slate-50 px-3 text-[11px] text-slate-400 uppercase font-bold tracking-wider">
+                Lien sans mot de passe
+              </span>
+            </div>
+          </div>
+
+          <div className="flex w-full gap-2">
             <button
               type="button"
-              data-testid="client-portal-google"
-              onClick={signInGoogle}
-              className="flex w-full items-center justify-center gap-2 rounded-[14px] border border-black/[0.07] bg-white py-3 text-[14px] font-bold text-slate-800 shadow-[0_6px_18px_-10px_rgba(15,23,42,0.15)] hover:bg-slate-50 transition-colors"
+              data-testid="client-portal-magic-send"
+              disabled={sending || !email.trim()}
+              onClick={() => void sendMagicLink()}
+              className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-[14px] bg-white px-4 py-3 text-[14px] font-bold text-slate-800 shadow-[0_6px_18px_-10px_rgba(15,23,42,0.12)] ring-1 ring-black/[0.06] disabled:opacity-45 hover:bg-slate-50 transition-colors"
+              aria-label={t('auth.receive_link_label')}
             >
-              <span className="text-[17px] font-black text-blue-600" aria-hidden>G</span>
-              Continuer avec Google
-            </button>
-            <button
-              type="button"
-              data-testid="client-portal-microsoft"
-              onClick={signInMicrosoft}
-              className="flex w-full items-center justify-center gap-2 rounded-[14px] border border-black/[0.07] bg-white py-3 text-[14px] font-bold text-slate-800 shadow-[0_6px_18px_-10px_rgba(15,23,42,0.15)] hover:bg-slate-50 transition-colors"
-            >
-              <span className="text-[17px] font-black text-sky-600" aria-hidden>M</span>
-              Continuer avec Microsoft
+              {sending ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <Mail className="h-5 w-5" aria-hidden />}
+              Recevoir un lien
             </button>
           </div>
         </div>

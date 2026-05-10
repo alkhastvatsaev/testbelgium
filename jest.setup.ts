@@ -180,9 +180,49 @@ jest.mock('firebase/auth', () => {
     ),
     sendSignInLinkToEmail: jest.fn(() => Promise.resolve()),
     signInWithRedirect: jest.fn(() => Promise.resolve()),
-    signInWithEmailAndPassword: jest.fn(),
+    signInWithEmailAndPassword: jest.fn(() =>
+      Promise.resolve({
+        user: {
+          uid: 'pwd-user',
+          email: 'pwd@test.example',
+          emailVerified: true,
+          displayName: null,
+          photoURL: null,
+          phoneNumber: undefined,
+          providerData: [{ providerId: 'password' }],
+        },
+      }),
+    ),
+    getMultiFactorResolver: jest.fn((_auth: unknown, error: unknown) => {
+      const e = error as { code?: string };
+      if (e?.code !== 'auth/multi-factor-auth-required') {
+        throw error;
+      }
+      return {
+        hints: [{ factorId: 'totp', uid: 'mf-hint' }],
+        session: {},
+        resolveSignIn: jest.fn(() => Promise.resolve()),
+      };
+    }),
+    PhoneAuthProvider: Object.assign(
+      jest.fn().mockImplementation(() => ({
+        verifyPhoneNumber: jest.fn(() => Promise.resolve('mock-phone-verification-id')),
+      })),
+      { credential: jest.fn(() => ({})) },
+    ),
+    PhoneMultiFactorGenerator: {
+      FACTOR_ID: 'phone',
+      assertion: jest.fn(() => ({})),
+    },
+    TotpMultiFactorGenerator: {
+      FACTOR_ID: 'totp',
+      assertionForSignIn: jest.fn(() => ({})),
+    },
     signOut: jest.fn(() => Promise.resolve()),
-    RecaptchaVerifier: jest.fn(),
+    RecaptchaVerifier: jest.fn(() => ({
+      clear: jest.fn(),
+      render: jest.fn(() => Promise.resolve()),
+    })),
     signInWithPhoneNumber: jest.fn(),
     onAuthStateChanged: jest.fn((_auth: unknown, cb: (u: unknown | null) => void) => {
       cb(mockState.currentUser);

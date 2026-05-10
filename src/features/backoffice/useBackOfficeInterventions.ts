@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { auth, firestore, isConfigured } from "@/core/config/firebase";
-import { DEMO_COMPANY_ID, devUiPreviewEnabled } from "@/core/config/devUiPreview";
+import {
+  DEMO_COMPANY_ID,
+  devUiPreviewEnabled,
+  realInterventionsOnly,
+  stripKnownSyntheticInterventions,
+} from "@/core/config/devUiPreview";
 import type { Intervention } from "@/features/interventions/types";
 import { demoInterventionsForCompany } from "@/features/dev/demoInterventions";
 
@@ -23,7 +28,7 @@ export function useBackOfficeInterventions(companyId: string | null) {
   useEffect(() => {
     if (skipFirestoreDemo) {
       const cid = (companyId ?? "").trim() || DEMO_COMPANY_ID;
-      setInterventions(demoInterventionsForCompany(cid));
+      setInterventions(realInterventionsOnly ? [] : demoInterventionsForCompany(cid));
       setLoading(false);
       setError(null);
       return () => {};
@@ -50,7 +55,11 @@ export function useBackOfficeInterventions(companyId: string | null) {
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setInterventions(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention)));
+        setInterventions(
+          stripKnownSyntheticInterventions(
+            snap.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention)),
+          ),
+        );
         setLoading(false);
         setError(null);
       },

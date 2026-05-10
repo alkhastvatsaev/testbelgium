@@ -3,6 +3,8 @@ import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useDateContext } from '@/context/DateContext';
 import { generateDailyMissions, type Mission } from '@/utils/mockMissions';
+import { realInterventionsOnly } from '@/core/config/devUiPreview';
+import { dailyMissionCardTone } from '@/features/interventions/technicianSchedule';
 import { GLASS_PANEL_BODY_SCROLL } from '@/core/ui/glassPanelChrome';
 
 export default function DailyMissions({ 
@@ -15,15 +17,20 @@ export default function DailyMissions({
   isEmbedded?: boolean;
 }) {
   const { selectedDate } = useDateContext();
-  const missions = useMemo(() => missionsProp ?? generateDailyMissions(selectedDate), [missionsProp, selectedDate]);
+  const missions = useMemo(() => {
+    if (missionsProp !== undefined) return missionsProp;
+    if (realInterventionsOnly) return [];
+    return generateDailyMissions(selectedDate);
+  }, [missionsProp, selectedDate]);
 
   const content = (
     <div className={`${isEmbedded ? "" : GLASS_PANEL_BODY_SCROLL} flex flex-col items-center justify-start`}>
       {/* Aligning the mission items to the top */}
       <div className="grid grid-cols-3 gap-4 px-1 pb-8 pt-1">
           {missions.map((mission, index) => {
-            const isDone = mission.status === 'Terminé';
-            const inProgress = mission.status === 'En cours';
+            const tone = dailyMissionCardTone(mission.status);
+            const isDone = tone === "done";
+            const inProgress = tone === "active";
             
             const baseShadow = '0 6px 18px -4px rgba(15,23,42,0.1)';
             

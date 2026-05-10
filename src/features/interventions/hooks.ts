@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { firestore, auth, isConfigured } from "@/core/config/firebase";
+import { stripKnownSyntheticInterventions } from "@/core/config/devUiPreview";
 import { collection, onSnapshot, doc, setDoc, query, where } from "firebase/firestore";
 import { Intervention } from "./types";
 import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
@@ -37,7 +38,7 @@ export function useInterventions() {
   const tenantCompanyId =
     workspace?.isTenantUser && workspace.activeCompanyId ? workspace.activeCompanyId : null;
 
-  const [interventions, setInterventions] = useState<Intervention[]>(MOCK_INTERVENTIONS);
+  const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -66,12 +67,19 @@ export function useInterventions() {
         intRef,
         (snapshot) => {
           if (!snapshot.empty) {
-            const parsed = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention));
+            const parsed = stripKnownSyntheticInterventions(
+              snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention)),
+            );
             setInterventions(parsed);
-          } else if (!tenantCompanyId) {
+          } else if (
+            !tenantCompanyId &&
+            process.env.NEXT_PUBLIC_SEED_LEGACY_INTERVENTIONS === "true"
+          ) {
             MOCK_INTERVENTIONS.forEach(async (i) => {
               await setDoc(doc(collection(db, "interventions"), i.id), i);
             });
+          } else if (!tenantCompanyId) {
+            setInterventions([]);
           } else {
             setInterventions([]);
           }

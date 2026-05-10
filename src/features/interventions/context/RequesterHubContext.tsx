@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-export type RequesterType = "particulier" | "societe";
+export type RequesterType = "particulier" | "login";
 
 export interface RequesterProfile {
   type: RequesterType;
@@ -46,7 +46,7 @@ interface RequesterHubContextValue {
 }
 
 const defaultProfile: RequesterProfile = {
-  type: "particulier",
+  type: "login",
   firstName: "",
   lastName: "",
   companyName: "",
@@ -85,8 +85,19 @@ export function RequesterHubProvider({ children }: { children: ReactNode }) {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.profile) setProfile(parsed.profile);
+        const parsed = JSON.parse(stored) as {
+          profile?: RequesterProfile;
+          requestData?: InterventionRequestData;
+          lastSubmittedRequest?: InterventionRequestData | null;
+        };
+        if (parsed.profile) {
+          const p = parsed.profile;
+          if ((p.type as string) === "societe") {
+            setProfile({ ...p, type: "login" });
+          } else {
+            setProfile(p);
+          }
+        }
         if (parsed.requestData) setRequestData(parsed.requestData);
         if (parsed.lastSubmittedRequest) setLastSubmittedRequest(parsed.lastSubmittedRequest);
       }
