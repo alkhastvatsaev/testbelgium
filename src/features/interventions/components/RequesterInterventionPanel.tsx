@@ -8,11 +8,11 @@ import { SmartTimeSlotPicker } from "./SmartTimeSlotPicker";
 import { toast } from "sonner";
 import { addDoc, collection, deleteDoc, doc, setDoc } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
-import { auth, firestore, isConfigured } from "@/core/config/firebase";
+import { auth, firestore, isConfigured, storage } from "@/core/config/firebase";
 import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/core/i18n/I18nContext";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { compressImageToDataUrl } from "@/features/interventions/compressImageToDataUrl";
 import { SMART_FORM_TEMPLATES } from "@/features/interventions/smartInterventionConstants";
 import { recordDuplicateAlertIfNeeded } from "@/features/interventions/recordDuplicateAlertIfNeeded";
@@ -211,13 +211,25 @@ export default function RequesterInterventionPanel() {
     try {
       const formData = new FormData();
       const mime = blob.type || "audio/webm";
-      const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : mime.includes("wav") ? "wav" : "webm";
+      const ext = mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : mime.includes("wav") ? "wav" : "webm";
       formData.append("audio", blob, `message.${ext}`);
       
       const res = await fetch("/api/demo/client-audio", { method: "POST", body: formData });
       if (!res.ok) throw new Error("Erreur serveur");
-      
-      toast.success("Audio enregistré", { description: "Sauvegardé dans public/client-audios." });
+
+      const json = (await res.json().catch(() => null)) as { url?: string; storagePath?: string } | null;
+      const savedName =
+        json?.url?.split("/").pop() ||
+        json?.storagePath?.split("/").pop() ||
+        `message.${ext}`;
+
+      if (json?.url) {
+        setRequestData((prev) => ({ ...prev, audioUrl: json.url ?? prev.audioUrl }));
+      }
+
+      toast.success("Audio enregistré", {
+        description: savedName,
+      });
     } catch (e) {
       console.error("Échec de la sauvegarde audio", e);
     }
@@ -351,6 +363,26 @@ export default function RequesterInterventionPanel() {
         return;
       }
 
+      // Démo / filet de sécurité : l'URL peut arriver après le blob (fetch async dans handleAudioRecorded).
+      // Sans cette étape, Firestore peut être créé sans audioUrl alors qu'un vocal existe → inbox « Aucun message vocal ».
+      let demoAudioUrlForDoc = (requestData.audioUrl ?? "").trim() || null;
+      const blobForAudio = requestData.audioBlob;
+      if (blobForAudio && blobForAudio.size > 0 && !demoAudioUrlForDoc) {
+        try {
+          const formData = new FormData();
+          const mime = blobForAudio.type || "audio/webm";
+          const ext = mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : mime.includes("wav") ? "wav" : "webm";
+          formData.append("audio", blobForAudio, `message.${ext}`);
+          const res = await fetch("/api/demo/client-audio", { method: "POST", body: formData });
+          if (res.ok) {
+            const json = (await res.json()) as { url?: string };
+            demoAudioUrlForDoc = (json.url ?? "").trim() || null;
+          }
+        } catch (e) {
+          console.error("Persist vocal at submit failed", e);
+        }
+      }
+
       const db = firestore;
       const newDocRef = doc(collection(db, "interventions"));
       const title = (problemLabel.trim() || description.trim()).slice(0, 140);
@@ -379,8 +411,6 @@ export default function RequesterInterventionPanel() {
             }
           }
 
-          let uploadedAudioUrl: string | null = null;
-          
           await setDoc(newDocRef, {
             title,
             address: interventionAddress.trim(),
@@ -399,21 +429,57 @@ export default function RequesterInterventionPanel() {
             ...(profile.phone.trim() ? { clientPhone: profile.phone.trim() } : {}),
             ...(interventionDate ? { requestedDate: interventionDate } : {}),
             ...(interventionTime ? { requestedTime: interventionTime } : {}),
+            ...(demoAudioUrlForDoc ? { audioUrl: demoAudioUrlForDoc } : {}),
           });
 
-          if (audioBlob) {
-            try {
-              const storage = getStorage();
-              const ext = audioBlob.type.includes("mp4") ? "mp4" : "webm";
-              const audioRef = ref(storage, `interventions_audio/${user.uid}/${Date.now()}.${ext}`);
-              await uploadBytes(audioRef, audioBlob);
-              uploadedAudioUrl = await getDownloadURL(audioRef);
+          if (audioBlob && audioBlob.size > 0) {
+            const mime = audioBlob.type || "audio/webm";
+            const ext = mime.includes("mp4") ? "m4a" : "webm";
 
-              await setDoc(newDocRef, {
-                audioUrl: uploadedAudioUrl
-              }, { merge: true });
-            } catch (err) {
-              console.error("Audio upload failed", err);
+            const persistDemoFallback = async () => {
+              try {
+                const formData = new FormData();
+                formData.append("audio", audioBlob, `message.${ext}`);
+                const res = await fetch("/api/demo/client-audio", { method: "POST", body: formData });
+                if (!res.ok) return;
+                const json = (await res.json()) as { url?: string; mimeType?: string };
+                if (json.url) {
+                  await setDoc(
+                    newDocRef,
+                    {
+                      audioUrl: json.url,
+                      audioMimeType: json.mimeType ?? mime,
+                    },
+                    { merge: true },
+                  );
+                }
+              } catch (e) {
+                console.error("Audio demo fallback failed", e);
+              }
+            };
+
+            if (storage) {
+              try {
+                const storagePath = `interventions_audio/${user.uid}/${Date.now()}.${ext}`;
+                const audioRef = ref(storage, storagePath);
+                await uploadBytes(audioRef, audioBlob);
+                const firebaseAudioUrl = await getDownloadURL(audioRef);
+
+                await setDoc(
+                  newDocRef,
+                  {
+                    audioUrl: firebaseAudioUrl,
+                    audioStoragePath: storagePath,
+                    audioMimeType: mime,
+                  },
+                  { merge: true },
+                );
+              } catch (err) {
+                console.error("Audio upload failed (Storage)", err);
+                await persistDemoFallback();
+              }
+            } else {
+              await persistDemoFallback();
             }
           }
 
@@ -610,7 +676,7 @@ export default function RequesterInterventionPanel() {
                           onClick={() => {
                             try {
                               const mime = audioBlob.type || "audio/webm";
-                              const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : mime.includes("wav") ? "wav" : "webm";
+                              const ext = mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : mime.includes("wav") ? "wav" : "webm";
                               const a = document.createElement("a");
                               const url = URL.createObjectURL(audioBlob);
                               a.href = url;

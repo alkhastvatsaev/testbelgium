@@ -1,6 +1,8 @@
 /** @jest-environment jsdom */
+import type { ReactElement } from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import * as firebaseAuth from "firebase/auth";
+import { I18nProvider } from "@/core/i18n/I18nContext";
 import ClientPortalAuthPanel from "../ClientPortalAuthPanel";
 
 jest.mock("@/core/config/firebase", () => ({
@@ -25,17 +27,21 @@ jest.mock("sonner", () => ({
   toast: { error: jest.fn(), success: jest.fn() },
 }));
 
+function renderWithI18n(ui: ReactElement) {
+  return render(<I18nProvider>{ui}</I18nProvider>);
+}
+
 describe("ClientPortalAuthPanel", () => {
   it("affiche lien magique + SSO Google / Microsoft", () => {
-    render(<ClientPortalAuthPanel />);
-    expect(screen.getByTestId("client-portal-auth")).toBeInTheDocument();
+    renderWithI18n(<ClientPortalAuthPanel />);
+    expect(screen.getByTestId("client-portal-container")).toBeInTheDocument();
     expect(screen.getByTestId("client-portal-google")).toBeInTheDocument();
     expect(screen.getByTestId("client-portal-microsoft")).toBeInTheDocument();
     expect(screen.getByTestId("client-portal-magic-send")).toBeInTheDocument();
   });
 
   it("envoie un magic link par e-mail", async () => {
-    render(<ClientPortalAuthPanel />);
+    renderWithI18n(<ClientPortalAuthPanel />);
     fireEvent.change(screen.getByTestId("client-portal-email"), {
       target: { value: "client@test.example" },
     });

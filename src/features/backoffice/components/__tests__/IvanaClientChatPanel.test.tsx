@@ -1,6 +1,7 @@
 /** @jest-environment jsdom */
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import IvanaClientChatPanel from "../IvanaClientChatPanel";
+import { publishClientPortalMessage } from "../../ivanaChatPortalBridge";
 
 describe("IvanaClientChatPanel", () => {
   beforeEach(() => {
@@ -33,5 +34,18 @@ describe("IvanaClientChatPanel", () => {
       expect(screen.getAllByTestId("ivana-chat-bubble-ivana").length).toBeGreaterThanOrEqual(2);
     });
     jest.useRealTimers();
+  });
+
+  it("côté inbox : affiche un message reçu depuis le portail client", () => {
+    render(<IvanaClientChatPanel acceptPortalMessages />);
+    act(() => {
+      publishClientPortalMessage({
+        id: "portal-msg-1",
+        text: "Message depuis la page société",
+        createdAt: Date.now(),
+      });
+    });
+    expect(screen.getByTestId("ivana-chat-bubble-client")).toBeInTheDocument();
+    expect(screen.getByText("Message depuis la page société")).toBeInTheDocument();
   });
 });

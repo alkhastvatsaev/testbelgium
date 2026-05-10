@@ -286,7 +286,7 @@ const AudioPlayer = ({ blob, onRemove }: { blob: Blob; onRemove: () => void }) =
   const downloadBlob = () => {
     try {
       const mime = blob.type || "audio/webm";
-      const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : mime.includes("wav") ? "wav" : "webm";
+      const ext = mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : mime.includes("wav") ? "wav" : "webm";
       const a = document.createElement("a");
       const url = URL.createObjectURL(blob);
       a.href = url;
@@ -405,7 +405,8 @@ export default function SmartInterventionRequestForm() {
   }, [audioRecorder.audioBlob, audioRecorder.transcription]);
 
   // Demo mode: as soon as user stops recording (audioBlob becomes available),
-  // save it locally into /public/client-audios/ so back-office can play it immediately.
+  // save it on disk server-side (outside /public to avoid Next dev full reloads),
+  // then serve it via an API URL.
   useEffect(() => {
     if (!PRESENTATION_PRIVACY_MODE) return;
     if (!audioBlob || !(audioBlob instanceof Blob) || audioBlob.size === 0) return;
@@ -417,7 +418,7 @@ export default function SmartInterventionRequestForm() {
       try {
         const formData = new FormData();
         const mime = audioBlob.type || "audio/webm";
-        const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : mime.includes("wav") ? "wav" : "webm";
+        const ext = mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : mime.includes("wav") ? "wav" : "webm";
         formData.append("audio", audioBlob, `message.${ext}`);
         const res = await fetch("/api/demo/client-audio", { method: "POST", body: formData, signal: controller.signal });
         if (!res.ok) {
@@ -436,7 +437,7 @@ export default function SmartInterventionRequestForm() {
           const name = String(json.url).split("/").pop() || "";
           const exists = list.files.some((f: { name?: string }) => f?.name === name);
           if (!exists) {
-            toast.error("Audio démo", { description: "Fichier non trouvé dans public/client-audios." });
+            toast.error("Audio démo", { description: "Fichier non trouvé sur le serveur (démo)." });
           } else {
             toast.success("Audio démo enregistré", { description: name });
           }
@@ -730,7 +731,7 @@ export default function SmartInterventionRequestForm() {
         try {
           const formData = new FormData();
           const mime = finalAudioBlob.type || "audio/webm";
-          const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "webm";
+          const ext = mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : "webm";
           formData.append("audio", finalAudioBlob, `message.${ext}`);
           const res = await fetch("/api/demo/client-audio", { method: "POST", body: formData });
           if (!res.ok) {
@@ -752,7 +753,7 @@ export default function SmartInterventionRequestForm() {
       if (finalAudioBlob && finalAudioBlob.size > 0 && storage) {
         try {
           const mime = finalAudioBlob.type || "audio/webm";
-          const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "webm";
+          const ext = mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : "webm";
           // "Dossier" dédié pour tous les audios.
           const storagePath = `intervention-audios/${newDocRef.id}/message.${ext}`;
           const audioRef = ref(storage, storagePath);

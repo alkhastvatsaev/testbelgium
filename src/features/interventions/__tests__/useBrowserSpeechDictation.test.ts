@@ -30,11 +30,39 @@ type SpeechRecognitionCtor = new () => RecognitionLike;
 describe("useBrowserSpeechDictation", () => {
   const win = window as Window & { SpeechRecognition?: SpeechRecognitionCtor };
   const originalSR = win.SpeechRecognition;
+  const originalMediaDevices = navigator.mediaDevices;
+  const OriginalMediaRecorder = global.MediaRecorder;
 
   let lastInstance: RecognitionLike | null = null;
 
   beforeEach(() => {
     lastInstance = null;
+
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      writable: true,
+      value: {
+        getUserMedia: jest.fn().mockResolvedValue({
+          getTracks: () => [{ stop: jest.fn() }],
+        }),
+      },
+    });
+
+    global.MediaRecorder = class MockMediaRecorder {
+      static isTypeSupported = jest.fn(() => true);
+      mimeType = "audio/webm";
+      state: "inactive" | "recording" = "inactive";
+      ondataavailable: ((e: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+      start = jest.fn(() => {
+        this.state = "recording";
+      });
+      stop = jest.fn(() => {
+        this.state = "inactive";
+        queueMicrotask(() => this.onstop?.());
+      });
+    } as unknown as typeof MediaRecorder;
+
     win.SpeechRecognition = class {
       lang = "";
       continuous = false;
@@ -53,6 +81,12 @@ describe("useBrowserSpeechDictation", () => {
 
   afterEach(() => {
     win.SpeechRecognition = originalSR;
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      writable: true,
+      value: originalMediaDevices,
+    });
+    global.MediaRecorder = OriginalMediaRecorder;
   });
 
   it("signale le support après montage lorsque SpeechRecognition existe", async () => {
@@ -70,8 +104,8 @@ describe("useBrowserSpeechDictation", () => {
       expect(result.current.supported).toBe(true);
     });
 
-    act(() => {
-      result.current.toggleListening();
+    await act(async () => {
+      await result.current.toggleListening();
     });
 
     expect(lastInstance?.start).toHaveBeenCalledTimes(1);
@@ -86,8 +120,8 @@ describe("useBrowserSpeechDictation", () => {
       expect(result.current.supported).toBe(true);
     });
 
-    act(() => {
-      result.current.toggleListening();
+    await act(async () => {
+      await result.current.toggleListening();
     });
 
     const rec = lastInstance;
@@ -117,8 +151,8 @@ describe("useBrowserSpeechDictation", () => {
       expect(result.current.supported).toBe(true);
     });
 
-    act(() => {
-      result.current.toggleListening();
+    await act(async () => {
+      await result.current.toggleListening();
     });
 
     act(() => {

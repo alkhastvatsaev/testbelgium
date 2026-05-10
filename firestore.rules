@@ -45,6 +45,15 @@ service cloud.firestore {
         && data.companyId.size() > 0;
     }
 
+    /** Back-office : un collaborateur peut valider la facturation (done → invoiced) en ne touchant qu’au statut. */
+    function tenantCollaborateurCanValidateReport() {
+      return request.auth.token.bmTenants.hasAny([resource.data.companyId + ':collaborateur'])
+        && resource.data.status == 'done'
+        && request.resource.data.status == 'invoiced'
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status'])
+        && request.resource.data.companyId == resource.data.companyId;
+    }
+
     // --- Prompt 1 : entreprise multi-tenant ---
     match /companies/{companyId} {
       allow read: if userBelongsToCompany(companyId);
@@ -196,6 +205,7 @@ service cloud.firestore {
               resource.data.keys().hasAny(['assignedTechnicianUid'])
               && resource.data.assignedTechnicianUid == request.auth.uid
             )
+            || tenantCollaborateurCanValidateReport()
           )
         )
       );

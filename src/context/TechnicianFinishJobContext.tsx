@@ -9,8 +9,19 @@ type TechnicianFinishJobApi = {
 
 const TechnicianFinishJobContext = createContext<TechnicianFinishJobApi | null>(null);
 
-export function TechnicianFinishJobProvider({ children }: { children: ReactNode }) {
-  const [finishJobInterventionId, setFinishJobInterventionIdState] = useState<string | null>(null);
+type ProviderProps = {
+  children: ReactNode;
+  /** Tests / stories : ouvre le flux clôture avec un id d’intervention dès le montage. */
+  initialFinishJobInterventionId?: string | null;
+};
+
+export function TechnicianFinishJobProvider({
+  children,
+  initialFinishJobInterventionId,
+}: ProviderProps) {
+  const [finishJobInterventionId, setFinishJobInterventionIdState] = useState<string | null>(
+    initialFinishJobInterventionId !== undefined ? initialFinishJobInterventionId : null,
+  );
 
   const setFinishJobInterventionId = useCallback((id: string | null) => {
     setFinishJobInterventionIdState(id?.trim() ? id.trim() : null);

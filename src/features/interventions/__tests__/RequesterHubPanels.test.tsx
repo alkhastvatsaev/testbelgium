@@ -1,5 +1,6 @@
 /** @jest-environment jsdom */
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { render } from "@/test-utils/render";
 import RequesterProfilePanel from "../components/RequesterProfilePanel";
 import RequesterInterventionPanel from "../components/RequesterInterventionPanel";
 import RequesterTrackingPanel from "../components/RequesterTrackingPanel";
@@ -11,6 +12,7 @@ jest.mock("../context/RequesterHubContext", () => ({
 
 jest.mock("@/context/CompanyWorkspaceContext", () => ({
   useCompanyWorkspaceOptional: jest.fn(() => null),
+  CompanyWorkspaceProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 jest.mock("@/core/config/firebase", () => ({
@@ -86,6 +88,8 @@ describe("Requester hub panels", () => {
         interventionAddress: "",
       },
       setRequestData,
+      currentStep: 0,
+      setCurrentStep: jest.fn(),
       lastSubmittedRequest: null,
       setLastSubmittedRequest: jest.fn(),
       isSubmitting: false,

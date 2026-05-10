@@ -4,9 +4,18 @@ import path from "node:path";
 
 export const runtime = "nodejs";
 
+function getDemoAudioAbsDir() {
+  // In dev, writing under /public triggers Next full reloads (panels jump + state loss).
+  // In prod, it's ok to keep demo artifacts in /public/client-audios for easy inspection.
+  const isDev = process.env.NODE_ENV !== "production";
+  return isDev
+    ? path.join(process.cwd(), ".demo-data", "client-audios")
+    : path.join(process.cwd(), "public", "client-audios");
+}
+
 export async function GET() {
   try {
-    const absDir = path.join(process.cwd(), "public", "client-audios");
+    const absDir = getDemoAudioAbsDir();
     const entries = await readdir(absDir).catch(() => []);
     const files = (
       await Promise.all(
@@ -40,18 +49,17 @@ export async function POST(req: Request) {
     }
 
     const mime = file.type || "audio/webm";
-    const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : mime.includes("webm") ? "webm" : "bin";
+    const ext = mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : mime.includes("webm") ? "webm" : "bin";
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const relDir = path.join("public", "client-audios");
     const relName = `${id}.${ext}`;
-    const absDir = path.join(process.cwd(), relDir);
+    const absDir = getDemoAudioAbsDir();
     const absPath = path.join(absDir, relName);
 
     await mkdir(absDir, { recursive: true });
     const buf = Buffer.from(await file.arrayBuffer());
     await writeFile(absPath, buf);
 
-    const url = `/client-audios/${relName}`;
+    const url = `/api/demo/client-audio/file/${encodeURIComponent(relName)}`;
     // "storagePath" is a semantic label for back-office fallbacks.
     return NextResponse.json({
       url,

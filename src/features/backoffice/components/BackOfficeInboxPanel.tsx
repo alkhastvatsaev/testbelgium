@@ -10,42 +10,30 @@ import {
   Clock,
   FileCheck,
   ChevronRight,
+  ChevronDown,
   X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { firestore } from "@/core/config/firebase";
-import { getDownloadURL, ref as storageRef } from "firebase/storage";
-import { storage } from "@/core/config/firebase";
 
 import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
 import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
 import { cn } from "@/lib/utils";
 import { useBackOfficeInterventions } from "@/features/backoffice/useBackOfficeInterventions";
+import { useResolvedInterventionAudio } from "@/features/backoffice/useResolvedInterventionAudio";
 import type { Intervention } from "@/features/interventions/types";
 import { DEMO_TECHNICIAN_UID } from "@/core/config/devUiPreview";
 import { capitalizeName, formatAddress } from "@/utils/stringUtils";
 import { guessGenderPrefixFromName } from "@/utils/genderDetection";
 import IvanaClientChatPanel from "@/features/backoffice/components/IvanaClientChatPanel";
+import { IVANA_PORTAL_MESSAGE_EVENT } from "@/features/backoffice/ivanaChatPortalBridge";
+import RequestDetailAudioPlayer from "@/features/backoffice/components/RequestDetailAudioPlayer";
 import { useTechnicianBackofficeReportBridgeOptional } from "@/context/TechnicianBackofficeReportBridgeContext";
 import { PRESENTATION_PRIVACY_MODE } from "@/core/config/presentationMode";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
-
-function readAudioUrl(inv: unknown): string | null {
-  if (!inv || typeof inv !== "object") return null;
-  const anyInv = inv as Record<string, unknown>;
-  const candidates = [
-    anyInv.audioUrl,
-    anyInv.audioURL,
-    anyInv.audio_url,
-    anyInv.voiceUrl,
-    anyInv.voice_url,
-  ];
-  const hit = candidates.find((v) => typeof v === "string" && v.trim().length > 0);
-  return typeof hit === "string" ? hit : null;
-}
 
 function readTranscription(inv: unknown): string | null {
   if (!inv || typeof inv !== "object") return null;
@@ -59,12 +47,106 @@ function readTranscription(inv: unknown): string | null {
   return typeof hit === "string" ? hit : null;
 }
 
-function readAudioStoragePath(inv: unknown): string | null {
-  if (!inv || typeof inv !== "object") return null;
-  const anyInv = inv as Record<string, unknown>;
-  const candidates = [anyInv.audioStoragePath, anyInv.audio_storage_path, anyInv.voiceStoragePath];
-  const hit = candidates.find((v) => typeof v === "string" && v.trim().length > 0);
-  return typeof hit === "string" ? hit : null;
+type InboxInterventionRowVariant = "request" | "report-active" | "report-archived";
+
+function BackOfficeInboxInterventionRow({
+  item,
+  index,
+  variant,
+  onSelect,
+}: {
+  item: Intervention;
+  index: number;
+  variant: InboxInterventionRowVariant;
+  onSelect: (id: string) => void;
+}) {
+  const isRequest = variant === "request";
+  const isUrgent = item.urgency;
+
+  let fName = item.clientFirstName;
+  let lName = item.clientLastName;
+  if (!fName && !lName && item.clientName) {
+    const parts = item.clientName.trim().split(" ");
+    fName = parts[0];
+    lName = parts.slice(1).join(" ");
+  }
+  const prefix = fName ? guessGenderPrefixFromName(fName) : "";
+  const displayLName = capitalizeName(lName || fName || "");
+  const clientName = `${prefix} ${displayLName}`.trim() || "Client Anonyme";
+
+  return (
+    <motion.div
+      data-testid={variant === "report-archived" ? "backoffice-report-archived-row" : undefined}
+      onClick={() => onSelect(item.id)}
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.2, delay: index * 0.03 }}
+      className={cn(
+        "group relative cursor-pointer overflow-hidden rounded-[24px] border bg-white p-4 transition-all duration-300 hover:shadow-lg",
+        isRequest
+          ? isUrgent
+            ? "border-amber-200 bg-amber-50/30"
+            : "border-slate-100"
+          : variant === "report-archived"
+            ? "border-slate-200/70 bg-slate-50/50 opacity-85"
+            : item.status === "invoiced"
+              ? "border-green-100 opacity-70"
+              : "border-blue-100",
+      )}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            {isRequest ? (
+              <span
+                className={cn(
+                  "flex h-2 w-2 rounded-full",
+                  isUrgent ? "bg-amber-500 animate-pulse" : "bg-blue-500",
+                )}
+              />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
+            )}
+            <h4 className="text-[15px] font-bold text-slate-800 truncate">{clientName}</h4>
+          </div>
+          <p className="text-[13px] text-slate-500 truncate mb-2">
+            {item.problem || item.title || "Aucune description"}
+          </p>
+          <div className="flex items-center gap-3 text-[11px] font-medium text-slate-400">
+            <span className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {isRequest
+                ? item.createdAt
+                  ? new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : "Maintenant"
+                : item.completedAt
+                  ? new Date(item.completedAt as string).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : ""}
+            </span>
+            <span className="truncate max-w-[120px]">{(item.address ?? "").split(",")[0]?.trim() || "—"}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-end gap-2">
+          <div
+            className={cn(
+              "rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-tight",
+              isRequest
+                ? isUrgent
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-blue-100 text-blue-700"
+                : item.status === "invoiced"
+                  ? "bg-slate-100 text-slate-500"
+                  : "bg-green-100 text-green-700",
+            )}
+          >
+            {isRequest ? (isUrgent ? "Urgent" : "Demande") : item.status === "invoiced" ? "Vérifié" : "Rapport"}
+          </div>
+          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-400 transition-colors" />
+        </div>
+      </div>
+    </motion.div>
+  );
 }
 
 export default function BackOfficeInboxPanel() {
@@ -81,12 +163,27 @@ export default function BackOfficeInboxPanel() {
     () => (selectedItemId ? interventions.find((x) => x.id === selectedItemId) ?? null : null),
     [interventions, selectedItemId],
   );
-  const [resolvedAudioUrl, setResolvedAudioUrl] = useState<string | null>(null);
-  const [isResolvingAudio, setIsResolvingAudio] = useState(false);
   const [selectedTerrainLocalId, setSelectedTerrainLocalId] = useState<string | null>(null);
   const [isEditingDateTime, setIsEditingDateTime] = useState(false);
   const [editDate, setEditDate] = useState("");
   const [editTime, setEditTime] = useState("");
+  /** Rapports validés : liste repliée par défaut. */
+  const [reportsArchiveExpanded, setReportsArchiveExpanded] = useState(false);
+
+  const terrainIv = useMemo(() => {
+    if (!selectedTerrainLocalId) return null;
+    const r = bridgedTerrainReports.find((x) => x.localId === selectedTerrainLocalId);
+    if (!r) return null;
+    return interventions.find((x) => x.id === r.interventionId) ?? null;
+  }, [selectedTerrainLocalId, bridgedTerrainReports, interventions]);
+
+  const { resolvedAudioUrl, isResolvingAudio, audioStorageResolveFailed } =
+    useResolvedInterventionAudio(selectedItem);
+  const {
+    resolvedAudioUrl: terrainResolvedAudioUrl,
+    isResolvingAudio: terrainAudioLoading,
+    audioStorageResolveFailed: terrainAudioFailed,
+  } = useResolvedInterventionAudio(selectedTerrainLocalId ? terrainIv : null);
 
   // Filters
   const pendingRequests = useMemo(() => 
@@ -109,6 +206,18 @@ export default function BackOfficeInboxPanel() {
         return timeB - timeA;
       }),
     [interventions]
+  );
+
+  /** Rapports à valider (hors archive). */
+  const reportsToValidateList = useMemo(
+    () => validationReports.filter((iv) => iv.status === "done"),
+    [validationReports],
+  );
+
+  /** Rapports déjà validés — section Archive uniquement. */
+  const reportsArchivedList = useMemo(
+    () => validationReports.filter((iv) => iv.status === "invoiced"),
+    [validationReports],
   );
 
   const handleDelete = async (id: string) => {
@@ -136,16 +245,33 @@ export default function BackOfficeInboxPanel() {
     }
   };
 
-  const handleVerify = async (id: string) => {
-    if (!firestore) return;
+  const handleVerify = async (id: string, terrainLocalId?: string | null) => {
+    if (!firestore) {
+      toast.error("Firestore indisponible");
+      return;
+    }
     try {
       await updateDoc(doc(firestore, "interventions", id), {
         status: "invoiced",
       });
       toast.success("Rapport validé");
       setSelectedItemId(null);
+      if (terrainLocalId) {
+        terrainBridge?.dismissReport(terrainLocalId);
+      }
+      setSelectedTerrainLocalId(null);
     } catch (e) {
-      toast.error("Erreur lors de la validation");
+      console.error("Validation rapport:", e);
+      const code =
+        typeof e === "object" && e !== null && "code" in e ? String((e as { code?: string }).code) : "";
+      toast.error("Erreur lors de la validation", {
+        description:
+          code === "permission-denied"
+            ? "Permission refusée. Vérifiez votre rôle sur la société ou déployez les règles Firestore à jour."
+            : e instanceof Error
+              ? e.message
+              : "Réessayez dans un instant.",
+      });
     }
   };
 
@@ -166,30 +292,8 @@ export default function BackOfficeInboxPanel() {
   const isTenant = !!workspace?.isTenantUser;
 
   useEffect(() => {
-    setResolvedAudioUrl(null);
-    setIsResolvingAudio(false);
-    if (!selectedItem) return;
-    const direct = readAudioUrl(selectedItem);
-    if (direct) {
-      setResolvedAudioUrl(direct);
-      return;
-    }
-    const path = readAudioStoragePath(selectedItem);
-    if (!path || !storage) return;
-    let cancelled = false;
-    setIsResolvingAudio(true);
-    void getDownloadURL(storageRef(storage, path))
-      .then((url) => {
-        if (!cancelled) setResolvedAudioUrl(url);
-      })
-      .catch(() => {
-        // ignore
-      });
-    return () => {
-      cancelled = true;
-      setIsResolvingAudio(false);
-    };
-  }, [selectedItem]);
+    if (activeTab !== "reports") setReportsArchiveExpanded(false);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!terrainBridge) return;
@@ -202,7 +306,18 @@ export default function BackOfficeInboxPanel() {
     });
   }, [bridgedTerrainReports, interventions, terrainBridge]);
 
-  const itemsToShow = activeTab === "requests" ? pendingRequests : validationReports;
+  useEffect(() => {
+    if (!isTenant) return;
+    const openChat = () => setActiveTab("chat");
+    window.addEventListener(IVANA_PORTAL_MESSAGE_EVENT, openChat);
+    return () => window.removeEventListener(IVANA_PORTAL_MESSAGE_EVENT, openChat);
+  }, [isTenant]);
+
+  const itemsToShow = activeTab === "requests" ? pendingRequests : reportsToValidateList;
+
+  const reportsTabBadgeCount = reportsToValidateList.length + bridgedTerrainCount;
+  const reportsNothingAtAll =
+    reportsToValidateList.length === 0 && bridgedTerrainCount === 0 && reportsArchivedList.length === 0;
 
   if (!isTenant) {
     return (
@@ -211,7 +326,7 @@ export default function BackOfficeInboxPanel() {
         style={outfit}
         className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[inherit] bg-slate-50/30"
       >
-        <IvanaClientChatPanel className="min-h-0" />
+        <IvanaClientChatPanel className="min-h-0" acceptPortalMessages />
       </div>
     );
   }
@@ -224,18 +339,6 @@ export default function BackOfficeInboxPanel() {
     >
       {/* Tab Switcher */}
       <div className="flex p-1.5 gap-1 bg-slate-200/50 rounded-[20px] mx-4 my-4 border border-slate-300/30">
-        <button
-          type="button"
-          onClick={() => setActiveTab("chat")}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[16px] text-[12px] font-bold transition-all",
-            activeTab === "chat"
-              ? "bg-white text-indigo-600 shadow-sm"
-              : "text-slate-500 hover:bg-slate-300/30",
-          )}
-        >
-          Chat
-        </button>
         <button
           type="button"
           onClick={() => setActiveTab("requests")}
@@ -264,16 +367,28 @@ export default function BackOfficeInboxPanel() {
           )}
         >
           Rapports
-          {validationReports.length + bridgedTerrainCount > 0 && (
+          {reportsTabBadgeCount > 0 && (
             <span className="flex h-4.5 min-w-[18px] px-1 items-center justify-center rounded-full bg-green-100 text-[9px] text-green-600 border border-green-200">
-              {validationReports.length + bridgedTerrainCount}
+              {reportsTabBadgeCount}
             </span>
           )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("chat")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[16px] text-[12px] font-bold transition-all",
+            activeTab === "chat"
+              ? "bg-white text-indigo-600 shadow-sm"
+              : "text-slate-500 hover:bg-slate-300/30",
+          )}
+        >
+          Chat
         </button>
       </div>
 
       {activeTab === "chat" ? (
-        <IvanaClientChatPanel className="min-h-0 px-0" />
+        <IvanaClientChatPanel className="min-h-0 px-0" acceptPortalMessages />
       ) : (
       <div className={cn(GLASS_PANEL_BODY_SCROLL_COMPACT, "flex min-h-0 flex-1 flex-col gap-3 px-4 pb-6")}>
         {activeTab === "reports" &&
@@ -341,8 +456,8 @@ export default function BackOfficeInboxPanel() {
         ) : null}
 
         {!loading &&
-        itemsToShow.length === 0 &&
-        !(activeTab === "reports" && bridgedTerrainCount > 0) ? (
+        ((activeTab === "requests" && pendingRequests.length === 0) ||
+          (activeTab === "reports" && reportsNothingAtAll)) ? (
           <div className="flex flex-1 flex-col items-center justify-center px-5 py-12 text-center">
             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
               {activeTab === "requests" ? (
@@ -359,80 +474,48 @@ export default function BackOfficeInboxPanel() {
 
         {!loading && itemsToShow.length > 0 ? (
           <div className="grid grid-cols-1 gap-3">
-            {itemsToShow.map((item, index) => {
-              const isRequest = item.status === "pending" || item.status === "pending_needs_address";
-              const isUrgent = item.urgency;
-              
-              let fName = item.clientFirstName;
-              let lName = item.clientLastName;
-              if (!fName && !lName && item.clientName) {
-                const parts = item.clientName.trim().split(" ");
-                fName = parts[0];
-                lName = parts.slice(1).join(" ");
-              }
-              const prefix = fName ? guessGenderPrefixFromName(fName) : "";
-              const displayLName = capitalizeName(lName || fName || "");
-              const clientName = `${prefix} ${displayLName}`.trim() || "Client Anonyme";
+            {itemsToShow.map((item, index) => (
+              <BackOfficeInboxInterventionRow
+                key={item.id}
+                item={item}
+                index={index}
+                variant={activeTab === "requests" ? "request" : "report-active"}
+                onSelect={setSelectedItemId}
+              />
+            ))}
+          </div>
+        ) : null}
 
-              return (
-                <motion.div
-                  key={item.id}
-                      onClick={() => setSelectedItemId(item.id)}
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.2, delay: index * 0.03 }}
-                  className={cn(
-                    "group relative cursor-pointer overflow-hidden rounded-[24px] border bg-white p-4 transition-all duration-300 hover:shadow-lg",
-                    isRequest 
-                      ? (isUrgent ? "border-amber-200 bg-amber-50/30" : "border-slate-100")
-                      : (item.status === "invoiced" ? "border-green-100 opacity-70" : "border-blue-100")
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        {isRequest ? (
-                          <span className={cn(
-                            "flex h-2 w-2 rounded-full",
-                            isUrgent ? "bg-amber-500 animate-pulse" : "bg-blue-500"
-                          )} />
-                        ) : (
-                          <CheckCircle2 className="w-4 h-4 text-green-500" />
-                        )}
-                        <h4 className="text-[15px] font-bold text-slate-800 truncate">
-                          {clientName}
-                        </h4>
-                      </div>
-                      <p className="text-[13px] text-slate-500 truncate mb-2">
-                        {item.problem || item.title || "Aucune description"}
-                      </p>
-                      <div className="flex items-center gap-3 text-[11px] font-medium text-slate-400">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {isRequest 
-                            ? (item.createdAt ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Maintenant")
-                            : (item.completedAt ? new Date(item.completedAt as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "")
-                          }
-                        </span>
-                        <span className="truncate max-w-[120px]">{item.address.split(",")[0]}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col items-end gap-2">
-                      <div className={cn(
-                        "rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-tight",
-                        isRequest 
-                          ? (isUrgent ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700")
-                          : (item.status === "invoiced" ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700")
-                      )}>
-                        {isRequest ? (isUrgent ? "Urgent" : "Demande") : (item.status === "invoiced" ? "Vérifié" : "Rapport")}
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-400 transition-colors" />
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
+        {!loading && activeTab === "reports" && reportsArchivedList.length > 0 ? (
+          <div className="mt-1 shrink-0 border-t border-slate-200/50 pt-1" data-testid="backoffice-reports-archive-section">
+            <button
+              type="button"
+              data-testid="backoffice-reports-archive-toggle"
+              aria-expanded={reportsArchiveExpanded}
+              onClick={() => setReportsArchiveExpanded((v) => !v)}
+              className="flex w-full items-center justify-center gap-1 rounded-[10px] py-2 px-2 text-[11px] font-medium text-slate-400 transition-colors hover:bg-slate-100/70 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300/60"
+            >
+              <ChevronDown
+                className={cn("h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-200", reportsArchiveExpanded && "rotate-180")}
+                aria-hidden
+              />
+              <span>
+                Archive · {reportsArchivedList.length} validé{reportsArchivedList.length > 1 ? "s" : ""}
+              </span>
+            </button>
+            {reportsArchiveExpanded ? (
+              <div className="grid grid-cols-1 gap-3 pt-2" data-testid="backoffice-reports-archive-list">
+                {reportsArchivedList.map((item, index) => (
+                  <BackOfficeInboxInterventionRow
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    variant="report-archived"
+                    onSelect={setSelectedItemId}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -578,13 +661,40 @@ export default function BackOfficeInboxPanel() {
                 <div className="space-y-3">
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Message Vocal</span>
                   {resolvedAudioUrl ? (
-                    <audio controls src={resolvedAudioUrl} className="w-full h-10" />
+                    <RequestDetailAudioPlayer
+                      key={`${selectedItem.id}-${resolvedAudioUrl}`}
+                      url={resolvedAudioUrl}
+                    />
                   ) : isResolvingAudio ? (
-                    <div className="w-full rounded-[18px] border border-slate-200 bg-slate-50/50 px-4 py-3 text-[12px] font-semibold text-slate-500">
-                      Chargement du message vocal…
+                    <div
+                      data-testid="backoffice-request-detail-audio-loading"
+                      className="flex w-full items-center gap-3 rounded-[20px] border border-dashed border-slate-200 bg-slate-50/70 px-4 py-4"
+                      aria-busy="true"
+                      aria-label="Chargement du message vocal"
+                    >
+                      <div className="h-11 w-11 shrink-0 animate-pulse rounded-full bg-slate-200" aria-hidden />
+                      <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+                        <div className="h-2 w-full animate-pulse rounded-full bg-slate-200" />
+                        <div className="flex justify-between gap-2">
+                          <div className="h-2 w-10 animate-pulse rounded bg-slate-200" />
+                          <div className="h-2 w-10 animate-pulse rounded bg-slate-200" />
+                        </div>
+                      </div>
+                      <div className="h-11 w-11 shrink-0 animate-pulse rounded-full bg-slate-200/80" aria-hidden />
+                    </div>
+                  ) : audioStorageResolveFailed ? (
+                    <div
+                      data-testid="backoffice-request-detail-audio-storage-error"
+                      className="w-full rounded-[20px] border border-amber-200/90 bg-amber-50/80 px-4 py-4 text-center text-[13px] font-semibold leading-snug text-amber-950"
+                    >
+                      Impossible de charger le vocal depuis Firebase Storage (réseau, quota ou limite de tentatives).
+                      Ouvrez la demande à nouveau dans quelques instants ou vérifiez la connexion.
                     </div>
                   ) : (
-                    <div className="w-full rounded-[18px] border border-slate-200 bg-slate-50/50 px-4 py-3 text-[12px] font-semibold text-slate-500">
+                    <div
+                      data-testid="backoffice-request-detail-audio-empty"
+                      className="w-full rounded-[20px] border border-dashed border-slate-200 bg-slate-50/60 px-4 py-4 text-center text-[13px] font-semibold text-slate-500"
+                    >
                       Aucun message vocal
                     </div>
                   )}
@@ -708,6 +818,53 @@ export default function BackOfficeInboxPanel() {
                     </div>
 
                     <div className="space-y-3">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Message vocal</p>
+                      {terrainResolvedAudioUrl ? (
+                        <RequestDetailAudioPlayer
+                          key={`terrain-${r.interventionId}-${terrainResolvedAudioUrl}`}
+                          url={terrainResolvedAudioUrl}
+                        />
+                      ) : terrainAudioLoading ? (
+                        <div
+                          data-testid="backoffice-terrain-report-audio-loading"
+                          className="flex w-full items-center gap-3 rounded-[20px] border border-dashed border-slate-200 bg-slate-50/70 px-4 py-4"
+                          aria-busy="true"
+                          aria-label="Chargement du message vocal"
+                        >
+                          <div className="h-11 w-11 shrink-0 animate-pulse rounded-full bg-slate-200" aria-hidden />
+                          <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+                            <div className="h-2 w-full animate-pulse rounded-full bg-slate-200" />
+                            <div className="flex justify-between gap-2">
+                              <div className="h-2 w-10 animate-pulse rounded bg-slate-200" />
+                              <div className="h-2 w-10 animate-pulse rounded bg-slate-200" />
+                            </div>
+                          </div>
+                          <div className="h-11 w-11 shrink-0 animate-pulse rounded-full bg-slate-200/80" aria-hidden />
+                        </div>
+                      ) : terrainAudioFailed ? (
+                        <div
+                          data-testid="backoffice-terrain-report-audio-storage-error"
+                          className="w-full rounded-[20px] border border-amber-200/90 bg-amber-50/80 px-4 py-4 text-center text-[13px] font-semibold leading-snug text-amber-950"
+                        >
+                          Impossible de charger le vocal depuis Firebase Storage (réseau, quota ou limite de tentatives).
+                          Ouvrez le rapport à nouveau dans quelques instants ou vérifiez la connexion.
+                        </div>
+                      ) : (
+                        <div
+                          data-testid="backoffice-terrain-report-audio-empty"
+                          className="w-full rounded-[20px] border border-dashed border-slate-200 bg-slate-50/60 px-4 py-4 text-center text-[13px] font-semibold text-slate-500"
+                        >
+                          Aucun message vocal
+                        </div>
+                      )}
+                      {iv && readTranscription(iv) ? (
+                        <div className="rounded-[20px] border border-blue-100 bg-blue-50/50 p-4 text-sm italic text-blue-900">
+                          "{readTranscription(iv)}"
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-3">
                       <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Photos</p>
                       <div className="grid grid-cols-2 gap-2">
                         {r.photoDataUrls.map((url, i) => (
@@ -740,7 +897,7 @@ export default function BackOfficeInboxPanel() {
                       type="button"
                       data-testid={`backoffice-bridged-report-validate-${r.localId}`}
                       disabled={!iv || isAlreadyValidated}
-                      onClick={() => handleVerify(r.interventionId)}
+                      onClick={() => handleVerify(r.interventionId, r.localId)}
                       className={cn(
                         "w-full flex items-center justify-center gap-2 py-4 px-4 rounded-[20px] font-bold text-[14px] transition-all",
                         !iv

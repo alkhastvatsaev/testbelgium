@@ -1,5 +1,5 @@
 /** @jest-environment jsdom */
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { renderWithPager } from "@/test-utils/renderWithPager";
 import { CompanyWorkspaceProvider } from "@/context/CompanyWorkspaceContext";
 import CompanyHubPage from "@/features/company/components/CompanyHubPage";
@@ -63,7 +63,14 @@ describe("Dashboard hub pages", () => {
     expect(screen.getByTestId("dashboard-secondary-panel-right")).toBeInTheDocument();
     expect(screen.getByTestId("requester-profile-panel")).toBeInTheDocument();
     expect(screen.getByTestId("requester-intervention-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("company-hub-rail-portail")).toBeInTheDocument();
+    expect(screen.getByTestId("company-hub-right-tab-tracking")).toBeInTheDocument();
+    expect(screen.getByTestId("company-hub-right-tab-chat")).toBeInTheDocument();
     expect(screen.getByTestId("requester-tracking-panel")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("company-hub-right-tab-chat"));
+    expect(screen.getByTestId("ivana-client-chat-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("requester-tracking-panel")).not.toBeInTheDocument();
   });
 
   it("hub technicien : triptyque avec périmètre terrain complet", () => {
@@ -73,6 +80,23 @@ describe("Dashboard hub pages", () => {
     expect(screen.getByTestId("technician-dashboard-list")).toBeInTheDocument();
     expect(screen.getByTestId("technician-dashboard-detail-empty")).toBeInTheDocument();
     expect(screen.getByTestId("technician-dashboard-images-empty")).toBeInTheDocument();
+  });
+
+  it("hub technicien : clôture en calque sur le panneau central (pas de modale plein écran)", () => {
+    renderWithPager(
+      <TechnicianQueryProvider>
+        <OfflineSyncProvider>
+          <TechnicianCaseIntentProvider>
+            <TechnicianFinishJobProvider initialFinishJobInterventionId="iv-test-finish-layer">
+              <TechnicianHubPage slotIndex={TECHNICIAN_HUB_SLOT_INDEX} />
+            </TechnicianFinishJobProvider>
+          </TechnicianCaseIntentProvider>
+        </OfflineSyncProvider>
+      </TechnicianQueryProvider>,
+    );
+
+    expect(screen.getByTestId("technician-finish-job-layer")).toBeInTheDocument();
+    expect(screen.getByTestId("finish-job-panel")).toBeInTheDocument();
   });
 
   it("hub back-office (composant isolé) : demandes entrantes, tableau et calendrier", () => {

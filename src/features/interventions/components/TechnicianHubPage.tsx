@@ -56,57 +56,47 @@ export default function TechnicianHubPage({ slotIndex }: Props) {
   }, [pendingCaseId, setPendingCaseId, selectedCaseId, filteredSorted]);
 
   return (
-    <>
-      <DashboardTriplePanelLayout
-        rootTestId={`dashboard-pager-slot-${slotIndex}`}
-        leftTestId={`dashboard-pager-slot-${slotIndex}-panel-left`}
-        centerTestId={`dashboard-pager-slot-${slotIndex}-panel-center`}
-        rightTestId={`dashboard-pager-slot-${slotIndex}-panel-right`}
-        leftAriaLabel={`Page ${humanPage} — technicien : ma journée`}
-        centerAriaLabel={`Page ${humanPage} — technicien : missions`}
-        rightAriaLabel={`Page ${humanPage} — technicien : photos`}
-        left={
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
-            <TechnicianDashboardListPanel selectedCaseId={selectedCaseId} onSelect={setSelectedCaseId} />
-          </div>
-        }
-        center={
-          <section id={TECHNICIAN_HUB_ANCHOR_MISSIONS} className="scroll-mt-2 flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
-            <TechnicianDashboardDetailPanel caseId={selectedCaseId} />
-          </section>
-        }
-        right={
-          <div id={TECHNICIAN_HUB_ANCHOR_FINISH} className="scroll-mt-2 flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
-            <TechnicianDashboardImagesPanel caseId={selectedCaseId} />
-          </div>
-        }
-      />
-      
-      {/* Full screen overlay for Finish Job */}
-      <AnimatePresence>
-        {finishJobInterventionId && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 md:p-12"
-          >
-            {/* Backdrop */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
-            />
-            
-            {/* Modal Container */}
-            <div className="relative flex max-h-full w-full max-w-[500px] flex-col overflow-hidden rounded-[32px] bg-white/80 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.3)] backdrop-blur-xl border border-white/40">
-              <TechnicianFinishJobPanel />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+    <DashboardTriplePanelLayout
+      rootTestId={`dashboard-pager-slot-${slotIndex}`}
+      leftTestId={`dashboard-pager-slot-${slotIndex}-panel-left`}
+      centerTestId={`dashboard-pager-slot-${slotIndex}-panel-center`}
+      rightTestId={`dashboard-pager-slot-${slotIndex}-panel-right`}
+      leftAriaLabel={`Page ${humanPage} — technicien : ma journée`}
+      centerAriaLabel={`Page ${humanPage} — technicien : missions`}
+      rightAriaLabel={`Page ${humanPage} — technicien : photos`}
+      left={
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
+          <TechnicianDashboardListPanel selectedCaseId={selectedCaseId} onSelect={setSelectedCaseId} />
+        </div>
+      }
+      center={
+        <section
+          id={TECHNICIAN_HUB_ANCHOR_MISSIONS}
+          className="relative scroll-mt-2 flex min-h-0 flex-1 flex-col overflow-hidden pb-4"
+        >
+          <TechnicianDashboardDetailPanel caseId={selectedCaseId} />
+          <AnimatePresence>
+            {finishJobInterventionId ? (
+              <motion.div
+                key={finishJobInterventionId}
+                data-testid="technician-finish-job-layer"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}
+                className="absolute inset-0 z-20 flex min-h-0 flex-col overflow-hidden rounded-[18px] bg-white shadow-[inset_0_1px_0_rgba(0,0,0,0.05)]"
+              >
+                <TechnicianFinishJobPanel />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </section>
+      }
+      right={
+        <div id={TECHNICIAN_HUB_ANCHOR_FINISH} className="scroll-mt-2 flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
+          <TechnicianDashboardImagesPanel caseId={selectedCaseId} />
+        </div>
+      }
+    />
   );
 }

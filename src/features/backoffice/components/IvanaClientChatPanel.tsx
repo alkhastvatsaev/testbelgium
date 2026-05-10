@@ -6,6 +6,11 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/core/config/firebase";
 import { cn } from "@/lib/utils";
 import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
+import {
+  publishClientPortalMessage,
+  IVANA_PORTAL_MESSAGE_EVENT,
+  type ClientPortalChatPayload,
+} from "@/features/backoffice/ivanaChatPortalBridge";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
@@ -14,7 +19,7 @@ const CHAT_PERSISTENCE_ENABLED = false;
 
 export type IvanaChatMessage = {
   id: string;
-  role: "user" | "ivana";
+  role: "user" | "ivana" | "client";
   text: string;
   images?: string[];
   createdAt: number;
@@ -46,7 +51,19 @@ function welcomeMessage(): IvanaChatMessage {
   };
 }
 
-export default function IvanaClientChatPanel({ className }: { className?: string }) {
+type PanelProps = {
+  className?: string;
+  /** Hub société : chaque message utilisateur est envoyé au chat inbox (page carte). */
+  publishAsPortal?: boolean;
+  /** Inbox : affiche les messages envoyés depuis le portail client. */
+  acceptPortalMessages?: boolean;
+};
+
+export default function IvanaClientChatPanel({
+  className,
+  publishAsPortal = false,
+  acceptPortalMessages = false,
+}: PanelProps) {
   const [user, setUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<IvanaChatMessage[]>(() => [welcomeMessage()]);
   const [draft, setDraft] = useState("");
@@ -56,6 +73,7 @@ export default function IvanaClientChatPanel({ className }: { className?: string
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hydratedRef = useRef(false);
+  const seenPortalIdsRef = useRef<Set<string>>(new Set());
 
   const storageKey = useMemo(
     () => `${STORAGE_PREFIX}:${user?.uid ?? "anonymous"}`,
@@ -134,6 +152,30 @@ export default function IvanaClientChatPanel({ className }: { className?: string
     el.style.height = `${Math.max(next, 48)}px`;
   }, [draft]);
 
+  useEffect(() => {
+    if (!acceptPortalMessages) return;
+    const handler = (ev: Event) => {
+      const ce = ev as CustomEvent<ClientPortalChatPayload>;
+      const d = ce.detail;
+      if (!d || typeof d.id !== "string") return;
+      const mid = `portal-${d.id}`;
+      if (seenPortalIdsRef.current.has(mid)) return;
+      seenPortalIdsRef.current.add(mid);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: mid,
+          role: "client" as const,
+          text: d.text,
+          images: d.images,
+          createdAt: d.createdAt,
+        },
+      ]);
+    };
+    window.addEventListener(IVANA_PORTAL_MESSAGE_EVENT, handler as EventListener);
+    return () => window.removeEventListener(IVANA_PORTAL_MESSAGE_EVENT, handler as EventListener);
+  }, [acceptPortalMessages]);
+
   const handlePickImages = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
@@ -176,6 +218,14 @@ export default function IvanaClientChatPanel({ className }: { className?: string
     setDraft("");
     setPendingImages([]);
     setMessages((prev) => [...prev, userMsg]);
+    if (publishAsPortal) {
+      publishClientPortalMessage({
+        id: userMsg.id,
+        text: userMsg.text,
+        images: userMsg.images,
+        createdAt: userMsg.createdAt,
+      });
+    }
     setIvanaTyping(true);
 
     const delay = 700 + Math.floor(Math.random() * 600);
@@ -189,7 +239,7 @@ export default function IvanaClientChatPanel({ className }: { className?: string
       setMessages((prev) => [...prev, reply]);
       setIvanaTyping(false);
     }, delay);
-  }, [draft, ivanaTyping, pendingImages]);
+  }, [draft, ivanaTyping, pendingImages, publishAsPortal]);
 
   return (
     <div
@@ -204,7 +254,13 @@ export default function IvanaClientChatPanel({ className }: { className?: string
         {messages.map((m) => (
           <div
             key={m.id}
-            data-testid={m.role === "user" ? "ivana-chat-bubble-user" : "ivana-chat-bubble-ivana"}
+            data-testid={
+              m.role === "user"
+                ? "ivana-chat-bubble-user"
+                : m.role === "client"
+                  ? "ivana-chat-bubble-client"
+                  : "ivana-chat-bubble-ivana"
+            }
             className={cn("flex w-full", m.role === "user" ? "justify-end" : "justify-start")}
           >
             <div
@@ -212,16 +268,28 @@ export default function IvanaClientChatPanel({ className }: { className?: string
                 "max-w-[92%] rounded-[20px] px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm",
                 m.role === "user"
                   ? "rounded-br-md bg-blue-600 text-white"
-                  : "rounded-bl-md border border-slate-200/80 bg-white text-slate-800",
+                  : m.role === "client"
+                    ? "rounded-bl-md border border-emerald-200/90 bg-emerald-50 text-slate-900"
+                    : "rounded-bl-md border border-slate-200/80 bg-white text-slate-800",
               )}
             >
+              {m.role === "client" ? (
+                <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-emerald-800/80">
+                  Client (portail)
+                </span>
+              ) : null}
               {m.text}
               {m.images && m.images.length > 0 ? (
                 <div className="mt-2 grid grid-cols-3 gap-1.5" data-testid="ivana-chat-bubble-images">
                   {m.images.map((url, idx) => (
                     <div
                       key={`${m.id}-img-${idx}`}
-                      className="aspect-square overflow-hidden rounded-[12px] border border-white/40 bg-black/5"
+                      className={cn(
+                        "aspect-square overflow-hidden rounded-[12px] bg-black/5",
+                        m.role === "user"
+                          ? "border border-white/40"
+                          : "border border-black/10",
+                      )}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={url} alt="" className="h-full w-full object-cover" />

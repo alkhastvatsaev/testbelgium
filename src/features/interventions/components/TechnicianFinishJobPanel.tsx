@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, Camera, CheckCircle2, ClipboardList, FileSignature, SendHorizontal, Trash2 } from "lucide-react";
+import { ArrowRight, Camera, ClipboardList, FileSignature, Loader2, SendHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
-import { auth, isConfigured } from "@/core/config/firebase";
-import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
+import { auth, firestore, isConfigured } from "@/core/config/firebase";
 import { useOfflineSyncOptional } from "@/context/OfflineSyncContext";
 import { useTechnicianFinishJob } from "@/context/TechnicianFinishJobContext";
 import { useDashboardPagerOptional } from "@/features/dashboard/dashboardPagerContext";
@@ -21,20 +21,17 @@ import {
   TECHNICIAN_HUB_ANCHOR_MISSIONS,
 } from "@/features/interventions/technicianHubNavigation";
 import { finalizeCompletionOfflineAware } from "@/features/interventions/completionUpload";
-import InterventionInvoiceButton from "@/features/interventions/components/InterventionInvoiceButton";
 import TechnicianSignaturePad, {
   type TechnicianSignaturePadHandle,
 } from "@/features/interventions/components/TechnicianSignaturePad";
-import { useInterventionLive } from "@/features/interventions/useInterventionLive";
 import { useTechnicianBackofficeReportBridgeOptional } from "@/context/TechnicianBackofficeReportBridgeContext";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
-type WizardStep = "photos" | "signature" | "submitting" | "success";
+type WizardStep = "photos" | "signature";
 
 export default function TechnicianFinishJobPanel() {
   const pager = useDashboardPagerOptional();
-  const workspace = useCompanyWorkspaceOptional();
   const { finishJobInterventionId, setFinishJobInterventionId } = useTechnicianFinishJob();
   const offlineSync = useOfflineSyncOptional();
   const backofficeBridge = useTechnicianBackofficeReportBridgeOptional();
@@ -45,13 +42,11 @@ export default function TechnicianFinishJobPanel() {
   const streamRef = useRef<MediaStream | null>(null);
   const sigRef = useRef<TechnicianSignaturePadHandle>(null);
 
-  const [invoiceChecklistOptimistic, setInvoiceChecklistOptimistic] = useState(false);
+  const [submitBusy, setSubmitBusy] = useState(false);
 
   const submitInFlightRef = useRef(false);
 
   const interventionId = finishJobInterventionId;
-
-  const liveIv = useInterventionLive(interventionId, Boolean(interventionId && step === "success"));
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
@@ -111,7 +106,6 @@ export default function TechnicianFinishJobPanel() {
   const resetWizard = () => {
     stopCamera();
     setPhotos([]);
-    setInvoiceChecklistOptimistic(false);
     sigRef.current?.clear();
     setStep("photos");
   };
@@ -135,6 +129,7 @@ export default function TechnicianFinishJobPanel() {
     }
 
     submitInFlightRef.current = true;
+    setSubmitBusy(true);
 
     try {
       const photoDataUrls = [...photos];
@@ -147,45 +142,47 @@ export default function TechnicianFinishJobPanel() {
       });
 
       stopCamera();
-      setStep("success");
-      setInvoiceChecklistOptimistic(true);
-
-      toast.success("Rapport transmis au back-office", {
-        description: "Photos et signature visibles sur la page carte (panneau droit). Sauvegarde cloud en arrière-plan.",
-      });
 
       if (PRESENTATION_PRIVACY_MODE) {
-        toast.message("Mode présentation", {
-          description: "Sauvegarde cloud désactivée temporairement. Le back-office voit le rapport via le mode démo.",
-        });
+        if (firestore && auth.currentUser) {
+          await updateDoc(doc(firestore, "interventions", interventionId), {
+            status: "done",
+            completedAt: serverTimestamp(),
+            completedByUid: auth.currentUser.uid,
+          });
+        }
       } else {
-        void finalizeCompletionOfflineAware({
+        const result = await finalizeCompletionOfflineAware({
           interventionId,
           photoDataUrls,
           signaturePngDataUrl,
-        })
-          .then((result) => {
-            if (result.outcome === "error") {
-              toast.error("Sauvegarde serveur", { description: result.message });
-              return;
-            }
-            if (result.outcome === "queued") {
-              toast.message("File hors ligne", {
-                description: "Synchronisation automatique dès que le réseau est stable.",
-              });
-              void offlineSync?.flushNow?.();
-            }
-          })
-          .catch((e) => {
-            console.error(e);
-            toast.error("Sauvegarde serveur", {
-              description: e instanceof Error ? e.message : String(e),
-            });
-          })
-          .finally(() => {
-            void offlineSync?.refreshPendingCount();
+        });
+        if (result.outcome === "error") {
+          toast.error("Sauvegarde serveur", { description: result.message });
+          return;
+        }
+        if (result.outcome === "queued") {
+          toast.message("File hors ligne", {
+            description: "Synchronisation automatique dès que le réseau est stable.",
           });
+          void offlineSync?.flushNow?.();
+        }
+        void offlineSync?.refreshPendingCount();
       }
+
+      toast.success("Rapport transmis au back-office", {
+        description:
+          "Photos et signature visibles sur la page carte (panneau droit). L'intervention est clôturée.",
+      });
+      if (PRESENTATION_PRIVACY_MODE) {
+        toast.message("Mode présentation", {
+          description: "Sauvegarde cloud allégée. Le back-office voit le rapport via le mode démo.",
+        });
+      }
+
+      resetWizard();
+      setFinishJobInterventionId(null);
+      navigateTechnicianHub(pager ?? undefined, TECHNICIAN_HUB_ANCHOR_MISSIONS);
     } catch (e) {
       console.error(e);
       setStep("signature");
@@ -194,10 +191,9 @@ export default function TechnicianFinishJobPanel() {
       });
     } finally {
       submitInFlightRef.current = false;
+      setSubmitBusy(false);
     }
   };
-
-  const showInvoiceCta = workspace?.activeRole === "admin";
 
   const firebaseUnavailable = !isConfigured || !auth;
 
@@ -236,35 +232,8 @@ export default function TechnicianFinishJobPanel() {
     );
   }
 
-  if (step === "success") {
-    return (
-      <div data-testid="finish-job-success" style={outfit} className={`${GLASS_PANEL_BODY_SCROLL_COMPACT} flex flex-col items-center gap-5 px-5 py-8 text-center`}>
-        <CheckCircle2 className="h-14 w-14 text-emerald-500" aria-hidden />
-        <p className="sr-only">Clôture enregistrée. Photos et signature enregistrées ; dossier marqué comme fait.</p>
-
-        {showInvoiceCta ? (
-          <InterventionInvoiceButton
-            iv={liveIv}
-            optimisticChecklistComplete={invoiceChecklistOptimistic}
-            variant="finishSuccess"
-          />
-        ) : null}
-
-        <button
-          type="button"
-          data-testid="finish-job-back-dashboard"
-          className="flex w-full max-w-sm min-h-[48px] items-center justify-center rounded-[16px] bg-slate-900 px-4 text-white shadow-xl"
-          onClick={goDashboard}
-          aria-label="Retour aux missions"
-        >
-          <ClipboardList className="h-6 w-6" aria-hidden />
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div data-testid="finish-job-panel" style={outfit} className="flex min-h-[400px] flex-1 flex-col overflow-hidden bg-white/60 backdrop-blur-3xl">
+    <div data-testid="finish-job-panel" style={outfit} className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <div className={`${GLASS_PANEL_BODY_SCROLL_COMPACT} flex flex-col gap-5 p-6`}>
         <div className="flex items-center justify-end pb-2">
           <button
@@ -360,9 +329,6 @@ export default function TechnicianFinishJobPanel() {
               <FileSignature className="h-5 w-5 text-slate-800" aria-hidden />
               <h2 className="text-[15px] font-semibold text-slate-800">Signature client</h2>
             </div>
-            <p className="px-1 text-[13px] text-slate-500 leading-relaxed -mt-3">
-              Faites signer le client ci-dessous pour valider la clôture.
-            </p>
 
             <div className="relative overflow-hidden rounded-[24px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] ring-1 ring-black/5">
               <TechnicianSignaturePad ref={sigRef} />
@@ -395,24 +361,20 @@ export default function TechnicianFinishJobPanel() {
             <button
               type="button"
               data-testid="finish-job-submit"
+              disabled={submitBusy}
               onClick={() => void submitAll()}
               aria-label="Envoyer la clôture"
-              className="mt-4 flex min-h-[64px] w-full items-center justify-center gap-3 rounded-[24px] bg-emerald-500 px-4 text-white shadow-[0_8px_24px_-8px_rgba(16,185,129,0.6)] transition-all hover:bg-emerald-600 hover:shadow-[0_12px_28px_-8px_rgba(16,185,129,0.7)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
+              className="mt-4 flex min-h-[64px] w-full items-center justify-center gap-3 rounded-[24px] bg-emerald-500 px-4 text-white shadow-[0_8px_24px_-8px_rgba(16,185,129,0.6)] transition-all hover:bg-emerald-600 hover:shadow-[0_12px_28px_-8px_rgba(16,185,129,0.7)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-70"
             >
-              <span className="font-semibold tracking-wide text-[16px]">Valider l'intervention</span>
-              <SendHorizontal className="h-6 w-6" aria-hidden />
+              {submitBusy ? (
+                <Loader2 className="h-6 w-6 shrink-0 animate-spin" aria-hidden />
+              ) : (
+                <SendHorizontal className="h-6 w-6 shrink-0" aria-hidden />
+              )}
+              <span className="font-semibold tracking-wide text-[16px]">
+                {submitBusy ? "Clôture en cours…" : "Valider l'intervention"}
+              </span>
             </button>
-          </div>
-        ) : null}
-
-        {step === "submitting" ? (
-          <div data-testid="finish-job-submitting" className="flex flex-col items-center justify-center gap-6 py-20 animate-in fade-in duration-500">
-            <div className="relative flex h-20 w-20 items-center justify-center">
-              <div className="absolute inset-0 rounded-full border-[3px] border-emerald-500/20" />
-              <div className="absolute inset-0 rounded-full border-[3px] border-emerald-500 border-t-transparent animate-spin" />
-              <SendHorizontal className="h-8 w-8 text-emerald-500 animate-pulse" aria-hidden />
-            </div>
-            <p className="text-[15px] font-medium text-slate-600 tracking-wide">Clôture en cours...</p>
           </div>
         ) : null}
       </div>

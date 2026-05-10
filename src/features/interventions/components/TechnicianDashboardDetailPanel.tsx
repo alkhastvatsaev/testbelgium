@@ -10,10 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { doc, updateDoc } from "firebase/firestore";
 import { firestore } from "@/core/config/firebase";
 import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
-import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
 import { useInterventionLive } from "@/features/interventions/useInterventionLive";
 import type { Intervention } from "@/features/interventions/types";
-import InterventionInvoiceButton from "@/features/interventions/components/InterventionInvoiceButton";
 
 import { guessGenderPrefixFromName } from "@/utils/genderDetection";
 import { capitalizeName, formatAddress } from "@/utils/stringUtils";
@@ -122,7 +120,6 @@ export default function TechnicianDashboardDetailPanel({
 }: {
   caseId: string | null;
 }) {
-  const workspace = useCompanyWorkspaceOptional();
   const liveIv = useInterventionLive(caseId);
   const { setFinishJobInterventionId } = useTechnicianFinishJob();
   const pager = useDashboardPagerOptional();
@@ -160,7 +157,6 @@ export default function TechnicianDashboardDetailPanel({
   }
 
   const client = interventionClientLabel(liveIv);
-  const showAdminInvoice = workspace?.activeRole === "admin";
   const cardClass = "rounded-[16px] bg-white px-4 py-3 shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)] transition-all duration-300";
 
   const handleUpdateStatus = async (newStatus: Intervention["status"]) => {
@@ -367,16 +363,8 @@ export default function TechnicianDashboardDetailPanel({
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-3">
           <CheckCircle2 className="h-6 w-6" />
         </div>
-        <h3 className="text-[18px] font-bold text-black">Mission accomplie</h3>
-        <div className="text-[13px] font-bold text-black mt-1 text-center px-4">Cette intervention est terminée et clôturée.</div>
+        <div className="text-[13px] font-bold text-black text-center px-4">Cette intervention est terminée et clôturée.</div>
       </div>
-
-      {showAdminInvoice && (
-        <div className={cardClass}>
-          <div className="text-[11px] font-bold uppercase tracking-wide text-black mb-3">Administration</div>
-          <InterventionInvoiceButton iv={liveIv} variant="detailDrawer" />
-        </div>
-      )}
     </motion.div>
   );
 

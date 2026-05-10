@@ -13,6 +13,7 @@ import { useGalaxyLayerBridgeOptional } from '@/features/map/GalaxyLayerBridgeCo
 import { useCompanyWorkspaceOptional } from '@/context/CompanyWorkspaceContext';
 import { useBackOfficeInterventions } from '@/features/backoffice/useBackOfficeInterventions';
 import { interventionClientLabel, statusLabelFr, formatScheduledTimeOnly, interventionMatchesTab } from '@/features/interventions/technicianSchedule';
+import { cn } from '@/lib/utils';
 
 export default function MapboxView() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -431,9 +432,14 @@ export default function MapboxView() {
 
       <DailyMissions missions={allMissions} onMissionClick={handleMissionClick} />
 
-      {/* Panel à droite (Page 1: Ivana / Page 2: Suivi Client) */}
+      {/* Panel à droite : inbox toujours monté (messages portail) ; suivi client sur les autres pages du carrousel. */}
       <div className="fixed right-12 top-1/2 -translate-y-1/2 z-40 flex h-[70vh] min-h-0 w-[calc(50vw-35vh-100px+5mm)] flex-col overflow-hidden rounded-[24px] border border-blue-400/20 bg-white/70 shadow-[0_0_60px_-15px_rgba(59,130,246,0.3),0_24px_56px_-22px_rgba(15,23,42,0.08)] backdrop-blur-[24px] backdrop-saturate-[180%] transition-all duration-500">
-        {dashboardPageIndex === 0 ? <BackOfficeInboxPanel /> : <RequesterTrackingPanel />}
+        <div className={cn("flex min-h-0 flex-1 flex-col", dashboardPageIndex !== 0 && "hidden")}>
+          <BackOfficeInboxPanel />
+        </div>
+        <div className={cn("flex min-h-0 flex-1 flex-col", dashboardPageIndex === 0 && "hidden")}>
+          <RequesterTrackingPanel />
+        </div>
       </div>
     </div>
   );

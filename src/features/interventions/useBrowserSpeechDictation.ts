@@ -57,7 +57,14 @@ export function useBrowserSpeechDictation(appendTranscript: (text: string) => vo
   onAudioRecordedRef.current = onAudioRecorded;
 
   useEffect(() => {
-    setSupported(getSpeechRecognitionCtor() !== null);
+    // "Supported" means we can at least record audio OR run dictation.
+    const speechOk = getSpeechRecognitionCtor() !== null;
+    const recordOk =
+      typeof window !== "undefined" &&
+      typeof navigator !== "undefined" &&
+      Boolean(navigator.mediaDevices?.getUserMedia) &&
+      typeof MediaRecorder !== "undefined";
+    setSupported(speechOk || recordOk);
   }, []);
 
   const stop = useCallback(() => {
@@ -100,12 +107,6 @@ export function useBrowserSpeechDictation(appendTranscript: (text: string) => vo
 
   const toggleListening = useCallback(async () => {
     const Ctor = getSpeechRecognitionCtor();
-    if (!Ctor) {
-      toast.error("Dictée vocale indisponible", {
-        description: "Utilisez Chrome, Edge ou Safari récent, ou saisissez au clavier.",
-      });
-      return;
-    }
     if (listening) {
       stop();
       return;
@@ -142,6 +143,16 @@ export function useBrowserSpeechDictation(appendTranscript: (text: string) => vo
       mediaRecorder.start();
     } catch (err) {
       toast.error("Accès au micro refusé.");
+      return;
+    }
+
+    // If SpeechRecognition isn't available, we still record audio (no dictation).
+    if (!Ctor) {
+      toast.message("Dictée vocale indisponible", {
+        description: "L'audio est bien enregistré, mais la transcription automatique n'est pas disponible sur ce navigateur.",
+      });
+      setListening(true);
+      setInterimTranscript("");
       return;
     }
 

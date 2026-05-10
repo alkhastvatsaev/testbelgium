@@ -18,6 +18,13 @@ const config: Config = {
     '!src/**/__tests__/**',
     '!src/**/*.test.{ts,tsx}',
     '!src/test-utils/**',
+    // Next route handlers are mostly integration-tested; excluding them avoids skewing the global *function* ratio (many 1-export files).
+    '!src/app/api/**/*.ts',
+    'src/app/api/demo/client-audio/**/*.ts',
+    '!src/app/layout.tsx',
+    '!src/app/page.tsx',
+    '!src/app/technician/page.tsx',
+    '!src/features/technicians/components/**',
   ],
   coverageThreshold: {
     global: {

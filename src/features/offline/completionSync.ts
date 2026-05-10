@@ -181,7 +181,7 @@ export async function flushCompletionQueue(
         report.uploaded += 1;
       }
     } catch (err: any) {
-      console.error(`Failed to upload intervention ${rec.interventionId}:`, err);
+      console.warn(`Failed to upload intervention ${rec.interventionId}:`, err);
       report.failed += 1;
       report.lastError = err instanceof Error ? err.message : String(err);
     }
