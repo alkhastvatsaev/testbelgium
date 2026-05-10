@@ -1,15 +1,23 @@
 import { render, screen, fireEvent, waitFor } from "@/test-utils/render";
-import { addDoc } from "firebase/firestore";
+import { within } from "@testing-library/react";
+import { setDoc } from "firebase/firestore";
 import SmartInterventionRequestForm from "../SmartInterventionRequestForm";
 import { SMART_INTERVENTION_DRAFT_STORAGE_KEY } from "../../smartInterventionConstants";
 import { mockState } from "@/test-utils/mockState";
+
+jest.mock("@/core/config/firebase", () => ({
+  isConfigured: true,
+  firestore: {},
+  auth: { currentUser: { uid: "tester-1" } },
+  storage: null,
+}));
 
 jest.mock("@/features/interventions/recordDuplicateAlertIfNeeded", () => ({
   recordDuplicateAlertIfNeeded: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock("sonner", () => ({
-  toast: { error: jest.fn(), success: jest.fn() },
+  toast: { error: jest.fn(), success: jest.fn(), message: jest.fn() },
 }));
 
 describe("SmartInterventionRequestForm", () => {
@@ -32,7 +40,6 @@ describe("SmartInterventionRequestForm", () => {
     render(<SmartInterventionRequestForm />);
     goToAddressStep();
     fireEvent.change(screen.getByTestId("smart-form-address"), { target: { value: "R" } });
-    expect(screen.queryByTestId("smart-form-template-blocked")).not.toBeInTheDocument();
     expect(screen.getByTestId("smart-form-address")).toBeInTheDocument();
     expect(screen.getByTestId("smart-form-continue-address")).toBeDisabled();
   });
@@ -45,17 +52,17 @@ describe("SmartInterventionRequestForm", () => {
     });
     fireEvent.click(screen.getByTestId("smart-form-continue-address"));
     await waitFor(() => {
-      expect(screen.getByTestId("smart-form-template-blocked")).toBeInTheDocument();
+      expect(screen.getByTestId("smart-form-description")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByTestId("smart-form-back"));
     await waitFor(() => {
       expect(screen.getByTestId("smart-form-address")).toBeInTheDocument();
     });
-    expect(screen.queryByTestId("smart-form-template-blocked")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("smart-form-description")).not.toBeInTheDocument();
   });
 
-  it("affiche le gabarit et applique un modèle en un clic", async () => {
+  it("affiche l’étape description et permet de saisir un texte", async () => {
     render(<SmartInterventionRequestForm />);
     expect(screen.getByTestId("smart-intervention-form")).toBeInTheDocument();
     goToAddressStep();
@@ -66,16 +73,10 @@ describe("SmartInterventionRequestForm", () => {
     });
     fireEvent.click(screen.getByTestId("smart-form-continue-address"));
     await waitFor(() => {
-      expect(screen.getByTestId("smart-form-template-blocked")).toBeInTheDocument();
+      expect(screen.getByTestId("smart-form-description")).toBeInTheDocument();
     });
-
-    fireEvent.click(screen.getByTestId("smart-form-template-blocked"));
-    await waitFor(() => {
-      expect(screen.getByTestId("smart-form-description")).toHaveValue(
-        "Serrure bloquée, la clé ne tourne plus.",
-      );
-    });
-    expect(screen.getByTestId("smart-form-description-voice")).toHaveAttribute("title", "Dicter");
+    fireEvent.change(screen.getByTestId("smart-form-description"), { target: { value: "Test description" } });
+    expect(screen.getByTestId("smart-form-description")).toHaveValue("Test description");
   });
 
   it("à l’étape 5 photos, affiche quatre emplacements photo", async () => {
@@ -86,12 +87,9 @@ describe("SmartInterventionRequestForm", () => {
     });
     fireEvent.click(screen.getByTestId("smart-form-continue-address"));
     await waitFor(() => {
-      expect(screen.getByTestId("smart-form-template-blocked")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId("smart-form-template-blocked"));
-    await waitFor(() => {
       expect(screen.getByTestId("smart-form-continue")).toBeInTheDocument();
     });
+    fireEvent.change(screen.getByTestId("smart-form-description"), { target: { value: "Test" } });
     fireEvent.click(screen.getByTestId("smart-form-continue"));
     await waitFor(() => {
       expect(screen.getByTestId("smart-form-dropzone")).toBeInTheDocument();
@@ -109,16 +107,21 @@ describe("SmartInterventionRequestForm", () => {
     });
     fireEvent.click(screen.getByTestId("smart-form-continue-address"));
     await waitFor(() => {
-      expect(screen.getByTestId("smart-form-template-blocked")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId("smart-form-template-blocked"));
-    await waitFor(() => {
       expect(screen.getByTestId("smart-form-continue")).toBeInTheDocument();
     });
+    fireEvent.change(screen.getByTestId("smart-form-description"), { target: { value: "Test" } });
     fireEvent.click(screen.getByTestId("smart-form-continue"));
     await waitFor(() => {
       expect(screen.getByTestId("smart-form-dropzone")).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByTestId("smart-form-continue"));
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: /Étape 4 — Date et Heure/i })).toBeInTheDocument();
+    });
+    const days = screen.getByLabelText("Jours disponibles");
+    const firstDay = within(days).getAllByRole("button")[0];
+    fireEvent.click(firstDay);
+    fireEvent.click(screen.getByRole("button", { name: "08:00" }));
     fireEvent.click(screen.getByTestId("smart-form-continue"));
     await waitFor(() => {
       expect(screen.getByTestId("smart-form-recap-panel")).toBeInTheDocument();
@@ -138,16 +141,20 @@ describe("SmartInterventionRequestForm", () => {
     });
     fireEvent.click(screen.getByTestId("smart-form-continue-address"));
     await waitFor(() => {
-      expect(screen.getByTestId("smart-form-template-blocked")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId("smart-form-template-blocked"));
-    await waitFor(() => {
       expect(screen.getByTestId("smart-form-continue")).toBeInTheDocument();
     });
+    fireEvent.change(screen.getByTestId("smart-form-description"), { target: { value: "Test" } });
     fireEvent.click(screen.getByTestId("smart-form-continue"));
     await waitFor(() => {
       expect(screen.getByTestId("smart-form-dropzone")).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByTestId("smart-form-continue"));
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: /Étape 4 — Date et Heure/i })).toBeInTheDocument();
+    });
+    const days = screen.getByLabelText("Jours disponibles");
+    fireEvent.click(within(days).getAllByRole("button")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "08:00" }));
     fireEvent.click(screen.getByTestId("smart-form-continue"));
     await waitFor(() => {
       expect(screen.getByTestId("smart-form-recap-contact")).toBeInTheDocument();
@@ -163,16 +170,20 @@ describe("SmartInterventionRequestForm", () => {
     });
     fireEvent.click(screen.getByTestId("smart-form-continue-address"));
     await waitFor(() => {
-      expect(screen.getByTestId("smart-form-template-blocked")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId("smart-form-template-blocked"));
-    await waitFor(() => {
       expect(screen.getByTestId("smart-form-continue")).toBeInTheDocument();
     });
+    fireEvent.change(screen.getByTestId("smart-form-description"), { target: { value: "Test" } });
     fireEvent.click(screen.getByTestId("smart-form-continue"));
     await waitFor(() => {
       expect(screen.getByTestId("smart-form-dropzone")).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByTestId("smart-form-continue"));
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: /Étape 4 — Date et Heure/i })).toBeInTheDocument();
+    });
+    const days = screen.getByLabelText("Jours disponibles");
+    fireEvent.click(within(days).getAllByRole("button")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "08:00" }));
     fireEvent.click(screen.getByTestId("smart-form-continue"));
     await waitFor(() => {
       expect(screen.getByTestId("smart-form-recap-photos-open")).toBeInTheDocument();
@@ -199,16 +210,20 @@ describe("SmartInterventionRequestForm", () => {
     });
     fireEvent.click(screen.getByTestId("smart-form-continue-address"));
     await waitFor(() => {
-      expect(screen.getByTestId("smart-form-template-blocked")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId("smart-form-template-blocked"));
-    await waitFor(() => {
       expect(screen.getByTestId("smart-form-continue")).toBeInTheDocument();
     });
+    fireEvent.change(screen.getByTestId("smart-form-description"), { target: { value: "Porte bloquée" } });
     fireEvent.click(screen.getByTestId("smart-form-continue"));
     await waitFor(() => {
       expect(screen.getByTestId("smart-form-dropzone")).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByTestId("smart-form-continue"));
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: /Étape 4 — Date et Heure/i })).toBeInTheDocument();
+    });
+    const days = screen.getByLabelText("Jours disponibles");
+    fireEvent.click(within(days).getAllByRole("button")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "08:00" }));
     fireEvent.click(screen.getByTestId("smart-form-continue"));
     await waitFor(() => {
       expect(screen.getByTestId("smart-form-submit")).toBeInTheDocument();
@@ -216,10 +231,10 @@ describe("SmartInterventionRequestForm", () => {
     fireEvent.click(screen.getByTestId("smart-form-submit"));
 
     await waitFor(() => {
-      expect(addDoc).toHaveBeenCalled();
+      expect(setDoc).toHaveBeenCalled();
     });
 
-    const payload = (addDoc as jest.Mock).mock.calls[0]?.[1] as Record<string, unknown>;
+    const payload = (setDoc as jest.Mock).mock.calls[0]?.[1] as Record<string, unknown>;
     expect(payload.status).toBe("pending");
     expect(payload.createdByUid).toBe("tester-1");
     expect(payload.clientFirstName).toBe("Marie");
@@ -264,7 +279,7 @@ describe("SmartInterventionRequestForm", () => {
     });
     fireEvent.click(screen.getByTestId("smart-form-continue-address"));
     await waitFor(() => {
-      expect(screen.getByTestId("smart-form-template-blocked")).toBeInTheDocument();
+      expect(screen.getByTestId("smart-form-description")).toBeInTheDocument();
     });
     await waitFor(() => {
       const raw = localStorage.getItem(SMART_INTERVENTION_DRAFT_STORAGE_KEY);

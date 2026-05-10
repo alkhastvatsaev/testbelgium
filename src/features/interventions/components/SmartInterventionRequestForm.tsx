@@ -31,12 +31,15 @@ import {
   Zap,
   Play,
   Pause,
+  Download,
+  Save,
 } from "lucide-react";
 import { toast } from "sonner";
 import { auth, firestore, isConfigured } from "@/core/config/firebase";
 import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
 import { cn } from "@/lib/utils";
 import { compressImageToDataUrl } from "@/features/interventions/compressImageToDataUrl";
+import { PRESENTATION_PRIVACY_MODE } from "@/core/config/presentationMode";
 import {
   SMART_FORM_TEMPLATES,
   SMART_INTERVENTION_DRAFT_STORAGE_KEY,
@@ -161,6 +164,37 @@ async function ensureUserForInterventionSubmit(): Promise<User | null> {
   return null;
 }
 
+function createSilentWavBlob(durationMs = 1500): Blob {
+  const sampleRate = 8000;
+  const numChannels = 1;
+  const bytesPerSample = 2; // 16-bit
+  const numSamples = Math.max(1, Math.round((durationMs / 1000) * sampleRate));
+  const dataSize = numSamples * numChannels * bytesPerSample;
+
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+  const writeStr = (offset: number, s: string) => {
+    for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i));
+  };
+
+  writeStr(0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  view.setUint32(16, 16, true); // PCM chunk size
+  view.setUint16(20, 1, true); // PCM format
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numChannels * bytesPerSample, true); // byte rate
+  view.setUint16(32, numChannels * bytesPerSample, true); // block align
+  view.setUint16(34, 16, true); // bits per sample
+  writeStr(36, "data");
+  view.setUint32(40, dataSize, true);
+  // data is already zero-filled (silence)
+
+  return new Blob([buffer], { type: "audio/wav" });
+}
+
 /**
  * Haute précision GPS (`enableHighAccuracy: true`) peut bloquer 15–60 s sur bureau / intérieur.
  * Pour remplir une adresse, la position « réseau » (WiFi / triangulation) suffit et répond en ~1–2 s.
@@ -249,6 +283,24 @@ const AudioPlayer = ({ blob, onRemove }: { blob: Blob; onRemove: () => void }) =
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const downloadBlob = () => {
+    try {
+      const mime = blob.type || "audio/webm";
+      const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : mime.includes("wav") ? "wav" : "webm";
+      const a = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      a.href = url;
+      a.download = `message-vocal.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      console.error(e);
+      toast.error("Téléchargement impossible");
+    }
+  };
+
   return (
     <div className="flex w-full items-center gap-3 rounded-[16px] border border-slate-200 bg-white p-3 shadow-sm transition-all hover:shadow-md">
       <audio 
@@ -279,6 +331,15 @@ const AudioPlayer = ({ blob, onRemove }: { blob: Blob; onRemove: () => void }) =
         </div>
       </div>
       <div className="h-8 w-px bg-slate-100" />
+      <button
+        type="button"
+        data-testid="smart-form-audio-download"
+        onClick={downloadBlob}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-slate-900/20"
+        aria-label="Télécharger le message vocal"
+      >
+        <Download className="h-4 w-4" />
+      </button>
       <button 
         type="button"
         onClick={onRemove}
@@ -314,6 +375,22 @@ export default function SmartInterventionRequestForm() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(
     initialPayload.audioBlob instanceof Blob ? initialPayload.audioBlob : null
   );
+  const [demoAudioUrl, setDemoAudioUrl] = useState<string | null>(null);
+  const [demoAudioSaving, setDemoAudioSaving] = useState(false);
+  
+  const [pregeneratedDocId, setPregeneratedDocId] = useState<string>("");
+  const [uploadedAudioInfo, setUploadedAudioInfo] = useState<{
+    url: string | null;
+    storagePath: string | null;
+    mimeType: string | null;
+  } | null>(null);
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+
+  useEffect(() => {
+    if (firestore && !pregeneratedDocId) {
+      setPregeneratedDocId(doc(collection(firestore, "interventions")).id);
+    }
+  }, [firestore, pregeneratedDocId]);
   
   const audioRecorder = useAudioRecorder();
 
@@ -326,6 +403,58 @@ export default function SmartInterventionRequestForm() {
       setAudioTranscription(audioRecorder.transcription);
     }
   }, [audioRecorder.audioBlob, audioRecorder.transcription]);
+
+  // Demo mode: as soon as user stops recording (audioBlob becomes available),
+  // save it locally into /public/client-audios/ so back-office can play it immediately.
+  useEffect(() => {
+    if (!PRESENTATION_PRIVACY_MODE) return;
+    if (!audioBlob || !(audioBlob instanceof Blob) || audioBlob.size === 0) return;
+    let cancelled = false;
+    const controller = new AbortController();
+
+    setDemoAudioSaving(true);
+    (async () => {
+      try {
+        const formData = new FormData();
+        const mime = audioBlob.type || "audio/webm";
+        const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : mime.includes("wav") ? "wav" : "webm";
+        formData.append("audio", audioBlob, `message.${ext}`);
+        const res = await fetch("/api/demo/client-audio", { method: "POST", body: formData, signal: controller.signal });
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          console.error("Demo local audio save failed:", res.status, txt);
+          if (!cancelled) toast.error("Audio démo", { description: "Impossible d’enregistrer l’audio localement." });
+          return;
+        }
+        const json = (await res.json()) as { url?: string };
+        if (!cancelled) setDemoAudioUrl(json.url ?? null);
+        // Sanity check: ensure file is visible on disk via GET listing.
+        const list = await fetch("/api/demo/client-audio", { signal: controller.signal })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null);
+        if (!cancelled && json.url && list?.files && Array.isArray(list.files)) {
+          const name = String(json.url).split("/").pop() || "";
+          const exists = list.files.some((f: { name?: string }) => f?.name === name);
+          if (!exists) {
+            toast.error("Audio démo", { description: "Fichier non trouvé dans public/client-audios." });
+          } else {
+            toast.success("Audio démo enregistré", { description: name });
+          }
+        }
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        console.error("Demo local audio save failed:", e);
+        if (!cancelled) toast.error("Audio démo", { description: "Impossible d’enregistrer l’audio localement." });
+      } finally {
+        if (!cancelled) setDemoAudioSaving(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [audioBlob]);
 
   const [step, setStep] = useState<WizardStep>(() => initialStepFromPayload(initialPayload));
   const [takenSlots, setTakenSlots] = useState<Record<string, string[]>>({});
@@ -537,7 +666,7 @@ export default function SmartInterventionRequestForm() {
       toast.error("Adresse requise");
       return;
     }
-    const finalAudioBlob = audioRecorder.audioBlob || audioBlob;
+    let finalAudioBlob = audioRecorder.audioBlob || audioBlob;
     const promiseFunc = audioRecorder.transcriptionPromise;
     const tPromise = promiseFunc ? promiseFunc() : null;
     let finalTranscription = audioTranscription || audioRecorder.transcription;
@@ -580,14 +709,86 @@ export default function SmartInterventionRequestForm() {
       }
 
       let uploadedAudioUrl: string | null = null;
+      let uploadedAudioStoragePath: string | null = null;
+      let uploadedAudioMimeType: string | null = null;
+
+      // If demo audio was already saved at stop-time, reuse it.
+      if (PRESENTATION_PRIVACY_MODE && demoAudioUrl) {
+        uploadedAudioUrl = demoAudioUrl;
+      }
+
+      // Demo mode: save audio locally into /public/client-audios/ via a local API route,
+      // so back-office can always play it without Firebase.
+      if (PRESENTATION_PRIVACY_MODE) {
+        if (!finalAudioBlob) {
+          finalAudioBlob = createSilentWavBlob();
+          toast.message("Mode démo", { description: "Audio de démonstration généré automatiquement." });
+        }
+      }
+
+      if (PRESENTATION_PRIVACY_MODE && !uploadedAudioUrl && finalAudioBlob && finalAudioBlob.size > 0) {
+        try {
+          const formData = new FormData();
+          const mime = finalAudioBlob.type || "audio/webm";
+          const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "webm";
+          formData.append("audio", finalAudioBlob, `message.${ext}`);
+          const res = await fetch("/api/demo/client-audio", { method: "POST", body: formData });
+          if (!res.ok) {
+            const txt = await res.text().catch(() => "");
+            console.error("Demo local audio save failed:", res.status, txt);
+            toast.error("Audio démo", { description: "Impossible d’enregistrer l’audio localement." });
+          } else {
+            const json = (await res.json()) as { url?: string; storagePath?: string; mimeType?: string };
+            if (json.url) uploadedAudioUrl = json.url;
+            if (json.storagePath) uploadedAudioStoragePath = json.storagePath;
+            if (json.mimeType) uploadedAudioMimeType = json.mimeType;
+          }
+        } catch (e) {
+          console.error("Demo audio local save failed:", e);
+          toast.error("Audio démo", { description: "Impossible d’enregistrer l’audio localement." });
+        }
+      }
+
       if (finalAudioBlob && finalAudioBlob.size > 0 && storage) {
         try {
-          const audioRef = ref(storage, `interventions/${newDocRef.id}/audio.webm`);
-          const metadata = { contentType: finalAudioBlob.type || "audio/webm" };
+          const mime = finalAudioBlob.type || "audio/webm";
+          const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "webm";
+          // "Dossier" dédié pour tous les audios.
+          const storagePath = `intervention-audios/${newDocRef.id}/message.${ext}`;
+          const audioRef = ref(storage, storagePath);
+          const metadata = { contentType: mime };
           await uploadBytes(audioRef, finalAudioBlob, metadata);
-          uploadedAudioUrl = await getDownloadURL(audioRef);
+          uploadedAudioStoragePath = storagePath;
+          uploadedAudioMimeType = mime;
+          try {
+            uploadedAudioUrl = await getDownloadURL(audioRef);
+          } catch {
+            // keep storagePath fallback for back-office resolution
+            uploadedAudioUrl = null;
+          }
         } catch (uploadErr) {
           console.error("Failed to upload audio blob:", uploadErr);
+        }
+      }
+
+      // Fallback (demo / offline): store as data URL so technicians can still listen.
+      if (!uploadedAudioUrl && finalAudioBlob && finalAudioBlob.size > 0) {
+        try {
+          // Guard for Firestore 1MB doc limit (data URL expansion factor).
+          if (finalAudioBlob.size > 650_000) {
+            throw new Error("Audio trop volumineux pour le mode démo");
+          }
+          const dataUrl = await new Promise<string | null>((resolve) => {
+            const reader = new FileReader();
+            reader.onerror = () => resolve(null);
+            reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : null);
+            reader.readAsDataURL(finalAudioBlob as Blob);
+          });
+          if (dataUrl && dataUrl.length < 980_000) {
+            uploadedAudioUrl = dataUrl;
+          }
+        } catch {
+          // ignore
         }
       }
 
@@ -613,6 +814,8 @@ export default function SmartInterventionRequestForm() {
         ...(scheduledDate ? { scheduledDate } : {}),
         ...(scheduledTime ? { scheduledTime } : {}),
         ...(uploadedAudioUrl ? { audioUrl: uploadedAudioUrl } : {}),
+        ...(uploadedAudioStoragePath ? { audioStoragePath: uploadedAudioStoragePath } : {}),
+        ...(uploadedAudioMimeType ? { audioMimeType: uploadedAudioMimeType } : {}),
         ...(finalTranscription ? { transcription: finalTranscription } : {}),
       });
 
@@ -847,7 +1050,7 @@ export default function SmartInterventionRequestForm() {
               </p>
             </div>
           ) : (
-            <div className="w-full py-2">
+            <div className="w-full flex flex-col gap-3 py-2">
               <AudioPlayer 
                 blob={audioBlob} 
                 onRemove={() => {

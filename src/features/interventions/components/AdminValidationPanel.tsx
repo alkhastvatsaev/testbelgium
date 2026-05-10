@@ -38,12 +38,12 @@ export default function AdminValidationPanel() {
       q,
       (snap) => {
         const data = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention));
-        // Sort in memory by createdAt descending
-        data.sort((a, b) => {
-          const tA = a.createdAt?.toMillis?.() || 0;
-          const tB = b.createdAt?.toMillis?.() || 0;
-          return tB - tA;
-        });
+          // Sort in memory by createdAt descending
+          data.sort((a, b) => {
+            const tA = typeof a.createdAt === "string" ? new Date(a.createdAt).getTime() : (a.createdAt as any)?.toMillis?.() || 0;
+            const tB = typeof b.createdAt === "string" ? new Date(b.createdAt).getTime() : (b.createdAt as any)?.toMillis?.() || 0;
+            return tB - tA;
+          });
         setInterventions(data);
         setLoading(false);
       },

@@ -22,6 +22,10 @@ export interface Intervention {
   hour?: string | null;
   transcription?: string;
   audioUrl?: string;
+  /** Chemin objet Storage relatif au bucket (ex. intervention-audios/{id}/... ). */
+  audioStoragePath?: string | null;
+  /** MIME type du message vocal (audio/mp4, audio/webm, etc). */
+  audioMimeType?: string | null;
   createdAt?: string;
   /** Multi-tenant : isolation par société (voir Firestore rules). */
   companyId?: string | null;

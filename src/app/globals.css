@@ -684,8 +684,18 @@
     overflow: hidden;
     height: 100vh;
     padding: 0;
+    -webkit-user-select: none;
+    user-select: none;
   }
   html {
     @apply font-sans;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"],
+  [contenteditable="plaintext-only"] {
+    -webkit-user-select: text;
+    user-select: text;
   }
 }

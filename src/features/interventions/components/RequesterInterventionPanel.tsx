@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRequesterHub } from "../context/RequesterHubContext";
-import { ImagePlus, Loader2, MapPin, Mic, SendHorizontal, Trash2, Check, Calendar, Clock, Square, Play, Pause } from "lucide-react";
+import { ImagePlus, Loader2, MapPin, Mic, SendHorizontal, Trash2, Check, Calendar, Clock, Square, Play, Pause, Download } from "lucide-react";
 import { SmartTimeSlotPicker } from "./SmartTimeSlotPicker";
 import { toast } from "sonner";
 import { addDoc, collection, deleteDoc, doc, setDoc } from "firebase/firestore";
@@ -206,8 +206,21 @@ export default function RequesterInterventionPanel() {
     [setRequestData],
   );
 
-  const handleAudioRecorded = useCallback((blob: Blob) => {
+  const handleAudioRecorded = useCallback(async (blob: Blob) => {
     setRequestData((prev) => ({ ...prev, audioBlob: blob }));
+    try {
+      const formData = new FormData();
+      const mime = blob.type || "audio/webm";
+      const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : mime.includes("wav") ? "wav" : "webm";
+      formData.append("audio", blob, `message.${ext}`);
+      
+      const res = await fetch("/api/demo/client-audio", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Erreur serveur");
+      
+      toast.success("Audio enregistré", { description: "Sauvegardé dans public/client-audios." });
+    } catch (e) {
+      console.error("Échec de la sauvegarde audio", e);
+    }
   }, [setRequestData]);
 
   const {
@@ -590,7 +603,33 @@ export default function RequesterInterventionPanel() {
                   )}
                   {audioBlob && !descriptionVoiceListening && (
                     <div className="mt-3 flex flex-col items-center gap-2 w-full">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Message Vocal enregistré</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Message Vocal enregistré</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            try {
+                              const mime = audioBlob.type || "audio/webm";
+                              const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : mime.includes("wav") ? "wav" : "webm";
+                              const a = document.createElement("a");
+                              const url = URL.createObjectURL(audioBlob);
+                              a.href = url;
+                              a.download = `message-vocal.${ext}`;
+                              document.body.appendChild(a);
+                              a.click();
+                              a.remove();
+                              window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+                            } catch (e) {
+                              console.error(e);
+                              toast.error("Téléchargement impossible");
+                            }
+                          }}
+                          className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700"
+                          aria-label="Télécharger le message vocal"
+                        >
+                          <Download className="h-3 w-3" />
+                        </button>
+                      </div>
                       <AudioPlayer blob={audioBlob} onRemove={() => setRequestData(prev => ({ ...prev, audioBlob: null }))} />
                     </div>
                   )}

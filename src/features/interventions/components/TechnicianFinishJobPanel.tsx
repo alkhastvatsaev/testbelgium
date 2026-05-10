@@ -9,7 +9,9 @@ import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
 import { useOfflineSyncOptional } from "@/context/OfflineSyncContext";
 import { useTechnicianFinishJob } from "@/context/TechnicianFinishJobContext";
 import { useDashboardPagerOptional } from "@/features/dashboard/dashboardPagerContext";
+import { cn } from "@/lib/utils";
 import { capturePhotoFromVideo } from "@/features/interventions/finishJobCapture";
+import { PRESENTATION_PRIVACY_MODE } from "@/core/config/presentationMode";
 import {
   FINISH_JOB_MAX_PHOTOS,
   FINISH_JOB_MIN_PHOTOS,
@@ -152,32 +154,38 @@ export default function TechnicianFinishJobPanel() {
         description: "Photos et signature visibles sur la page carte (panneau droit). Sauvegarde cloud en arrière-plan.",
       });
 
-      void finalizeCompletionOfflineAware({
-        interventionId,
-        photoDataUrls,
-        signaturePngDataUrl,
-      })
-        .then((result) => {
-          if (result.outcome === "error") {
-            toast.error("Sauvegarde serveur", { description: result.message });
-            return;
-          }
-          if (result.outcome === "queued") {
-            toast.message("File hors ligne", {
-              description: "Synchronisation automatique dès que le réseau est stable.",
-            });
-            void offlineSync?.flushNow?.();
-          }
-        })
-        .catch((e) => {
-          console.error(e);
-          toast.error("Sauvegarde serveur", {
-            description: e instanceof Error ? e.message : String(e),
-          });
-        })
-        .finally(() => {
-          void offlineSync?.refreshPendingCount();
+      if (PRESENTATION_PRIVACY_MODE) {
+        toast.message("Mode présentation", {
+          description: "Sauvegarde cloud désactivée temporairement. Le back-office voit le rapport via le mode démo.",
         });
+      } else {
+        void finalizeCompletionOfflineAware({
+          interventionId,
+          photoDataUrls,
+          signaturePngDataUrl,
+        })
+          .then((result) => {
+            if (result.outcome === "error") {
+              toast.error("Sauvegarde serveur", { description: result.message });
+              return;
+            }
+            if (result.outcome === "queued") {
+              toast.message("File hors ligne", {
+                description: "Synchronisation automatique dès que le réseau est stable.",
+              });
+              void offlineSync?.flushNow?.();
+            }
+          })
+          .catch((e) => {
+            console.error(e);
+            toast.error("Sauvegarde serveur", {
+              description: e instanceof Error ? e.message : String(e),
+            });
+          })
+          .finally(() => {
+            void offlineSync?.refreshPendingCount();
+          });
+      }
     } catch (e) {
       console.error(e);
       setStep("signature");
@@ -278,13 +286,21 @@ export default function TechnicianFinishJobPanel() {
               {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
               <video
                 ref={videoRef}
-                className="aspect-[4/3] w-full object-cover opacity-90 transition-opacity duration-300"
+                className={cn(
+                  "aspect-[4/3] w-full object-cover opacity-90 transition-opacity duration-300",
+                  PRESENTATION_PRIVACY_MODE ? "blur-xl" : null,
+                )}
                 muted
                 playsInline
                 autoPlay
                 aria-label="Caméra travaux terminés"
               />
               <div className="absolute inset-0 pointer-events-none rounded-[24px] ring-1 ring-inset ring-white/10" />
+              {PRESENTATION_PRIVACY_MODE ? (
+                <div className="absolute left-3 top-3 rounded-full bg-black/55 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur">
+                  Mode présentation
+                </div>
+              ) : null}
             </div>
 
             <button
@@ -303,7 +319,11 @@ export default function TechnicianFinishJobPanel() {
               {photos.map((src, i) => (
                 <div key={`${i}-${src.slice(0, 24)}`} className="relative h-20 w-20 overflow-hidden rounded-[16px] border border-black/5 bg-slate-100 shadow-sm transition-transform hover:scale-105">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={src}
+                    alt=""
+                    className={cn("h-full w-full object-cover", PRESENTATION_PRIVACY_MODE ? "blur-lg" : null)}
+                  />
                   <button
                     type="button"
                     data-testid={`finish-job-photo-remove-${i}`}

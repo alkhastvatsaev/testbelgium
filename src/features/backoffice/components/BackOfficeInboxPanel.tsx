@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ClipboardList,
   ArrowLeft,
@@ -16,6 +16,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { firestore } from "@/core/config/firebase";
+import { getDownloadURL, ref as storageRef } from "firebase/storage";
+import { storage } from "@/core/config/firebase";
 
 import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
 import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
@@ -27,8 +29,43 @@ import { capitalizeName, formatAddress } from "@/utils/stringUtils";
 import { guessGenderPrefixFromName } from "@/utils/genderDetection";
 import IvanaClientChatPanel from "@/features/backoffice/components/IvanaClientChatPanel";
 import { useTechnicianBackofficeReportBridgeOptional } from "@/context/TechnicianBackofficeReportBridgeContext";
+import { PRESENTATION_PRIVACY_MODE } from "@/core/config/presentationMode";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
+
+function readAudioUrl(inv: unknown): string | null {
+  if (!inv || typeof inv !== "object") return null;
+  const anyInv = inv as Record<string, unknown>;
+  const candidates = [
+    anyInv.audioUrl,
+    anyInv.audioURL,
+    anyInv.audio_url,
+    anyInv.voiceUrl,
+    anyInv.voice_url,
+  ];
+  const hit = candidates.find((v) => typeof v === "string" && v.trim().length > 0);
+  return typeof hit === "string" ? hit : null;
+}
+
+function readTranscription(inv: unknown): string | null {
+  if (!inv || typeof inv !== "object") return null;
+  const anyInv = inv as Record<string, unknown>;
+  const candidates = [
+    anyInv.transcription,
+    anyInv.audioTranscription,
+    anyInv.audio_transcription,
+  ];
+  const hit = candidates.find((v) => typeof v === "string" && v.trim().length > 0);
+  return typeof hit === "string" ? hit : null;
+}
+
+function readAudioStoragePath(inv: unknown): string | null {
+  if (!inv || typeof inv !== "object") return null;
+  const anyInv = inv as Record<string, unknown>;
+  const candidates = [anyInv.audioStoragePath, anyInv.audio_storage_path, anyInv.voiceStoragePath];
+  const hit = candidates.find((v) => typeof v === "string" && v.trim().length > 0);
+  return typeof hit === "string" ? hit : null;
+}
 
 export default function BackOfficeInboxPanel() {
   const workspace = useCompanyWorkspaceOptional();
@@ -39,7 +76,14 @@ export default function BackOfficeInboxPanel() {
   const bridgedTerrainCount = bridgedTerrainReports.length;
 
   const [activeTab, setActiveTab] = useState<"chat" | "requests" | "reports">("chat");
-  const [selectedItem, setSelectedItem] = useState<Intervention | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const selectedItem = useMemo(
+    () => (selectedItemId ? interventions.find((x) => x.id === selectedItemId) ?? null : null),
+    [interventions, selectedItemId],
+  );
+  const [resolvedAudioUrl, setResolvedAudioUrl] = useState<string | null>(null);
+  const [isResolvingAudio, setIsResolvingAudio] = useState(false);
+  const [selectedTerrainLocalId, setSelectedTerrainLocalId] = useState<string | null>(null);
   const [isEditingDateTime, setIsEditingDateTime] = useState(false);
   const [editDate, setEditDate] = useState("");
   const [editTime, setEditTime] = useState("");
@@ -72,7 +116,7 @@ export default function BackOfficeInboxPanel() {
     try {
       await deleteDoc(doc(firestore, "interventions", id));
       toast.success("Demande supprimée");
-      setSelectedItem(null);
+      setSelectedItemId(null);
     } catch (e) {
       toast.error("Erreur lors de la suppression");
     }
@@ -86,7 +130,7 @@ export default function BackOfficeInboxPanel() {
         assignedTechnicianUid: DEMO_TECHNICIAN_UID,
       });
       toast.success("Demande assignée à Mansour");
-      setSelectedItem(null);
+      setSelectedItemId(null);
     } catch (e) {
       toast.error("Erreur lors de l'assignation");
     }
@@ -99,7 +143,7 @@ export default function BackOfficeInboxPanel() {
         status: "invoiced",
       });
       toast.success("Rapport validé");
-      setSelectedItem(null);
+      setSelectedItemId(null);
     } catch (e) {
       toast.error("Erreur lors de la validation");
     }
@@ -113,11 +157,6 @@ export default function BackOfficeInboxPanel() {
         requestedTime: editTime,
       });
       toast.success("Horaire mis à jour");
-      setSelectedItem({
-        ...selectedItem,
-        requestedDate: editDate,
-        requestedTime: editTime,
-      });
       setIsEditingDateTime(false);
     } catch (error) {
       toast.error("Erreur lors de la mise à jour");
@@ -125,6 +164,43 @@ export default function BackOfficeInboxPanel() {
   };
 
   const isTenant = !!workspace?.isTenantUser;
+
+  useEffect(() => {
+    setResolvedAudioUrl(null);
+    setIsResolvingAudio(false);
+    if (!selectedItem) return;
+    const direct = readAudioUrl(selectedItem);
+    if (direct) {
+      setResolvedAudioUrl(direct);
+      return;
+    }
+    const path = readAudioStoragePath(selectedItem);
+    if (!path || !storage) return;
+    let cancelled = false;
+    setIsResolvingAudio(true);
+    void getDownloadURL(storageRef(storage, path))
+      .then((url) => {
+        if (!cancelled) setResolvedAudioUrl(url);
+      })
+      .catch(() => {
+        // ignore
+      });
+    return () => {
+      cancelled = true;
+      setIsResolvingAudio(false);
+    };
+  }, [selectedItem]);
+
+  useEffect(() => {
+    if (!terrainBridge) return;
+    // Auto-dismiss bridged reports once the intervention is validated by back-office.
+    bridgedTerrainReports.forEach((r) => {
+      const iv = interventions.find((x) => x.id === r.interventionId);
+      if (iv?.status === "invoiced") {
+        terrainBridge.dismissReport(r.localId);
+      }
+    });
+  }, [bridgedTerrainReports, interventions, terrainBridge]);
 
   const itemsToShow = activeTab === "requests" ? pendingRequests : validationReports;
 
@@ -202,56 +278,58 @@ export default function BackOfficeInboxPanel() {
       <div className={cn(GLASS_PANEL_BODY_SCROLL_COMPACT, "flex min-h-0 flex-1 flex-col gap-3 px-4 pb-6")}>
         {activeTab === "reports" &&
           bridgedTerrainReports.map((r) => (
-            <div
-              key={r.localId}
-              data-testid="backoffice-bridged-report"
-              className="rounded-[20px] border border-emerald-200/90 bg-gradient-to-b from-emerald-50/90 to-white p-3 shadow-sm"
-            >
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-800">
-                    Rapport terrain
-                  </p>
-                  <p className="text-[12px] font-semibold text-slate-700">
-                    Intervention · …{r.interventionId.slice(-8)}
-                  </p>
-                  <p className="text-[10px] text-slate-400">
-                    {new Date(r.receivedAt).toLocaleString()}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  data-testid={`backoffice-bridged-report-dismiss-${r.localId}`}
-                  onClick={() => terrainBridge?.dismissReport(r.localId)}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-sm ring-1 ring-slate-200/80 transition hover:bg-slate-50 hover:text-slate-800"
-                  aria-label="Masquer ce rapport"
+            (() => {
+              const iv = interventions.find((x) => x.id === r.interventionId);
+              const first = iv?.clientFirstName ?? "";
+              const last = iv?.clientLastName ?? "";
+              const fallbackName = iv?.clientName ?? "";
+              const nameRaw = `${first} ${last}`.trim() || fallbackName;
+              const displayName = nameRaw ? capitalizeName(nameRaw) : `Client · …${r.interventionId.slice(-8)}`;
+              const description = iv?.problem || iv?.title || "Rapport terrain (photos + signature)";
+              const addressShort = (iv?.address ?? "").split(",")[0] || (iv?.address ? iv.address : "");
+              const time = new Date(r.receivedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+              return (
+                <motion.div
+                  key={r.localId}
+                  data-testid="backoffice-bridged-report"
+                  onClick={() => setSelectedTerrainLocalId(r.localId)}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                  className={cn(
+                    "group relative cursor-pointer overflow-hidden rounded-[24px] border bg-white p-4 transition-all duration-300 hover:shadow-lg",
+                    "border-emerald-100 bg-emerald-50/20",
+                  )}
                 >
-                  <X className="h-4 w-4" aria-hidden />
-                </button>
-              </div>
-              <div className="mb-2 grid grid-cols-3 gap-1.5">
-                {r.photoDataUrls.map((url, i) => (
-                  <div
-                    key={`${r.localId}-ph-${i}`}
-                    className="aspect-square overflow-hidden rounded-xl border border-white/90 bg-slate-100 shadow-inner"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt="" className="h-full w-full object-cover" />
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                        <h4 className="text-[15px] font-bold text-slate-800 truncate">{displayName}</h4>
+                      </div>
+                      <p className="text-[13px] font-bold text-slate-700 truncate mb-2">{description}</p>
+                      <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {time}
+                        </span>
+                        {addressShort ? (
+                          <span className="truncate max-w-[140px]">{addressShort}</span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-tight bg-emerald-100 text-emerald-700">
+                        Rapport
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-400 transition-colors" />
+                    </div>
                   </div>
-                ))}
-              </div>
-              <div className="rounded-xl border border-slate-200/90 bg-white p-2">
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                  Signature client
-                </p>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={r.signaturePngDataUrl}
-                  alt="Signature client"
-                  className="mx-auto max-h-28 w-full object-contain"
-                />
-              </div>
-            </div>
+                </motion.div>
+              );
+            })()
           ))}
 
         {loading ? (
@@ -299,7 +377,7 @@ export default function BackOfficeInboxPanel() {
               return (
                 <motion.div
                   key={item.id}
-                  onClick={() => setSelectedItem(item)}
+                      onClick={() => setSelectedItemId(item.id)}
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.2, delay: index * 0.03 }}
@@ -373,7 +451,7 @@ export default function BackOfficeInboxPanel() {
             <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100">
               <button 
                 onClick={() => {
-                  setSelectedItem(null);
+                  setSelectedItemId(null);
                   setIsEditingDateTime(false);
                 }}
                 className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
@@ -423,21 +501,6 @@ export default function BackOfficeInboxPanel() {
                   </p>
                 </div>
               </div>
-
-              {/* Audio / Transcription for requests */}
-              {(selectedItem.status === "pending" || selectedItem.status === "pending_needs_address") && (selectedItem.audioUrl || selectedItem.transcription) && (
-                <div className="space-y-3">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Message Vocal</span>
-                  {selectedItem.audioUrl && (
-                    <audio controls src={selectedItem.audioUrl} className="w-full h-10" />
-                  )}
-                  {selectedItem.transcription && (
-                    <div className="p-4 rounded-[20px] bg-blue-50/50 border border-blue-100 italic text-blue-900 text-sm">
-                      "{selectedItem.transcription}"
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Date & Time management for requests */}
               {(selectedItem.status === "pending" || selectedItem.status === "pending_needs_address") && (
@@ -510,6 +573,29 @@ export default function BackOfficeInboxPanel() {
                 </div>
               )}
 
+              {/* Audio / Transcription for requests (under photos) */}
+              {(selectedItem.status === "pending" || selectedItem.status === "pending_needs_address") ? (
+                <div className="space-y-3">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Message Vocal</span>
+                  {resolvedAudioUrl ? (
+                    <audio controls src={resolvedAudioUrl} className="w-full h-10" />
+                  ) : isResolvingAudio ? (
+                    <div className="w-full rounded-[18px] border border-slate-200 bg-slate-50/50 px-4 py-3 text-[12px] font-semibold text-slate-500">
+                      Chargement du message vocal…
+                    </div>
+                  ) : (
+                    <div className="w-full rounded-[18px] border border-slate-200 bg-slate-50/50 px-4 py-3 text-[12px] font-semibold text-slate-500">
+                      Aucun message vocal
+                    </div>
+                  )}
+                  {readTranscription(selectedItem) ? (
+                    <div className="rounded-[20px] border border-blue-100 bg-blue-50/50 p-4 text-sm italic text-blue-900">
+                      "{readTranscription(selectedItem)}"
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
               {/* Signature for reports */}
               {!(selectedItem.status === "pending" || selectedItem.status === "pending_needs_address") && selectedItem.completionSignatureUrl && (
                 <div className="space-y-3">
@@ -559,6 +645,121 @@ export default function BackOfficeInboxPanel() {
             </div>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedTerrainLocalId ? (
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="absolute inset-0 z-30 flex flex-col bg-white rounded-[inherit] shadow-2xl"
+          >
+            {(() => {
+              const r = bridgedTerrainReports.find((x) => x.localId === selectedTerrainLocalId);
+              if (!r) return null;
+              const iv = interventions.find((x) => x.id === r.interventionId);
+              const first = iv?.clientFirstName ?? "";
+              const last = iv?.clientLastName ?? "";
+              const fallbackName = iv?.clientName ?? "";
+              const nameRaw = `${first} ${last}`.trim() || fallbackName;
+              const displayName = nameRaw ? capitalizeName(nameRaw) : `Client · …${r.interventionId.slice(-8)}`;
+              const phone = iv?.clientPhone ?? "";
+              const address = iv?.address ? formatAddress(iv.address) : "";
+              const description = iv?.problem || iv?.title || "";
+              const isAlreadyValidated = iv?.status === "invoiced";
+
+              return (
+                <>
+                  <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTerrainLocalId(null)}
+                      className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                      aria-label="Retour"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <h3 className="text-[15px] font-bold text-slate-800">Rapport terrain</h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        terrainBridge?.dismissReport(r.localId);
+                        setSelectedTerrainLocalId(null);
+                      }}
+                      className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                      aria-label="Masquer ce rapport"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    <div className="rounded-[20px] bg-slate-50 p-4 border border-slate-100 space-y-2">
+                      <p className="text-[14px] !font-extrabold text-slate-900">{displayName}</p>
+                      {phone ? <p className="text-[12px] !font-bold text-slate-700">{phone}</p> : null}
+                      {address ? <p className="text-[12px] !font-bold text-slate-700">{address}</p> : null}
+                      {description ? (
+                        <p className="text-[13px] !font-bold text-slate-800 leading-relaxed">
+                          Problème · {description}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Photos</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {r.photoDataUrls.map((url, i) => (
+                          <div
+                            key={`${r.localId}-detail-ph-${i}`}
+                            className="aspect-square relative rounded-[20px] overflow-hidden border border-slate-100 bg-slate-50 shadow-sm"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={url}
+                              alt=""
+                              className={cn("w-full h-full object-cover", PRESENTATION_PRIVACY_MODE ? "blur-lg" : null)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Signature client</p>
+                      <div className="rounded-[20px] bg-slate-50 p-4 border border-slate-100 flex items-center justify-center">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={r.signaturePngDataUrl} alt="Signature client" className="max-h-32 object-contain" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 border-t border-slate-100 bg-white/80 backdrop-blur-md">
+                    <button
+                      type="button"
+                      data-testid={`backoffice-bridged-report-validate-${r.localId}`}
+                      disabled={!iv || isAlreadyValidated}
+                      onClick={() => handleVerify(r.interventionId)}
+                      className={cn(
+                        "w-full flex items-center justify-center gap-2 py-4 px-4 rounded-[20px] font-bold text-[14px] transition-all",
+                        !iv
+                          ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                          : isAlreadyValidated
+                            ? "bg-emerald-100 text-emerald-700 cursor-not-allowed opacity-70"
+                            : "bg-emerald-600 text-white shadow-[0_8px_20px_rgba(22,163,74,0.3)] hover:bg-emerald-700 active:scale-95",
+                      )}
+                      aria-label="Valider le rapport terrain"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      {isAlreadyValidated ? "Déjà validé" : "Valider le rapport"}
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </motion.div>
+        ) : null}
       </AnimatePresence>
     </div>
   );

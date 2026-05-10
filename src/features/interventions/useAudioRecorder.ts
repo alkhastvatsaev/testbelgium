@@ -13,6 +13,7 @@ export function useAudioRecorder() {
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const transcriptionPromiseRef = useRef<Promise<string> | null>(null);
+  const autoStopTimerRef = useRef<number | null>(null);
 
   // Use the existing speech dictation for the transcription part
   const {
@@ -29,7 +30,21 @@ export function useAudioRecorder() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      const mediaRecorder = new MediaRecorder(stream);
+      const supportedTypes = [
+        "audio/mp4",
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+        "audio/ogg",
+      ];
+      const chosenMime =
+        typeof MediaRecorder !== "undefined" && typeof MediaRecorder.isTypeSupported === "function"
+          ? supportedTypes.find((t) => MediaRecorder.isTypeSupported(t)) ?? ""
+          : "";
+
+      const mediaRecorder = chosenMime
+        ? new MediaRecorder(stream, { mimeType: chosenMime, audioBitsPerSecond: 32_000 })
+        : new MediaRecorder(stream, { audioBitsPerSecond: 32_000 });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -40,6 +55,10 @@ export function useAudioRecorder() {
       };
 
       mediaRecorder.onstop = async () => {
+        if (autoStopTimerRef.current) {
+          window.clearTimeout(autoStopTimerRef.current);
+          autoStopTimerRef.current = null;
+        }
         const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
         const generatedBlob = new Blob(audioChunksRef.current, { type: mimeType });
         setAudioBlob(generatedBlob);
@@ -50,7 +69,8 @@ export function useAudioRecorder() {
         const promise = (async () => {
           try {
             const formData = new FormData();
-            formData.append("audio", generatedBlob, "audio.webm");
+            const ext = mimeType.includes("mp4") ? "mp4" : mimeType.includes("ogg") ? "ogg" : "webm";
+            formData.append("audio", generatedBlob, `audio.${ext}`);
             
             const res = await fetch("/api/ai/transcribe-blob", {
               method: "POST",
@@ -79,6 +99,18 @@ export function useAudioRecorder() {
       setIsRecording(true);
       setTranscription(""); // Reset transcription on new recording
 
+      // Safety for demo: avoid huge blobs that can't be stored / uploaded reliably.
+      autoStopTimerRef.current = window.setTimeout(() => {
+        try {
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+            mediaRecorderRef.current.stop();
+            streamRef.current?.getTracks().forEach((track) => track.stop());
+          }
+        } catch {
+          // ignore
+        }
+      }, 25_000);
+
       // Start dictation if not already started
       if (isDictationSupported && !isDictating) {
         // useBrowserSpeechDictation toggleListening starts it. Wait, toggleListening doesn't take params
@@ -99,6 +131,10 @@ export function useAudioRecorder() {
       streamRef.current?.getTracks().forEach((track) => track.stop()); // Stop all tracks to release mic
     } else {
       setIsRecording(false);
+    }
+    if (autoStopTimerRef.current) {
+      window.clearTimeout(autoStopTimerRef.current);
+      autoStopTimerRef.current = null;
     }
 
     // Stop dictation

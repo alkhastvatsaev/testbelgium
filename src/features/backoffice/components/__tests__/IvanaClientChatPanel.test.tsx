@@ -14,6 +14,7 @@ describe("IvanaClientChatPanel", () => {
       screen.getByText(/Bonjour — écrivez-nous pour toute question/i),
     ).toBeInTheDocument();
     expect(screen.getByTestId("ivana-chat-bubble-ivana")).toBeInTheDocument();
+    expect(screen.getByTestId("ivana-chat-attach")).toBeInTheDocument();
     expect(screen.getByTestId("ivana-chat-input")).toBeInTheDocument();
     expect(screen.getByTestId("ivana-chat-send")).toBeInTheDocument();
   });

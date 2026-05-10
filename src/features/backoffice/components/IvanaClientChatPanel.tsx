@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Send } from "lucide-react";
+import { ArrowRight, ImagePlus, X } from "lucide-react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/core/config/firebase";
 import { cn } from "@/lib/utils";
@@ -10,11 +10,13 @@ import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
 const STORAGE_PREFIX = "map-belgique-ivana-chat-v1";
+const CHAT_PERSISTENCE_ENABLED = false;
 
 export type IvanaChatMessage = {
   id: string;
   role: "user" | "ivana";
   text: string;
+  images?: string[];
   createdAt: number;
 };
 
@@ -49,7 +51,10 @@ export default function IvanaClientChatPanel({ className }: { className?: string
   const [messages, setMessages] = useState<IvanaChatMessage[]>(() => [welcomeMessage()]);
   const [draft, setDraft] = useState("");
   const [ivanaTyping, setIvanaTyping] = useState(false);
+  const [pendingImages, setPendingImages] = useState<string[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const hydratedRef = useRef(false);
 
   const storageKey = useMemo(
@@ -69,6 +74,17 @@ export default function IvanaClientChatPanel({ className }: { className?: string
     if (typeof window === "undefined") return;
     let cancelled = false;
     hydratedRef.current = false;
+
+    if (!CHAT_PERSISTENCE_ENABLED) {
+      if (!cancelled) {
+        setMessages([welcomeMessage()]);
+        hydratedRef.current = true;
+      }
+      return () => {
+        cancelled = true;
+      };
+    }
+
     try {
       const raw = localStorage.getItem(storageKey);
       if (raw) {
@@ -95,6 +111,7 @@ export default function IvanaClientChatPanel({ className }: { className?: string
 
   useEffect(() => {
     if (!hydratedRef.current || typeof window === "undefined") return;
+    if (!CHAT_PERSISTENCE_ENABLED) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(messages));
     } catch {
@@ -108,17 +125,56 @@ export default function IvanaClientChatPanel({ className }: { className?: string
     el.scrollTop = el.scrollHeight;
   }, [messages, ivanaTyping]);
 
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    // Auto-resize: grow with content up to max-h, then scroll.
+    el.style.height = "0px";
+    const next = Math.min(el.scrollHeight, 96); // px (matches max-h-24)
+    el.style.height = `${Math.max(next, 48)}px`;
+  }, [draft]);
+
+  const handlePickImages = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const allowed = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (allowed.length === 0) return;
+
+    const MAX_FILES = 6;
+    const MAX_TOTAL = 6;
+    const remaining = Math.max(0, MAX_TOTAL - pendingImages.length);
+    const sliced = allowed.slice(0, Math.min(MAX_FILES, remaining));
+
+    const readOne = (file: File) =>
+      new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onerror = () => resolve(null);
+        reader.onload = () => {
+          const v = reader.result;
+          resolve(typeof v === "string" ? v : null);
+        };
+        reader.readAsDataURL(file);
+      });
+
+    const newUrls = (await Promise.all(sliced.map(readOne))).filter(Boolean) as string[];
+    if (newUrls.length > 0) setPendingImages((prev) => [...prev, ...newUrls]);
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [pendingImages.length]);
+
   const send = useCallback(() => {
     const text = draft.trim();
-    if (!text || ivanaTyping) return;
+    if ((!text && pendingImages.length === 0) || ivanaTyping) return;
 
     const userMsg: IvanaChatMessage = {
       id: `u-${Date.now()}`,
       role: "user",
       text,
+      images: pendingImages.length > 0 ? pendingImages : undefined,
       createdAt: Date.now(),
     };
     setDraft("");
+    setPendingImages([]);
     setMessages((prev) => [...prev, userMsg]);
     setIvanaTyping(true);
 
@@ -133,7 +189,7 @@ export default function IvanaClientChatPanel({ className }: { className?: string
       setMessages((prev) => [...prev, reply]);
       setIvanaTyping(false);
     }, delay);
-  }, [draft, ivanaTyping]);
+  }, [draft, ivanaTyping, pendingImages]);
 
   return (
     <div
@@ -160,6 +216,19 @@ export default function IvanaClientChatPanel({ className }: { className?: string
               )}
             >
               {m.text}
+              {m.images && m.images.length > 0 ? (
+                <div className="mt-2 grid grid-cols-3 gap-1.5" data-testid="ivana-chat-bubble-images">
+                  {m.images.map((url, idx) => (
+                    <div
+                      key={`${m.id}-img-${idx}`}
+                      className="aspect-square overflow-hidden rounded-[12px] border border-white/40 bg-black/5"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="" className="h-full w-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         ))}
@@ -178,34 +247,89 @@ export default function IvanaClientChatPanel({ className }: { className?: string
       </div>
 
       <div className="shrink-0 border-t border-slate-200/80 bg-white/80 p-3 backdrop-blur-md">
-        <div className="flex items-end gap-2">
+        {pendingImages.length > 0 ? (
+          <div className="mb-2 flex flex-wrap gap-2" data-testid="ivana-chat-pending-images">
+            {pendingImages.map((url, idx) => (
+              <div
+                key={`pending-${idx}`}
+                className="group relative h-14 w-14 overflow-hidden rounded-[14px] border border-slate-200 bg-slate-50 shadow-sm"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setPendingImages((prev) => prev.filter((_, i) => i !== idx))}
+                  className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/55 text-white opacity-0 transition group-hover:opacity-100"
+                  aria-label="Retirer la photo"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => handlePickImages(e.target.files)}
+          />
+          <button
+            type="button"
+            data-testid="ivana-chat-attach"
+            onClick={() => fileInputRef.current?.click()}
+            className={cn(
+              "flex h-12 w-12 shrink-0 items-center justify-center rounded-full",
+              "text-slate-500 transition",
+              "hover:bg-slate-900/5 hover:text-slate-700",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20",
+              "active:scale-[0.98]",
+            )}
+            aria-label="Ajouter des photos"
+          >
+            <ImagePlus className="h-5 w-5" />
+          </button>
           <label htmlFor="ivana-chat-input" className="sr-only">
             Votre message
           </label>
-          <textarea
-            id="ivana-chat-input"
-            data-testid="ivana-chat-input"
-            rows={2}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            placeholder="Votre message…"
-            className="max-h-28 min-h-[44px] flex-1 resize-y rounded-[16px] border border-slate-200 bg-white px-3 py-2.5 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          />
+          <div className="flex min-w-0 flex-1 items-center rounded-[18px] border border-slate-200 bg-white shadow-sm focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/20">
+            <textarea
+              id="ivana-chat-input"
+              data-testid="ivana-chat-input"
+              rows={1}
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              placeholder="Votre message…"
+              className="min-h-12 max-h-24 flex-1 resize-none overflow-y-auto bg-transparent px-4 py-3 text-[13px] leading-[18px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            />
+          </div>
           <button
             type="button"
             data-testid="ivana-chat-send"
             onClick={send}
-            disabled={!draft.trim() || ivanaTyping}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-indigo-600 text-white shadow-md transition-all hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={(!draft.trim() && pendingImages.length === 0) || ivanaTyping}
+            className={cn(
+              "flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20",
+              "active:scale-[0.98]",
+              (!draft.trim() && pendingImages.length === 0) || ivanaTyping
+                ? "cursor-not-allowed text-slate-400 opacity-40"
+                : "text-indigo-600 hover:bg-indigo-500/10 hover:text-indigo-700",
+            )}
             aria-label="Envoyer le message"
           >
-            <Send className="h-4 w-4" />
+            <ArrowRight className="h-5 w-5" />
           </button>
         </div>
       </div>
