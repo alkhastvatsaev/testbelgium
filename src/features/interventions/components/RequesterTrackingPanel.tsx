@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRequesterHub } from "@/features/interventions/context/RequesterHubContext";
-import { Check, Clock, MapPin, User } from "lucide-react";
+import { Check, Clock, MapPin, User, Navigation, CheckCircle2, FileText, Search, X, ArrowRight } from "lucide-react";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, or, orderBy, limit } from "firebase/firestore";
 import { auth, firestore, isConfigured } from "@/core/config/firebase";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/core/i18n/I18nContext";
+import { capitalizeName } from "@/utils/stringUtils";
 
 const springTransition = { type: "spring", bounce: 0, duration: 0.5 } as const;
 
@@ -19,9 +20,13 @@ type TrackedIntervention = {
   problem?: string;
   address?: string;
   createdAt?: string;
+  clientFirstName?: string;
+  clientLastName?: string;
+  clientCompanyName?: string;
+  clientPhone?: string;
 };
 
-function useMyLatestIntervention() {
+function useMyLatestIntervention(searchLastName: string, profileLastName: string) {
   const [intervention, setIntervention] = useState<TrackedIntervention | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,27 +44,43 @@ function useMyLatestIntervention() {
         unsubSnap = undefined;
       }
 
-      if (!user || !firestore) {
+      const db = firestore;
+      if (!db) return;
+      let q;
+
+      const activeSearch = searchLastName.trim().length > 0 ? searchLastName.trim() : profileLastName.trim();
+
+      if (activeSearch.length > 0) {
+        q = query(
+          collection(db, "interventions"), 
+          orderBy("createdAt", "desc"),
+          limit(1000)
+        );
+      } else {
         setIntervention(null);
         setLoading(false);
         return;
       }
 
-      const db = firestore;
-      const q = query(collection(db, "interventions"), where("createdByUid", "==", user.uid));
-
       unsubSnap = onSnapshot(q, (snap) => {
         if (snap.empty) {
           setIntervention(null);
         } else {
-          // Sort locally by createdAt desc to avoid missing index errors
           const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TrackedIntervention);
-          docs.sort((a, b) => {
-            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            return dateB - dateA;
+          const searchLower = activeSearch.toLowerCase();
+          
+          const matchedDocs = docs.filter(doc => {
+            const last = (doc.clientLastName || "").toLowerCase();
+            const first = (doc.clientFirstName || "").toLowerCase();
+            const company = (doc.clientCompanyName || "").toLowerCase();
+            return last.includes(searchLower) || first.includes(searchLower) || company.includes(searchLower);
           });
-          setIntervention(docs[0]);
+
+          if (matchedDocs.length > 0) {
+            setIntervention(matchedDocs[0]);
+          } else {
+            setIntervention(null);
+          }
         }
         setLoading(false);
       });
@@ -69,14 +90,19 @@ function useMyLatestIntervention() {
       if (unsubSnap) unsubSnap();
       unsubAuth();
     };
-  }, []);
+  }, [searchLastName]);
 
   return { intervention, loading };
 }
 
 export default function RequesterTrackingPanel() {
-  const { isSubmitting, requestData, lastSubmittedRequest } = useRequesterHub();
-  const { intervention: latestIntervention, loading: interventionLoading } = useMyLatestIntervention();
+  const { isSubmitting, requestData, lastSubmittedRequest, profile, setProfile, resetRequestOnly } = useRequesterHub();
+  
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [syncOnNextLoad, setSyncOnNextLoad] = useState(false);
+  
+  const { intervention: latestIntervention, loading: interventionLoading } = useMyLatestIntervention(searchQuery, profile.lastName);
   const [user, setUser] = useState(auth?.currentUser ?? null);
   const { t } = useTranslation();
 
@@ -85,24 +111,63 @@ export default function RequesterTrackingPanel() {
     return onAuthStateChanged(auth, (u) => setUser(u));
   }, []);
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchInput.trim().length === 0) return;
+    setSearchQuery(searchInput);
+    setSyncOnNextLoad(true);
+  };
+
+  useEffect(() => {
+    if (syncOnNextLoad && !interventionLoading) {
+      if (latestIntervention) {
+        setProfile((prev) => ({
+          ...prev,
+          type: latestIntervention.clientCompanyName ? "societe" : "particulier",
+          firstName: latestIntervention.clientFirstName || prev.firstName,
+          lastName: latestIntervention.clientLastName || prev.lastName,
+          companyName: latestIntervention.clientCompanyName || prev.companyName,
+          phone: latestIntervention.clientPhone || prev.phone,
+        }));
+        resetRequestOnly();
+        import("sonner").then(({ toast }) => {
+          toast.success(`Dossier basculé sur ${latestIntervention.clientLastName || "le client"}`);
+        });
+      }
+      setSyncOnNextLoad(false);
+    }
+  }, [syncOnNextLoad, interventionLoading, latestIntervention, setProfile, resetRequestOnly]);
+
   const draftTitle = requestData.problemLabel.trim() || requestData.description.trim();
   const hasDraft = Boolean(draftTitle || requestData.interventionAddress.trim());
   const hasSubmitted = Boolean(latestIntervention || lastSubmittedRequest);
-  const hasActiveUI = hasDraft || isSubmitting || hasSubmitted;
+  
+  const isSearching = searchQuery.trim().length > 0;
+  const hasActiveUI = isSearching ? Boolean(latestIntervention) : (hasDraft || isSubmitting || hasSubmitted);
 
-  const status = latestIntervention?.status || (lastSubmittedRequest ? "pending" : "draft");
-  const step1Done = Boolean(latestIntervention || lastSubmittedRequest);
-  const step2Done = step1Done && status !== "pending";
-  const step3Done = step1Done && ["assigned", "in_progress", "done"].includes(status);
-  const step4Done = step1Done && ["in_progress", "done"].includes(status);
+  const status = latestIntervention?.status || (latestIntervention || lastSubmittedRequest ? "pending" : "draft");
+  const step0Done = Boolean(latestIntervention || lastSubmittedRequest);
+  const step1Done = step0Done;
+  const step2Done = step1Done && !["pending", "pending_needs_address"].includes(status);
+  const step3Done = step1Done && ["assigned", "en_route", "on_site", "in_progress", "done", "invoiced"].includes(status);
+  const step4Done = step1Done && ["en_route", "on_site", "in_progress", "done", "invoiced"].includes(status);
+  const step5Done = step1Done && ["on_site", "in_progress", "done", "invoiced"].includes(status);
+  const step6Done = step1Done && ["done", "invoiced"].includes(status);
 
   const steps = [
+    {
+      id: "step0",
+      title: t("tracking.step0") || "Formulaire",
+      icon: step0Done ? Check : FileText,
+      done: step0Done,
+      active: !step0Done && (isSubmitting || hasDraft)
+    },
     {
       id: "step1",
       title: t("tracking.step1") || "Demande reçue",
       icon: step1Done ? Check : Clock,
       done: step1Done,
-      active: !step1Done && (isSubmitting || hasDraft)
+      active: step0Done && !step1Done
     },
     {
       id: "step2",
@@ -120,18 +185,84 @@ export default function RequesterTrackingPanel() {
     },
     {
       id: "step4",
-      title: t("tracking.step4") || "En route / Sur place",
-      icon: step4Done ? Check : MapPin,
+      title: t("tracking.step4") || "En route",
+      icon: step4Done ? Check : Navigation,
       done: step4Done,
       active: step3Done && !step4Done
+    },
+    {
+      id: "step5",
+      title: t("tracking.step5") || "Sur place",
+      icon: step5Done ? Check : MapPin,
+      done: step5Done,
+      active: step4Done && !step5Done
+    },
+    {
+      id: "step6",
+      title: t("tracking.step6") || "Intervention terminée",
+      icon: step6Done ? Check : CheckCircle2,
+      done: step6Done,
+      active: step5Done && !step6Done
     }
   ];
+
+  const getDisplayName = () => {
+    if (latestIntervention) {
+      if (latestIntervention.clientCompanyName) return latestIntervention.clientCompanyName;
+      const first = latestIntervention.clientFirstName || "";
+      const last = latestIntervention.clientLastName || "";
+      if (first || last) return `${capitalizeName(first)} ${capitalizeName(last)}`.trim();
+    }
+    
+    // Fallback to current profile
+    if (profile?.companyName) return profile.companyName;
+    const first = profile?.firstName || "";
+    const last = profile?.lastName || "";
+    if (first || last) return `${capitalizeName(first)} ${capitalizeName(last)}`.trim();
+    
+    return "Client en cours...";
+  };
 
   return (
     <div
       data-testid="requester-tracking-panel"
       className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white/60 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] border-l border-white/40 font-brand"
     >
+      {/* Search Bar */}
+      <div className="px-6 pt-6 pb-2">
+        <form onSubmit={handleSearch} className="relative flex items-center">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder={t('tracking.search_placeholder') || "Nom"}
+            className="w-full pl-10 pr-[76px] py-3 rounded-2xl bg-black/[0.03] border border-black/5 focus:bg-white focus:border-black/10 focus:ring-2 focus:ring-black/5 outline-none transition-all text-[15px] font-medium placeholder:text-slate-400"
+          />
+          <Search className="absolute left-4 h-[18px] w-[18px] text-slate-400 pointer-events-none" />
+          
+          <div className="absolute right-2 flex items-center gap-1">
+            {searchInput.trim().length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchInput("");
+                }}
+                className="p-1.5 text-slate-400 hover:text-black transition-colors rounded-full hover:bg-black/5"
+              >
+                <X className="h-[16px] w-[16px]" />
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={searchInput.trim().length === 0}
+              className="p-1.5 bg-black text-white rounded-xl hover:bg-black/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ArrowRight className="h-[16px] w-[16px]" />
+            </button>
+          </div>
+        </form>
+      </div>
+
       <div className="relative flex-1 overflow-y-auto px-2 py-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {interventionLoading && !latestIntervention && !isSubmitting && requestData.description.trim().length === 0 ? (
           <div className="flex h-full items-center justify-center">
@@ -142,18 +273,23 @@ export default function RequesterTrackingPanel() {
             />
           </div>
         ) : hasActiveUI ? (
-          <div className="flex flex-col justify-center max-w-[320px] mx-auto h-full">
-            <div className="relative flex flex-col gap-10">
-              {/* Ligne verticale subtile (fond) */}
-              <div className="absolute bottom-6 left-[23px] top-6 w-[2px] bg-black/[0.04] rounded-full" />
-              
-              {/* Ligne verticale active */}
-              <motion.div 
-                className="absolute left-[23px] top-6 w-[2px] bg-black rounded-full origin-top"
-                initial={{ height: 0 }}
-                animate={{ height: step4Done ? '100%' : step3Done ? '66%' : step2Done ? '33%' : step1Done ? '10%' : '0%' }}
-                transition={{ duration: 0.8, ease: "easeInOut" }}
-              />
+          <div className="flex flex-col max-w-[320px] mx-auto min-h-full py-8">
+            <div className="mb-6 pb-6 border-b border-black/5 text-center">
+              <span className="text-xs font-bold tracking-widest text-slate-400 uppercase mb-1.5 block">Dossier de</span>
+              <h2 className="text-[22px] font-extrabold text-black tracking-tight">
+                {getDisplayName()}
+              </h2>
+            </div>
+            <div className="relative flex flex-col gap-10 my-auto">
+              {/* Ligne verticale subtile (fond) avec la ligne active à l'intérieur pour de vrais pourcentages */}
+              <div className="absolute bottom-6 left-[23px] top-6 w-[2px] bg-black/[0.04] rounded-full overflow-hidden z-0">
+                <motion.div 
+                  className="absolute left-0 top-0 w-full bg-black origin-top"
+                  initial={{ height: 0 }}
+                  animate={{ height: step6Done ? '100%' : step5Done ? '83.33%' : step4Done ? '66.66%' : step3Done ? '50%' : step2Done ? '33.33%' : step1Done ? '16.66%' : '0%' }}
+                  transition={{ duration: 0.8, ease: "easeInOut" }}
+                />
+              </div>
               
               {steps.map((step, index) => {
                 const Icon = step.icon;
@@ -223,12 +359,16 @@ export default function RequesterTrackingPanel() {
                 className="absolute inset-0 rounded-full bg-black"
               />
               <div className="relative flex h-16 w-16 items-center justify-center rounded-[24px] bg-[#FAFAFA] text-slate-400 shadow-sm border border-black/5">
-                <Clock className="h-6 w-6" />
+                <Search className="h-6 w-6" />
               </div>
             </div>
-            <h3 className="mb-2 text-[19px] font-bold text-black tracking-tight">{t("tracking.no_active_request") || "Aucune demande active"}</h3>
+            <h3 className="mb-2 text-[19px] font-bold text-black tracking-tight">
+              {isSearching ? `Aucune demande trouvée pour "${searchQuery}"` : (t("tracking.no_active_request") || "Aucune demande active")}
+            </h3>
             <p className="text-[15px] font-medium text-slate-500 max-w-[260px] leading-relaxed">
-              {t("tracking.tracking_description") || "Le suivi en temps réel de votre intervention apparaîtra ici."}
+              {isSearching 
+                ? "Vérifiez l'orthographe de votre nom ou créez une nouvelle demande." 
+                : (t("tracking.tracking_description") || "Le suivi en temps réel de votre intervention apparaîtra ici.")}
             </p>
           </motion.div>
         )}

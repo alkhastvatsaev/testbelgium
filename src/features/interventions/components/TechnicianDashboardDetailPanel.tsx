@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Camera, Clock3, MapPin, User, Play, Navigation, Phone, CheckCircle2, Mic, Pause } from "lucide-react";
 import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { SlideAction } from "@/components/ui/slide-action";
+import { Badge } from "@/components/ui/badge";
 import { doc, updateDoc } from "firebase/firestore";
 import { firestore } from "@/core/config/firebase";
 import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
@@ -39,26 +42,41 @@ const AudioUrlPlayer = ({ url }: { url: string }) => {
     if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
+      setIsPlaying(false);
     } else {
-      audioRef.current.play();
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => setIsPlaying(true))
+          .catch((err) => {
+            console.error("Audio playback failed", err);
+            setIsPlaying(false);
+          });
+      } else {
+        setIsPlaying(true);
+      }
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       setProgress(audioRef.current.currentTime);
+      if (audioRef.current.duration && audioRef.current.duration !== Infinity) {
+        setDuration(audioRef.current.duration);
+      }
     }
   };
 
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
-      setDuration(audioRef.current.duration);
+      if (audioRef.current.duration && audioRef.current.duration !== Infinity) {
+        setDuration(audioRef.current.duration);
+      }
     }
   };
 
   const formatTime = (time: number) => {
-    if (!time || isNaN(time)) return "0:00";
+    if (!time || isNaN(time) || time === Infinity) return "0:00";
     const mins = Math.floor(time / 60);
     const secs = Math.floor(time % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
@@ -69,6 +87,7 @@ const AudioUrlPlayer = ({ url }: { url: string }) => {
       <audio 
         ref={audioRef} 
         src={url}
+        preload="metadata"
         onTimeUpdate={handleTimeUpdate} 
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={() => setIsPlaying(false)}
@@ -327,13 +346,12 @@ export default function TechnicianDashboardDetailPanel({
       </div>
 
 
-      <button
-        onClick={onStartFinishJob}
-        className="group flex min-h-[58px] shrink-0 w-full items-center justify-center gap-2 rounded-[22px] bg-emerald-600 px-4 text-[17px] font-bold text-white shadow-[0_14px_40px_-14px_rgba(5,150,105,0.55)] transition-all hover:bg-emerald-700 hover:shadow-[0_20px_40px_-10px_rgba(5,150,105,0.6)] active:scale-[0.98]"
-      >
-        <Camera className="h-6 w-6 shrink-0 transition-transform group-hover:scale-110" aria-hidden />
-        Terminer l'intervention
-      </button>
+      <SlideAction
+        onAction={onStartFinishJob}
+        label="Terminer l'intervention"
+        icon={Camera}
+        className="shrink-0"
+      />
     </motion.div>
   );
 

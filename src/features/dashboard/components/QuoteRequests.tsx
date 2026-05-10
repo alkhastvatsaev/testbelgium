@@ -193,13 +193,15 @@ export default function QuoteRequests() {
   return (
     <div
       id={QUOTE_REQUESTS_PANEL_ID}
-      className="fixed right-12 top-1/2 -translate-y-1/2 z-40 flex h-[70vh] min-h-0 w-[calc(50vw-35vh-100px+5mm)] flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/70 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),0_24px_56px_-22px_rgba(15,23,42,0.08)] backdrop-blur-[24px] backdrop-saturate-[180%] transition-all duration-500"
+      className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[inherit]"
     >
       {/* Zone scroll + marges : la coque `overflow-hidden` ne doit pas couper les ombres. */}
       <div className={`${GLASS_PANEL_BODY_SCROLL} flex flex-col gap-5`}>
         {requests.map((req, index) => {
-          const cardClass =
-            "shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)] hover:shadow-[0_14px_32px_-10px_rgba(15,23,42,0.18)]";
+          const isNew = req.status === "Nouveau";
+          const cardClass = isNew
+            ? "shadow-[0_8px_24px_-8px_rgba(59,130,246,0.4)] hover:shadow-[0_14px_32px_-10px_rgba(59,130,246,0.5)] ring-1 ring-blue-500/30"
+            : "shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)] hover:shadow-[0_14px_32px_-10px_rgba(15,23,42,0.18)]";
 
           return (
             <motion.div

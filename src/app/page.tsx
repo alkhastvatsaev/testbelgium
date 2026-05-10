@@ -10,8 +10,6 @@ import AutoProcessUploads from "@/features/dashboard/components/AutoProcessUploa
 import DesktopOnlyGate from "@/features/app/DesktopOnlyGate";
 import DashboardPager from "@/features/dashboard/components/DashboardPager";
 import DashboardSecondaryPlaceholder from "@/features/dashboard/components/DashboardSecondaryPlaceholder";
-import BackOfficeHubPage from "@/features/backoffice/components/BackOfficeHubPage";
-import { BACKOFFICE_HUB_PAGE_INDEX } from "@/features/backoffice/backofficeConstants";
 import TechnicianHubPage from "@/features/interventions/components/TechnicianHubPage";
 import { TECHNICIAN_HUB_SLOT_INDEX } from "@/features/interventions/technicianDashboardConstants";
 import { DashboardPagerProvider } from "@/features/dashboard/dashboardPagerContext";
@@ -27,8 +25,10 @@ import TechnicianConnectivityBar from "@/features/offline/components/TechnicianC
 import { TechnicianQueryProvider } from "@/features/offline/TechnicianQueryProvider";
 import TechnicianNotificationBootstrap from "@/features/notifications/components/TechnicianNotificationBootstrap";
 import DevPreviewAnonymousAuth from "@/features/dev/DevPreviewAnonymousAuth";
+import { RequesterHubProvider } from "@/features/interventions/context/RequesterHubContext";
+import { TechnicianBackofficeReportBridgeProvider } from "@/context/TechnicianBackofficeReportBridgeContext";
 
-/** Écran d’accueil — **4 pages** au total : carte · hub société · hub technicien · hub back-office. */
+/** Écran d’accueil — **3 pages** : carte · hub société · hub technicien (back-office via inbox sur la carte). */
 export default function Dashboard() {
   const dashboardPages = useMemo(
     () => [
@@ -39,7 +39,6 @@ export default function Dashboard() {
       </>,
       <DashboardSecondaryPlaceholder key="secondary" />,
       <TechnicianHubPage key="technician-hub" slotIndex={TECHNICIAN_HUB_SLOT_INDEX} />,
-      <BackOfficeHubPage key="backoffice-hub" slotIndex={BACKOFFICE_HUB_PAGE_INDEX} />,
     ],
     [],
   );
@@ -52,24 +51,28 @@ export default function Dashboard() {
           <CompanyWorkspaceProvider>
             <GalaxyLayerBridgeProvider>
               <DashboardPagerProvider pageCount={dashboardPages.length}>
-                <TechnicianQueryProvider>
-                  <OfflineSyncProvider>
-                    <TechnicianCaseIntentProvider>
-                      <TechnicianFinishJobProvider>
-                        <TechnicianConnectivityBar />
-                        <Suspense fallback={null}>
-                          <TechnicianNotificationBootstrap />
-                        </Suspense>
-                        <ClientPortalAuthEffects />
-                        <SpotlightSearch />
-                        <ClockCalendar />
-                        <UserProfile />
-                        <DashboardGalaxyLayer />
-                        <DashboardPager pages={dashboardPages} />
-                      </TechnicianFinishJobProvider>
-                    </TechnicianCaseIntentProvider>
-                  </OfflineSyncProvider>
-                </TechnicianQueryProvider>
+                <RequesterHubProvider>
+                  <TechnicianQueryProvider>
+                    <OfflineSyncProvider>
+                      <TechnicianCaseIntentProvider>
+                        <TechnicianBackofficeReportBridgeProvider>
+                          <TechnicianFinishJobProvider>
+                            <TechnicianConnectivityBar />
+                            <Suspense fallback={null}>
+                              <TechnicianNotificationBootstrap />
+                            </Suspense>
+                            <ClientPortalAuthEffects />
+                            <SpotlightSearch />
+                            <ClockCalendar />
+                            <UserProfile />
+                            <DashboardGalaxyLayer />
+                            <DashboardPager pages={dashboardPages} />
+                          </TechnicianFinishJobProvider>
+                        </TechnicianBackofficeReportBridgeProvider>
+                      </TechnicianCaseIntentProvider>
+                    </OfflineSyncProvider>
+                  </TechnicianQueryProvider>
+                </RequesterHubProvider>
               </DashboardPagerProvider>
             </GalaxyLayerBridgeProvider>
           </CompanyWorkspaceProvider>

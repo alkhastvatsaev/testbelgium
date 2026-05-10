@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Play, Square } from "lucide-react";
 import { AI_STRIP_EDGE_INSET_PX } from "@/features/dispatch/aiStripAnchor";
 import { useAiStripInsetRect } from "@/features/dispatch/useAiStripInsetRect";
+import { useDashboardPagerOptional } from "@/features/dashboard/dashboardPagerContext";
 
 const LS_UPLOAD_LAST_SEEN = "ai_upload_last_seen_mtime";
 
@@ -195,6 +196,7 @@ export default function AiAssistant({
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [queue, setQueue] = useState<QueuedClip[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
+  const pager = useDashboardPagerOptional();
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -790,12 +792,20 @@ export default function AiAssistant({
           transform: "translateX(-50%)",
         };
 
+  const isHidden = pager?.pageIndex === 1 || pager?.pageIndex === 2;
+
   return (
-    <div
-      data-testid="ai-assistant-strip"
-      className="fixed bottom-10 z-[100] box-border flex min-w-0 flex-col items-stretch"
-      style={stripPositionStyle}
-    >
+    <AnimatePresence>
+      {!isHidden && (
+        <motion.div
+          data-testid="ai-assistant-strip"
+          className="fixed bottom-10 z-[100] box-border flex min-w-0 flex-col items-stretch"
+          style={stripPositionStyle}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20, pointerEvents: "none" }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        >
       <div
         className={`relative h-14 w-full min-w-0 max-w-full shrink-0 transition-all duration-500 ease-out hover:scale-[1.02] ${showBadge ? "scale-[1.02]" : ""}`}
         onContextMenu={(e) => {
@@ -867,6 +877,8 @@ export default function AiAssistant({
           </AnimatePresence>
         </GalaxyButton>
       </div>
-    </div>
+      </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

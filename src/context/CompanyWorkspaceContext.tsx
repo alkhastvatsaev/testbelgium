@@ -37,10 +37,16 @@ export type CompanyWorkspaceApi = {
 
 const CompanyWorkspaceContext = createContext<CompanyWorkspaceApi | null>(null);
 
-export function CompanyWorkspaceProvider({ children }: { children: ReactNode }) {
+export function CompanyWorkspaceProvider({ 
+  children,
+  initialActiveCompanyId 
+}: { 
+  children: ReactNode;
+  initialActiveCompanyId?: string;
+}) {
   const [firebaseUid, setFirebaseUid] = useState<string | null>(null);
   const [memberships, setMemberships] = useState<CompanyMembershipRow[]>([]);
-  const [activeCompanyId, setActiveCompanyIdState] = useState("");
+  const [activeCompanyId, setActiveCompanyIdState] = useState(initialActiveCompanyId ?? "");
 
   const persistActiveId = useCallback((id: string) => {
     if (typeof window !== "undefined") {

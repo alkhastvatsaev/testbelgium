@@ -1,4 +1,10 @@
 import '@testing-library/jest-dom';
+import { mockState } from './src/test-utils/mockState';
+
+afterEach(() => {
+  mockState.reset();
+  jest.clearAllMocks();
+});
 
 class ResizeObserverMock {
   observe(): void {}
@@ -91,12 +97,19 @@ jest.mock('framer-motion', () => {
 
 // Mock react-firebase-hooks
 jest.mock('react-firebase-hooks/auth', () => ({
-  useAuthState: jest.fn(() => [{ uid: 'mock-user-123', email: 'test@example.com' }, false, null]),
+  useAuthState: jest.fn(() => [mockState.currentUser, false, null]),
 }), { virtual: true });
 
 jest.mock('react-firebase-hooks/firestore', () => ({
-  useCollectionData: jest.fn(() => [[], false, null]),
-  useDocumentData: jest.fn(() => [null, false, null]),
+  useCollectionData: jest.fn((query: any) => {
+    // Basic path extraction from mock query
+    const path = query?._path || 'default';
+    return [mockState.firestoreData[path] || [], false, null];
+  }),
+  useDocumentData: jest.fn((ref: any) => {
+    const path = ref?._path || 'default';
+    return [mockState.firestoreDocs[path] || null, false, null];
+  }),
 }), { virtual: true });
 
 // Mock Firebase standard SDK
@@ -148,7 +161,7 @@ jest.mock('firebase/auth', () => {
   }
 
   return {
-    getAuth: jest.fn(() => ({ currentUser: mockUser })),
+    getAuth: jest.fn(() => ({ currentUser: mockState.currentUser })),
     GoogleAuthProvider: MockGoogleAuthProvider,
     OAuthProvider: MockOAuthProvider,
     getRedirectResult: jest.fn(() => Promise.resolve(null)),
@@ -172,7 +185,7 @@ jest.mock('firebase/auth', () => {
     RecaptchaVerifier: jest.fn(),
     signInWithPhoneNumber: jest.fn(),
     onAuthStateChanged: jest.fn((_auth: unknown, cb: (u: unknown | null) => void) => {
-      cb(mockUser);
+      cb(mockState.currentUser);
       return jest.fn();
     }),
   };
@@ -191,33 +204,74 @@ jest.mock('firebase/firestore', () => ({
   getFirestore: jest.fn(() => ({})),
   initializeFirestore: jest.fn(() => ({})),
   enableMultiTabIndexedDbPersistence: jest.fn(() => Promise.resolve()),
-  collection: jest.fn(),
-  doc: jest.fn(),
-  getDoc: jest.fn(() => Promise.resolve({ exists: () => false, data: () => undefined })),
+  collection: jest.fn((_db, ...pathSegments) => {
+    const path = pathSegments.join('/');
+    return { _path: path, id: pathSegments[pathSegments.length - 1] };
+  }),
+  doc: jest.fn((_db, ...pathSegments) => {
+    const path = pathSegments.join('/');
+    return { _path: path, id: pathSegments[pathSegments.length - 1] };
+  }),
+  getDoc: jest.fn((ref) => {
+    const path = ref?._path || 'default';
+    const data = mockState.firestoreDocs[path];
+    return Promise.resolve({
+      exists: () => !!data,
+      data: () => data,
+      id: ref.id,
+    });
+  }),
   getDocFromCache: jest.fn(() => Promise.reject(new Error('no cache'))),
-  getDocs: jest.fn(),
+  getDocs: jest.fn((query) => {
+    const path = query?._path || 'default';
+    const docs = (mockState.firestoreData[path] || []).map(d => ({
+      data: () => d,
+      id: d.id || 'mock-id'
+    }));
+    return Promise.resolve({
+      docs,
+      empty: docs.length === 0,
+      forEach: (cb: any) => docs.forEach(cb),
+    });
+  }),
   setDoc: jest.fn(() => Promise.resolve()),
-  updateDoc: jest.fn(),
+  updateDoc: jest.fn(() => Promise.resolve()),
   addDoc: jest.fn(() => Promise.resolve({ id: 'mock-doc' })),
   deleteDoc: jest.fn(() => Promise.resolve()),
-  query: jest.fn(),
+  query: jest.fn((ref) => ref),
   where: jest.fn(),
   orderBy: jest.fn(),
   limit: jest.fn(),
   serverTimestamp: jest.fn(() => ({ _methodName: 'serverTimestamp' })),
   Timestamp: {
-    now: jest.fn(() => ({ toMillis: () => Date.now() })),
+    now: jest.fn(() => ({ toMillis: () => Date.now(), toDate: () => new Date() })),
+    fromMillis: jest.fn((ms) => ({ toMillis: () => ms, toDate: () => new Date(ms) })),
   },
-  onSnapshot: jest.fn((_refOrQuery, callback) => {
+  onSnapshot: jest.fn((refOrQuery, callback) => {
+    const path = refOrQuery?._path || 'default';
+    const data = mockState.firestoreDocs[path];
+    const docs = mockState.firestoreData[path] || [];
+    
     if (typeof callback === 'function') {
       callback({
-        exists: () => false,
-        data: () => undefined,
-        docs: [],
+        exists: () => !!data,
+        data: () => data,
+        docs: docs.map(d => ({ data: () => d, id: d.id || 'mock-id' })),
+        forEach: (cb: any) => docs.forEach(d => cb({ data: () => d, id: d.id || 'mock-id' })),
       });
     }
     return jest.fn();
   }),
+}));
+
+// Mock the core firebase config to return the mocked instances
+jest.mock('@/core/config/firebase', () => ({
+  app: {},
+  db: {},
+  firestore: {},
+  auth: { currentUser: null },
+  storage: {},
+  isConfigured: true,
 }));
 
 // JSDOM has no Web Speech API; dictation hook checks `window.SpeechRecognition`.

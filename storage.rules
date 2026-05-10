@@ -13,10 +13,19 @@ service firebase.storage {
     }
 
     /** Audio (message vocal du client) - utilisateurs authentifiés uniquement. */
-    match /interventions/{interventionId}/audio.webm {
+    match /interventions/{interventionId}/{audioFile} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
-        && request.resource.size < 15 * 1024 * 1024;
+        && request.resource.size < 15 * 1024 * 1024
+        && audioFile.matches('audio\\.(webm|mp4)');
+    }
+
+    match /interventions_audio/{uid}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size < 15 * 1024 * 1024
+        && fileName.matches('.*\\.(webm|mp4)');
     }
 
     /** Factures PDF (écriture Admin SDK / Functions uniquement). */

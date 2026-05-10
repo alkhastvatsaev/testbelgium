@@ -4,10 +4,10 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useDashboardPagerOptional } from '@/features/dashboard/dashboardPagerContext';
 
 export const appProfiles = [
-  { name: "ASLANBECK", role: "BACK OFFICE" },
+  { name: "IVANA", role: "BACK OFFICE" },
   { name: "SOCIÉTÉ BX", role: "CLIENT" },
   { name: "MANSOUR", role: "TECHNICIEN" },
-  { name: "IVANA", role: "BACK OFFICE" },
+  { name: "ASLANBECK", role: "BACK OFFICE" },
   { name: "TIMOUR", role: "ADMIN" },
 ];
 
@@ -29,12 +29,20 @@ export default function UserProfile() {
 
   const handleNext = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentIndex((prev) => (prev + 1) % profiles.length);
+    const newIndex = (currentIndex + 1) % profiles.length;
+    setCurrentIndex(newIndex);
+    if (pager && newIndex < pager.pageCount) {
+      pager.setPageIndex(newIndex);
+    }
   };
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentIndex((prev) => (prev - 1 + profiles.length) % profiles.length);
+    const newIndex = (currentIndex - 1 + profiles.length) % profiles.length;
+    setCurrentIndex(newIndex);
+    if (pager && newIndex < pager.pageCount) {
+      pager.setPageIndex(newIndex);
+    }
   };
 
   return (

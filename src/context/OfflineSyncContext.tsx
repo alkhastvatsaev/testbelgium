@@ -53,9 +53,11 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
       if (report.failed > 0) {
         toast.warning("Synchronisation partielle", {
           description:
-            report.failed === 1
-              ? "Une entrée n’a pas pu être envoyée. Réessayez dans un instant."
-              : `${report.failed} entrées n’ont pas pu être envoyées. Réessayez bientôt.`,
+            (report.failed === 1
+              ? "Une entrée n’a pas pu être envoyée. "
+              : `${report.failed} entrées n’ont pas pu être envoyées. `) +
+            (report.lastError ? `Détail : ${report.lastError}. ` : "") +
+            "Elles restent en file et seront renvoyées automatiquement (ou reconnectez le réseau).",
         });
       }
       if (report.uploaded > 0) {

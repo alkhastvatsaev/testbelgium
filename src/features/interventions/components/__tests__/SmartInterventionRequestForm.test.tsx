@@ -1,17 +1,11 @@
-/** @jest-environment jsdom */
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@/test-utils/render";
 import { addDoc } from "firebase/firestore";
 import SmartInterventionRequestForm from "../SmartInterventionRequestForm";
 import { SMART_INTERVENTION_DRAFT_STORAGE_KEY } from "../../smartInterventionConstants";
+import { mockState } from "@/test-utils/mockState";
 
 jest.mock("@/features/interventions/recordDuplicateAlertIfNeeded", () => ({
   recordDuplicateAlertIfNeeded: jest.fn(() => Promise.resolve()),
-}));
-
-jest.mock("@/core/config/firebase", () => ({
-  auth: { currentUser: { uid: "tester-1" } },
-  firestore: {},
-  isConfigured: true,
 }));
 
 jest.mock("sonner", () => ({
@@ -20,6 +14,7 @@ jest.mock("sonner", () => ({
 
 describe("SmartInterventionRequestForm", () => {
   beforeEach(() => {
+    mockState.currentUser = { uid: "tester-1" };
     localStorage.clear();
     (global.fetch as jest.Mock) = jest.fn().mockResolvedValue({
       ok: true,

@@ -480,7 +480,7 @@ export default function RequesterInterventionPanel() {
                           "group relative flex w-full aspect-square flex-col items-center justify-center p-1 text-center outline-none rounded-[22px] transition-all duration-200",
                           selected
                             ? "bg-white border border-blue-200 text-slate-800 shadow-[0_4px_20px_-4px_rgba(59,130,246,0.45)]"
-                            : "bg-white border border-black/5 hover:border-black/10 text-slate-800 shadow-sm",
+                            : "bg-white border border-black/5 hover:border-blue-200 hover:shadow-[0_4px_20px_-4px_rgba(59,130,246,0.45)] text-slate-800 shadow-sm",
                         )}
                       >
                         <div className="flex flex-col items-center justify-center gap-1">

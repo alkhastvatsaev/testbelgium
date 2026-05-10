@@ -117,7 +117,7 @@ export function SmartTimeSlotPicker({
     const today = startOfToday();
     const tomorrow = addDays(today, 1);
     
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < 7; i++) {
       const day = addDays(today, i);
       const dateStr = format(day, "yyyy-MM-dd");
       const isToday = isSameDay(day, now);
@@ -196,7 +196,7 @@ export function SmartTimeSlotPicker({
         <div className="flex flex-col gap-2">
           {!loading && nextAvailableSlots.length === 0 ? (
             <div className="text-amber-600 font-medium bg-amber-50 p-4 rounded-xl border border-amber-100 text-sm text-center">
-              Aucune disponibilité trouvée pour aujourd'hui.
+              Aucune disponibilité trouvée pour les prochains jours.
             </div>
           ) : (
             <>

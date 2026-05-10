@@ -36,6 +36,8 @@ export async function getCompletionQueueLength(): Promise<number> {
   }
 }
 
+const IDB_PUT_TIMEOUT_MS = 15_000;
+
 export async function enqueueCompletionRecord(payload: Omit<CompletionQueueRecord, "localId" | "queuedAtMs">): Promise<void> {
   const localId =
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -48,7 +50,12 @@ export async function enqueueCompletionRecord(payload: Omit<CompletionQueueRecor
     queuedAtMs: Date.now(),
   };
 
-  await completionQueuePut(record);
+  await Promise.race([
+    completionQueuePut(record),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("IndexedDB indisponible (navigateur privé, quota, ou blocage)")), IDB_PUT_TIMEOUT_MS),
+    ),
+  ]);
   notifyCompletionQueueChanged();
 }
 
@@ -87,11 +94,25 @@ export async function finalizeCompletionOfflineAware(params: {
     return enqueueCompletionPayload(params);
   }
 
+  /**
+   * File d’attente : photos (parallèle) + signature + Firestore peuvent dépasser 2–3 min sur réseau réel.
+   * `performCompletionUpload` borne aussi chaque étape ; ce plafond est une sécurité ultime.
+   */
+  const ONLINE_COMPLETION_TIMEOUT_MS = 360_000;
+
   try {
-    await performCompletionUpload(params);
+    const uploadPromise = performCompletionUpload(params);
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(
+        () => reject(new Error("Délai d'attente dépassé (réseau lent)")),
+        ONLINE_COMPLETION_TIMEOUT_MS,
+      );
+    });
+
+    await Promise.race([uploadPromise, timeoutPromise]);
     return { outcome: "sent" };
   } catch (e) {
-    if (isLikelyNetworkFailure(e)) {
+    if (isLikelyNetworkFailure(e) || (e instanceof Error && e.message.includes("Délai d'attente"))) {
       return enqueueCompletionPayload(params);
     }
     return { outcome: "error", message: e instanceof Error ? e.message : String(e) };
@@ -102,6 +123,7 @@ export type FlushCompletionReport = {
   uploaded: number;
   skippedConflict: number;
   failed: number;
+  lastError?: string;
 };
 
 /** Vide la file (réseau requis pour Storage + lecture conflit Firestore). */
@@ -114,33 +136,54 @@ export async function flushCompletionQueue(
     return report;
   }
 
+  const db = firestore;
+
+  /** Même logique que l’envoi direct : plusieurs fichiers Storage + Firestore. */
+  const FLUSH_ITEM_TIMEOUT_MS = 180_000;
+
   const rows = await completionQueueGetAll().catch(() => [] as CompletionQueueRecord[]);
   const sorted = [...rows].sort((a, b) => a.queuedAtMs - b.queuedAtMs);
 
   for (const rec of sorted) {
     try {
-      const snap = await getDoc(doc(firestore, "interventions", rec.interventionId));
-      const d = snap.exists() ? snap.data() : null;
-      const remoteStatus = d?.status as string | undefined;
-      const remoteCompletedAt = (d?.completedAt ?? undefined) as Timestamp | undefined;
+      const timeoutPromise = new Promise<"timeout">((resolve) =>
+        setTimeout(() => resolve("timeout"), FLUSH_ITEM_TIMEOUT_MS),
+      );
 
-      if (remoteCompletionIsNewerThanQueued(remoteStatus, remoteCompletedAt, rec.queuedAtMs)) {
+      const processItem = async (): Promise<"skipped" | "uploaded"> => {
+        const snap = await getDoc(doc(db, "interventions", rec.interventionId));
+        const d = snap.exists() ? snap.data() : null;
+        const remoteStatus = d?.status as string | undefined;
+        const remoteCompletedAt = (d?.completedAt ?? undefined) as Timestamp | undefined;
+
+        if (remoteCompletionIsNewerThanQueued(remoteStatus, remoteCompletedAt, rec.queuedAtMs)) {
+          await completionQueueDelete(rec.localId);
+          onConflictSkip?.(rec.interventionId);
+          return "skipped";
+        }
+
+        await performCompletionUpload({
+          interventionId: rec.interventionId,
+          photoDataUrls: rec.photoDataUrls,
+          signaturePngDataUrl: rec.signaturePngDataUrl,
+        });
+
         await completionQueueDelete(rec.localId);
+        return "uploaded";
+      };
+
+      const result = await Promise.race([processItem(), timeoutPromise]);
+      if (result === "timeout") {
+        throw new Error("Délai d'attente dépassé");
+      } else if (result === "skipped") {
         report.skippedConflict += 1;
-        onConflictSkip?.(rec.interventionId);
-        continue;
+      } else {
+        report.uploaded += 1;
       }
-
-      await performCompletionUpload({
-        interventionId: rec.interventionId,
-        photoDataUrls: rec.photoDataUrls,
-        signaturePngDataUrl: rec.signaturePngDataUrl,
-      });
-
-      await completionQueueDelete(rec.localId);
-      report.uploaded += 1;
-    } catch {
+    } catch (err: any) {
+      console.error(`Failed to upload intervention ${rec.interventionId}:`, err);
       report.failed += 1;
+      report.lastError = err instanceof Error ? err.message : String(err);
     }
   }
 

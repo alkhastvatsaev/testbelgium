@@ -13,8 +13,8 @@ jest.mock("@/core/config/firebase", () => ({
 
 jest.mock("@/features/dashboard/dashboardPagerContext", () => ({
   useDashboardPagerOptional: () => ({
-    pageIndex: 3,
-    pageCount: 4,
+    pageIndex: 2,
+    pageCount: 3,
     setPageIndex: jest.fn(),
     goNext: jest.fn(),
     goPrev: jest.fn(),

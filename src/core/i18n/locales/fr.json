@@ -1,11 +1,22 @@
 {
   "tracking": {
+    "step0": "Formulaire",
     "step1": "Demande reçue",
     "step2": "Recherche d'un technicien",
     "step3": "Technicien assigné",
-    "step4": "En route / Sur place",
+    "step4": "En route",
+    "step5": "Sur place",
+    "step6": "Intervention terminée",
     "in_progress": "En cours...",
     "no_active_request": "Aucune demande active",
-    "tracking_description": "Le suivi en temps réel de votre intervention apparaîtra ici."
+    "tracking_description": "Le suivi en temps réel de votre intervention apparaîtra ici.",
+    "search_placeholder": "Nom"
+  },
+  "spotlight": {
+    "search_placeholder": "Nom",
+    "map_action_title": "Carte",
+    "map_action_desc": "Ouvrir la carte des interventions",
+    "tech_action_title": "Techniciens",
+    "tech_action_desc": "Voir les techniciens disponibles"
   }
 }

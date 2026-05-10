@@ -1,11 +1,22 @@
 {
   "tracking": {
+    "step0": "Form",
     "step1": "Request received",
     "step2": "Searching for a technician",
     "step3": "Technician assigned",
-    "step4": "On the way / On site",
+    "step4": "On the way",
+    "step5": "On site",
+    "step6": "Intervention completed",
     "in_progress": "In progress...",
     "no_active_request": "No active request",
-    "tracking_description": "Real-time tracking of your intervention will appear here."
+    "tracking_description": "Real-time tracking of your intervention will appear here.",
+    "search_placeholder": "Name"
+  },
+  "spotlight": {
+    "search_placeholder": "Name",
+    "map_action_title": "Map",
+    "map_action_desc": "Open interventions map",
+    "tech_action_title": "Technicians",
+    "tech_action_desc": "View available technicians"
   }
 }

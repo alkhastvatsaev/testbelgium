@@ -13,6 +13,7 @@ export interface Intervention {
   /** Demande société (wizard) — contact séparé. */
   clientFirstName?: string | null;
   clientLastName?: string | null;
+  clientCompanyName?: string | null;
   clientPhone?: string | null;
   urgency?: boolean;
   category?: 'serrurerie' | 'autre';

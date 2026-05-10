@@ -8,7 +8,7 @@ const mockSetPageIndex = jest.fn();
 jest.mock("@/features/dashboard/dashboardPagerContext", () => ({
   useDashboardPagerOptional: () => ({
     pageIndex: 1,
-    pageCount: 4,
+    pageCount: 3,
     setPageIndex: mockSetPageIndex,
     goNext: jest.fn(),
     goPrev: jest.fn(),

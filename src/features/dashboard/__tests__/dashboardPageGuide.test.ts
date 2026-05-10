@@ -1,8 +1,8 @@
 import { DASHBOARD_PAGE_GUIDE, getDashboardPageGuide } from "@/features/dashboard/dashboardPageGuide";
 
 describe("dashboardPageGuide", () => {
-  it("couvre les 4 pages du carrousel actuel", () => {
-    expect(DASHBOARD_PAGE_GUIDE).toHaveLength(4);
+  it("couvre les 3 pages du carrousel actuel", () => {
+    expect(DASHBOARD_PAGE_GUIDE).toHaveLength(3);
   });
 
   it("retourne Carte pour l’index 0", () => {

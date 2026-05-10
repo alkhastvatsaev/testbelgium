@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { motion, AnimatePresence } from 'framer-motion';
 import DailyMissions from '@/features/dashboard/components/DailyMissions';
-import QuoteRequests from '@/features/dashboard/components/QuoteRequests';
+import BackOfficeInboxPanel from '@/features/backoffice/components/BackOfficeInboxPanel';
+import RequesterTrackingPanel from '@/features/interventions/components/RequesterTrackingPanel';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useDateContext } from '@/context/DateContext';
 import { generateDailyMissions, type Mission } from '@/utils/mockMissions';
@@ -429,7 +430,11 @@ export default function MapboxView() {
       </AnimatePresence>
 
       <DailyMissions missions={allMissions} onMissionClick={handleMissionClick} />
-      <QuoteRequests />
+
+      {/* Panel à droite (Page 1: Ivana / Page 2: Suivi Client) */}
+      <div className="fixed right-12 top-1/2 -translate-y-1/2 z-40 flex h-[70vh] min-h-0 w-[calc(50vw-35vh-100px+5mm)] flex-col overflow-hidden rounded-[24px] border border-blue-400/20 bg-white/70 shadow-[0_0_60px_-15px_rgba(59,130,246,0.3),0_24px_56px_-22px_rgba(15,23,42,0.08)] backdrop-blur-[24px] backdrop-saturate-[180%] transition-all duration-500">
+        {dashboardPageIndex === 0 ? <BackOfficeInboxPanel /> : <RequesterTrackingPanel />}
+      </div>
     </div>
   );
 }

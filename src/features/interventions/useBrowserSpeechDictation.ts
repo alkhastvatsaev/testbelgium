@@ -113,7 +113,18 @@ export function useBrowserSpeechDictation(appendTranscript: (text: string) => vo
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      
+      let mimeType = "";
+      if (typeof MediaRecorder !== "undefined") {
+        if (MediaRecorder.isTypeSupported("audio/webm")) {
+          mimeType = "audio/webm";
+        } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
+          mimeType = "audio/mp4";
+        }
+      }
+
+      const options = mimeType ? { mimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -122,7 +133,7 @@ export function useBrowserSpeechDictation(appendTranscript: (text: string) => vo
       };
 
       mediaRecorder.onstop = () => {
-        const type = mediaRecorder.mimeType || "audio/webm";
+        const type = mediaRecorder.mimeType || mimeType || "audio/webm";
         const blob = new Blob(chunksRef.current, { type });
         onAudioRecordedRef.current?.(blob);
         stream.getTracks().forEach(track => track.stop());

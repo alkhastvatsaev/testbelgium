@@ -1,11 +1,22 @@
 {
   "tracking": {
+    "step0": "Formulier",
     "step1": "Aanvraag ontvangen",
     "step2": "Zoeken naar een technicus",
     "step3": "Technicus toegewezen",
-    "step4": "Onderweg / Ter plaatse",
+    "step4": "Onderweg",
+    "step5": "Ter plaatse",
+    "step6": "Interventie voltooid",
     "in_progress": "In uitvoering...",
     "no_active_request": "Geen actieve aanvraag",
-    "tracking_description": "Real-time tracking van uw interventie verschijnt hier."
+    "tracking_description": "Real-time tracking van uw interventie verschijnt hier.",
+    "search_placeholder": "Naam"
+  },
+  "spotlight": {
+    "search_placeholder": "Naam",
+    "map_action_title": "Kaart",
+    "map_action_desc": "Open interventie kaart",
+    "tech_action_title": "Technici",
+    "tech_action_desc": "Bekijk beschikbare technici"
   }
 }

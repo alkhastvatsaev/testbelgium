@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, Camera, CheckCircle2, ClipboardList, FileSignature, Loader2, SendHorizontal, Trash2 } from "lucide-react";
+import { ArrowRight, Camera, CheckCircle2, ClipboardList, FileSignature, SendHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
 import { auth, isConfigured } from "@/core/config/firebase";
@@ -24,6 +24,7 @@ import TechnicianSignaturePad, {
   type TechnicianSignaturePadHandle,
 } from "@/features/interventions/components/TechnicianSignaturePad";
 import { useInterventionLive } from "@/features/interventions/useInterventionLive";
+import { useTechnicianBackofficeReportBridgeOptional } from "@/context/TechnicianBackofficeReportBridgeContext";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
@@ -34,6 +35,7 @@ export default function TechnicianFinishJobPanel() {
   const workspace = useCompanyWorkspaceOptional();
   const { finishJobInterventionId, setFinishJobInterventionId } = useTechnicianFinishJob();
   const offlineSync = useOfflineSyncOptional();
+  const backofficeBridge = useTechnicianBackofficeReportBridgeOptional();
 
   const [step, setStep] = useState<WizardStep>("photos");
   const [photos, setPhotos] = useState<string[]>([]);
@@ -42,6 +44,8 @@ export default function TechnicianFinishJobPanel() {
   const sigRef = useRef<TechnicianSignaturePadHandle>(null);
 
   const [invoiceChecklistOptimistic, setInvoiceChecklistOptimistic] = useState(false);
+
+  const submitInFlightRef = useRef(false);
 
   const interventionId = finishJobInterventionId;
 
@@ -117,6 +121,7 @@ export default function TechnicianFinishJobPanel() {
   };
 
   const submitAll = async () => {
+    if (submitInFlightRef.current) return;
     if (!interventionId || !auth?.currentUser) {
       toast.error("Connexion requise");
       return;
@@ -126,39 +131,61 @@ export default function TechnicianFinishJobPanel() {
       toast.error("Signature manquante");
       return;
     }
-    setStep("submitting");
-    try {
-      const result = await finalizeCompletionOfflineAware({
-        interventionId,
-        photoDataUrls: photos,
-        signaturePngDataUrl: sig,
-      });
 
-      if (result.outcome === "error") {
-        setStep("signature");
-        toast.error("Envoi impossible", { description: result.message });
-        return;
-      }
+    submitInFlightRef.current = true;
+
+    try {
+      const photoDataUrls = [...photos];
+      const signaturePngDataUrl = sig;
+
+      backofficeBridge?.pushReport({
+        interventionId,
+        photoDataUrls,
+        signaturePngDataUrl,
+      });
 
       stopCamera();
       setStep("success");
       setInvoiceChecklistOptimistic(true);
 
-      if (result.outcome === "queued") {
-        toast.success("Enregistré hors ligne", {
-          description: "Synchronisation automatique au retour du réseau.",
-        });
-      } else {
-        toast.success("Intervention terminée");
-      }
+      toast.success("Rapport transmis au back-office", {
+        description: "Photos et signature visibles sur la page carte (panneau droit). Sauvegarde cloud en arrière-plan.",
+      });
 
-      void offlineSync?.refreshPendingCount();
+      void finalizeCompletionOfflineAware({
+        interventionId,
+        photoDataUrls,
+        signaturePngDataUrl,
+      })
+        .then((result) => {
+          if (result.outcome === "error") {
+            toast.error("Sauvegarde serveur", { description: result.message });
+            return;
+          }
+          if (result.outcome === "queued") {
+            toast.message("File hors ligne", {
+              description: "Synchronisation automatique dès que le réseau est stable.",
+            });
+            void offlineSync?.flushNow?.();
+          }
+        })
+        .catch((e) => {
+          console.error(e);
+          toast.error("Sauvegarde serveur", {
+            description: e instanceof Error ? e.message : String(e),
+          });
+        })
+        .finally(() => {
+          void offlineSync?.refreshPendingCount();
+        });
     } catch (e) {
       console.error(e);
       setStep("signature");
       toast.error("Envoi impossible", {
         description: e instanceof Error ? e.message : String(e),
       });
+    } finally {
+      submitInFlightRef.current = false;
     }
   };
 
@@ -229,33 +256,35 @@ export default function TechnicianFinishJobPanel() {
   }
 
   return (
-    <div data-testid="finish-job-panel" style={outfit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className={`${GLASS_PANEL_BODY_SCROLL_COMPACT} flex flex-col gap-4`}>
-        <div className="rounded-[16px] bg-slate-900 px-3 py-2 text-center">
-          <p className="sr-only">Identifiant dossier</p>
-          <p className="truncate font-mono text-[13px] font-bold text-white">{interventionId}</p>
+    <div data-testid="finish-job-panel" style={outfit} className="flex min-h-[400px] flex-1 flex-col overflow-hidden bg-white/60 backdrop-blur-3xl">
+      <div className={`${GLASS_PANEL_BODY_SCROLL_COMPACT} flex flex-col gap-5 p-6`}>
+        <div className="flex items-center justify-end pb-2">
+          <button
+            type="button"
+            onClick={goDashboard}
+            aria-label="Annuler et fermer"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-black/5 text-slate-500 transition-colors hover:bg-black/10 hover:text-slate-800"
+          >
+            <span className="sr-only">Fermer</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
         </div>
 
         {step === "photos" ? (
           <>
-            <div className="flex items-center gap-2">
-              <Camera className="h-5 w-5 text-slate-700" aria-hidden />
-              <h2 className="sr-only">Photos chantier</h2>
-            </div>
-            <p className="sr-only">
-              Entre {FINISH_JOB_MIN_PHOTOS} et {FINISH_JOB_MAX_PHOTOS} photos ; cadrez puis capturez.
-            </p>
 
-            <div className="relative overflow-hidden rounded-[20px] bg-black shadow-inner">
+
+            <div className="relative mt-2 overflow-hidden rounded-[24px] bg-slate-900 shadow-xl ring-1 ring-black/5">
               {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
               <video
                 ref={videoRef}
-                className="aspect-[4/3] w-full object-cover"
+                className="aspect-[4/3] w-full object-cover opacity-90 transition-opacity duration-300"
                 muted
                 playsInline
                 autoPlay
                 aria-label="Caméra travaux terminés"
               />
+              <div className="absolute inset-0 pointer-events-none rounded-[24px] ring-1 ring-inset ring-white/10" />
             </div>
 
             <button
@@ -264,14 +293,15 @@ export default function TechnicianFinishJobPanel() {
               disabled={photos.length >= FINISH_JOB_MAX_PHOTOS}
               onClick={captureShot}
               aria-label="Capturer une photo"
-              className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[18px] bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700 disabled:opacity-40"
+              className="mt-4 flex min-h-[64px] w-full items-center justify-center gap-2 rounded-[24px] bg-slate-900 text-white shadow-[0_8px_20px_-8px_rgba(15,23,42,0.5)] transition-all hover:bg-slate-800 hover:shadow-[0_12px_24px_-8px_rgba(15,23,42,0.6)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:scale-100"
             >
-              <Camera className="h-6 w-6" aria-hidden />
+              <Camera className="h-7 w-7" aria-hidden />
+              <span className="font-semibold tracking-wide">Capturer</span>
             </button>
 
-            <div data-testid="finish-job-photo-strip" className="flex flex-wrap gap-2">
+            <div data-testid="finish-job-photo-strip" className="flex flex-wrap gap-3 mt-2">
               {photos.map((src, i) => (
-                <div key={`${i}-${src.slice(0, 24)}`} className="relative h-20 w-20 overflow-hidden rounded-xl border border-black/[0.08] bg-slate-100">
+                <div key={`${i}-${src.slice(0, 24)}`} className="relative h-20 w-20 overflow-hidden rounded-[16px] border border-black/5 bg-slate-100 shadow-sm transition-transform hover:scale-105">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={src} alt="" className="h-full w-full object-cover" />
                   <button
@@ -279,9 +309,9 @@ export default function TechnicianFinishJobPanel() {
                     data-testid={`finish-job-photo-remove-${i}`}
                     aria-label="Supprimer la photo"
                     onClick={() => removePhoto(i)}
-                    className="absolute right-1 top-1 rounded-full bg-black/65 p-1 text-white"
+                    className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md transition-colors hover:bg-red-500/90"
                   >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                    <Trash2 className="h-3 w-3" aria-hidden />
                   </button>
                 </div>
               ))}
@@ -296,29 +326,35 @@ export default function TechnicianFinishJobPanel() {
                 setStep("signature");
               }}
               aria-label="Continuer vers la signature"
-              className="flex min-h-[54px] w-full items-center justify-center rounded-[18px] bg-slate-900 px-4 text-white shadow-lg transition disabled:opacity-35"
+              className="mt-6 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[20px] bg-slate-900 px-4 text-white shadow-lg transition-all hover:bg-slate-800 disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:scale-100 active:scale-[0.98]"
             >
-              <ArrowRight className="h-6 w-6" aria-hidden />
+              <span className="font-semibold tracking-wide">Étape suivante</span>
+              <ArrowRight className="h-5 w-5" aria-hidden />
             </button>
           </>
         ) : null}
 
         {step === "signature" ? (
-          <>
-            <div className="flex items-center gap-2">
-              <FileSignature className="h-5 w-5 text-slate-700" aria-hidden />
-              <h2 className="sr-only">Signature client</h2>
+          <div className="flex flex-col flex-1 gap-5 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="flex items-center gap-2 px-1">
+              <FileSignature className="h-5 w-5 text-slate-800" aria-hidden />
+              <h2 className="text-[15px] font-semibold text-slate-800">Signature client</h2>
+            </div>
+            <p className="px-1 text-[13px] text-slate-500 leading-relaxed -mt-3">
+              Faites signer le client ci-dessous pour valider la clôture.
+            </p>
+
+            <div className="relative overflow-hidden rounded-[24px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] ring-1 ring-black/5">
+              <TechnicianSignaturePad ref={sigRef} />
             </div>
 
-            <TechnicianSignaturePad ref={sigRef} />
-
-            <div className="flex gap-2">
+            <div className="flex gap-3 mt-2">
               <button
                 type="button"
                 data-testid="finish-job-clear-signature"
                 onClick={() => sigRef.current?.clear()}
                 aria-label="Effacer la signature"
-                className="flex min-h-[52px] flex-1 items-center justify-center rounded-[16px] border border-black/[0.1] bg-white text-slate-800"
+                className="flex min-h-[56px] flex-1 items-center justify-center rounded-[20px] bg-white text-rose-500 shadow-sm ring-1 ring-inset ring-black/5 transition-all hover:bg-rose-50 hover:ring-rose-200 active:scale-[0.98]"
               >
                 <Trash2 className="h-5 w-5" aria-hidden />
               </button>
@@ -330,7 +366,7 @@ export default function TechnicianFinishJobPanel() {
                   setStep("photos");
                 }}
                 aria-label="Retour aux photos"
-                className="flex min-h-[52px] flex-1 items-center justify-center rounded-[16px] border border-black/[0.1] bg-white text-slate-700"
+                className="flex min-h-[56px] flex-1 items-center justify-center rounded-[20px] bg-white text-slate-700 shadow-sm ring-1 ring-inset ring-black/5 transition-all hover:bg-slate-50 active:scale-[0.98]"
               >
                 <Camera className="h-5 w-5" aria-hidden />
               </button>
@@ -341,17 +377,22 @@ export default function TechnicianFinishJobPanel() {
               data-testid="finish-job-submit"
               onClick={() => void submitAll()}
               aria-label="Envoyer la clôture"
-              className="flex min-h-[58px] w-full items-center justify-center rounded-[20px] bg-emerald-600 px-4 text-white shadow-[0_14px_36px_-12px_rgba(5,150,105,0.55)] transition hover:bg-emerald-700"
+              className="mt-4 flex min-h-[64px] w-full items-center justify-center gap-3 rounded-[24px] bg-emerald-500 px-4 text-white shadow-[0_8px_24px_-8px_rgba(16,185,129,0.6)] transition-all hover:bg-emerald-600 hover:shadow-[0_12px_28px_-8px_rgba(16,185,129,0.7)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
             >
+              <span className="font-semibold tracking-wide text-[16px]">Valider l'intervention</span>
               <SendHorizontal className="h-6 w-6" aria-hidden />
             </button>
-          </>
+          </div>
         ) : null}
 
         {step === "submitting" ? (
-          <div data-testid="finish-job-submitting" className="flex flex-col items-center gap-4 py-16">
-            <Loader2 className="h-12 w-12 animate-spin text-emerald-600" aria-hidden />
-            <p className="sr-only">Envoi en cours</p>
+          <div data-testid="finish-job-submitting" className="flex flex-col items-center justify-center gap-6 py-20 animate-in fade-in duration-500">
+            <div className="relative flex h-20 w-20 items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-[3px] border-emerald-500/20" />
+              <div className="absolute inset-0 rounded-full border-[3px] border-emerald-500 border-t-transparent animate-spin" />
+              <SendHorizontal className="h-8 w-8 text-emerald-500 animate-pulse" aria-hidden />
+            </div>
+            <p className="text-[15px] font-medium text-slate-600 tracking-wide">Clôture en cours...</p>
           </div>
         ) : null}
       </div>

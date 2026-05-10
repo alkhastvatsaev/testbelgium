@@ -23,12 +23,13 @@ type ProviderProps = {
   children: ReactNode;
   /** Nombre d’écrans plein viewport (min. 2). */
   pageCount: number;
+  initialPageIndex?: number;
 };
 
-export function DashboardPagerProvider({ children, pageCount }: ProviderProps) {
+export function DashboardPagerProvider({ children, pageCount, initialPageIndex = 0 }: ProviderProps) {
   const safeCount = Math.max(2, Math.floor(pageCount));
 
-  const [pageIndex, setPageIndexState] = useState(0);
+  const [pageIndex, setPageIndexState] = useState(initialPageIndex);
 
   const setPageIndex = useCallback(
     (index: number) => {
