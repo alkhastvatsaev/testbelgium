@@ -41,6 +41,7 @@ ngrok.log
 # Audio & métadonnées uploadées localement (pas dans le dépôt)
 /public/uploads/**
 !/public/uploads/.gitkeep
+.demo-data/
 
 # vercel
 .vercel
