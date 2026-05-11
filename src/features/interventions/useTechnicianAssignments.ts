@@ -62,18 +62,21 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
   const firestoreInterventions = assignmentsQuery.data ?? [];
 
   const interventions = useMemo(() => {
-    const filterReleased = (rows: Intervention[]) =>
-      rows.filter((iv) => {
-        // Toujours visible si explicitement assigné au technicien courant (permet de voir et démarrer un dossier pending)
+    const filterReleased = (rows: Intervention[]) => {
+      const defaultUid = getDefaultAssignedTechnicianUid();
+      return rows.filter((iv) => {
+        // Toujours visible si explicitement assigné au technicien courant ou au technicien par défaut
+        // (permet de voir et démarrer un dossier pending sans attendre la validation back-office)
         if (firebaseUid && iv.assignedTechnicianUid === firebaseUid) return true;
-        
-        // Pour le pool société (unassigned), on autorise aussi 'pending' pour que le tech puisse "voir" les nouvelles demandes
-        // mais on garde le filtrage strict pour 'pending_needs_address' (dossiers incomplets)
+        if (iv.assignedTechnicianUid === defaultUid) return true;
+
+        // Pour le pool (unassigned), on autorise aussi 'pending' pour que le tech puisse "voir" les nouvelles demandes
         if (!iv.assignedTechnicianUid && iv.status === "pending") return true;
 
-        // Sinon, on suit la règle standard
+        // Sinon, on suit la règle standard (exclut pending_needs_address par exemple)
         return isInterventionReleasedToTechnicianField(iv);
       });
+    };
 
     if (
       devUiPreviewEnabled &&
@@ -156,12 +159,14 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
       let latestUnassignedNull: Intervention[] = [];
       let latestUnassignedEmpty: Intervention[] = [];
       let latestDemoInCompany: Intervention[] = [];
+      let latestGlobalUnassigned: Intervention[] = [];
 
       let primaryReady = false;
       let fallbackReady = !shouldAlsoListenToDefault;
       let unassignedNullReady = !shouldCompanyPool;
       let unassignedEmptyReady = !shouldCompanyPool;
       let demoInCompanyReady = !shouldCompanyPool;
+      let globalUnassignedReady = false; // On l'écoute toujours pour attraper les dossiers orphelins (sans companyId)
 
       const publishMerged = () => {
         if (
@@ -169,13 +174,15 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
           !fallbackReady ||
           !unassignedNullReady ||
           !unassignedEmptyReady ||
-          !demoInCompanyReady
+          !demoInCompanyReady ||
+          !globalUnassignedReady
         ) {
           return;
         }
         const map = new Map<string, Intervention>();
         latestPrimary.forEach((r) => map.set(r.id, r));
         latestFallback.forEach((r) => map.set(r.id, r));
+        latestGlobalUnassigned.forEach((r) => map.set(r.id, r));
         if (shouldCompanyPool) {
           latestUnassignedNull.forEach((r) => map.set(r.id, r));
           latestUnassignedEmpty.forEach((r) => map.set(r.id, r));
@@ -229,6 +236,28 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
         );
         unsubs.push(unsubFallback);
       }
+
+      // Requête globale pour les interventions non assignées (même sans société associée)
+      // Utile pour voir les missions créées via le formulaire public quand le tenant n'est pas encore configuré.
+      const qGlobalUn = query(
+        collection(db, "interventions"),
+        where("assignedTechnicianUid", "==", null)
+      );
+      unsubs.push(
+        onSnapshot(
+          qGlobalUn,
+          (snapshot) => {
+            latestGlobalUnassigned = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention));
+            globalUnassignedReady = true;
+            publishMerged();
+          },
+          (e) => {
+            console.error("[useTechnicianAssignments:global-unassigned]", e);
+            globalUnassignedReady = true;
+            publishMerged();
+          }
+        )
+      );
 
       if (shouldCompanyPool && tenantCompanyId) {
         const cid = tenantCompanyId;
