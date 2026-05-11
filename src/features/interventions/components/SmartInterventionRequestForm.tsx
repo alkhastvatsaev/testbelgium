@@ -56,6 +56,7 @@ import { useAudioRecorder } from "@/features/interventions/useAudioRecorder";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/core/config/firebase";
 import { useTranslation } from "@/core/i18n/I18nContext";
+import { getDefaultAssignedTechnicianUid } from "@/features/interventions/defaultAssignedTechnicianUid";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
@@ -807,7 +808,7 @@ export default function SmartInterventionRequestForm() {
         category: "serrurerie",
         createdAt: nowIso,
         createdByUid: user.uid,
-        assignedTechnicianUid: null,
+        assignedTechnicianUid: getDefaultAssignedTechnicianUid(),
         ...(tenantCompanyId ? { companyId: tenantCompanyId } : {}),
         ...(photoDataUrls.length ? { attachmentThumbnails: photoDataUrls.slice(0, SMART_FORM_MAX_PHOTOS) } : {}),
         ...(firstName.trim() ? { clientFirstName: capitalizeName(firstName) } : {}),
