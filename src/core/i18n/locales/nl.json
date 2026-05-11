@@ -1,0 +1,552 @@
+{
+  "tracking": {
+    "step0": "Formulier",
+    "step1": "Aanvraag ontvangen",
+    "step2": "Zoeken naar een technicus",
+    "step3": "Technicus toegewezen",
+    "step4": "Onderweg",
+    "step5": "Ter plaatse",
+    "step6": "Interventie voltooid",
+    "in_progress": "In uitvoering...",
+    "no_active_request": "Geen actieve aanvraag",
+    "tracking_description": "Real-time tracking van uw interventie verschijnt hier.",
+    "search_placeholder": "Naam",
+    "client_loading": "Klant bezig...",
+    "file_of": "Dossier van",
+    "client_in_progress": "Klant in behandeling..."
+  },
+  "status": {
+    "pending": "In afwachting",
+    "pending_needs_address": "Aan te vullen",
+    "assigned": "Technicus toegewezen",
+    "en_route": "Onderweg",
+    "on_site": "Ter plaatse",
+    "in_progress": "Bezig",
+    "done": "Klaar",
+    "invoiced": "Gefactureerd"
+  },
+  "spotlight": {
+    "search_placeholder": "Naam",
+    "map_action_title": "Kaart",
+    "map_action_desc": "Open interventie kaart",
+    "tech_action_title": "Technici",
+    "tech_action_desc": "Bekijk beschikbare technici"
+  },
+  "auth": {
+    "email_required": "Voer een e-mailadres in",
+    "link_sent": "Link verzonden",
+    "check_inbox": "Controleer uw inbox.",
+    "send_failed": "Verzenden mislukt",
+    "firebase_not_configured": "Authenticatie niet beschikbaar",
+    "session": "Sessie",
+    "dashboard": "Dashboard",
+    "signout": "Afmelden",
+    "receive_link_label": "Ontvang een aanmeldlink per e-mail"
+  },
+  "requester": {
+    "profile": {
+      "type_individual": "Particulier",
+      "type_login": "Inloggen",
+      "first_name": "Voornaam",
+      "last_name": "Achternaam",
+      "phone": "Telefoon",
+      "usual_address": "Gebruikelijk adres"
+    },
+    "intervention": {
+      "audio_saved_cloud_desc": "Spraakbericht opgeslagen (cloudopslag).",
+      "geoloc_pending": "Adres opzoeken…",
+      "audio_play_aria": "Audio afspelen",
+      "audio_pause_aria": "Pauzeren",
+      "audio_remove_aria": "Spraakbericht verwijderen",
+      "audio_recorded_toast": "Audio opgeslagen",
+      "step0_heading": "Wat moet er gerepareerd worden?",
+      "step1_title": "Beschrijf het probleem",
+      "listening": "Luisteren…",
+      "description_placeholder": "Beschrijving",
+      "voice_saved_label": "Spraakbericht opgenomen",
+      "voice_download_aria": "Spraakbericht downloaden",
+      "download_failed_toast": "Download mislukt",
+      "photo_required": "Foto verplicht",
+      "photo_add": "Toevoegen",
+      "photos_heading": "Foto's",
+      "locate_aria": "Mijn locatie gebruiken",
+      "submit_request": "Verzoek indienen",
+      "step_progress_aria": "Voortgang formulier",
+      "step_back_aria": "Vorige stap",
+      "step_next_aria": "Volgende stap",
+      "step_summary_heading": "Adres en verzenden"
+    },
+    "toasts": {
+      "voice_save_failed_title": "Spraakbericht opslaan niet mogelijk",
+      "voice_save_failed_desc": "Controleer Firebase (Storage-bucket + anonieme auth) in de console — lokale bestandsopslag werkt niet op Vercel.",
+      "voice_save_failed_generic": "Opslaan van spraakbericht mislukt.",
+      "geoloc_unavailable": "Geolocatie is niet beschikbaar op dit apparaat",
+      "position_saved": "Locatie opgeslagen",
+      "complete_address_desc": "Vul het adres aan indien nodig.",
+      "address_reverse_failed": "Adres ophalen niet mogelijk",
+      "location_denied": "Locatie geweigerd of niet beschikbaar",
+      "image_read_failed": "Afbeelding kon niet worden gelezen",
+      "login_tab_required": "Log in via het tabblad Inloggen (linkerpaneel).",
+      "fill_left_panel": "Vul uw gegevens in (linkerpaneel)",
+      "address_required": "Adres vereist",
+      "address_searching": "Adres wordt nog opgezocht",
+      "problem_required": "Probleem vereist",
+      "company_required": "Actief bedrijf vereist",
+      "request_saved": "Aanvraag opgeslagen",
+      "auth_failed": "Aanmelden niet mogelijk",
+      "send_failed": "Verzenden niet mogelijk",
+      "server_error": "Serverfout",
+      "min_one_photo": "Voeg minstens één foto toe"
+    },
+    "tracking": {
+      "switched_to_case_prefix": "Overgeschakeld naar dossier voor",
+      "client_fallback": "de klant"
+    }
+  },
+  "company_hub": {
+    "aria": {
+      "left": "Wie vraagt? — aanvragerhub",
+      "center": "Wat moet er hersteld worden? — aanvragerhub",
+      "right": "Dossiertracking en IVANA-chat — aanvragerhub"
+    },
+    "right_tabs": {
+      "aria": "Categorieën aanvragersportaal",
+      "tracking": "Dossiertracking",
+      "chat": "Chat"
+    }
+  },
+  "technician_hub": {
+    "aria": {
+      "page": "Pagina",
+      "left": "technicus: mijn dag",
+      "center": "technicus: opdrachten",
+      "right": "technicus: foto's"
+    },
+    "dashboard": {
+      "detail": {
+        "no_mission_selected": "Selecteer een missie om details te zien",
+        "voice_message": "Spraakbericht",
+        "no_voice_message": "Geen spraakbericht",
+        "job_title": "Functietitel",
+        "gps_navigation": "GPS-navigatie",
+        "mission_completed": "Deze interventie is voltooid en gesloten.",
+        "finish_job": "Klus afronden",
+        "updating": "Bijwerken...",
+        "start_intervention": "Interventie starten",
+        "on_site": "Ik ben ter plaatse",
+        "no_address": "Geen adres",
+        "not_provided": "Niet opgegeven"
+      },
+      "images": {
+        "no_mission_selected": "Selecteer een missie om klantfoto's te zien",
+        "no_photos": "Geen foto's verstrekt door de klant",
+        "hidden_after_closure": "Klantfoto's worden niet getoond voor een gesloten interventie.",
+        "photo_alt": "Klant foto {{index}}"
+      },
+      "list": {
+        "missions_title": "Missies",
+        "login_required": "Inloggen vereist voor uw toegewezen missies.",
+        "login_prompt": "Log in om uw missies te laden.",
+        "no_mission": "Geen missie",
+        "no_mission_today": "Geen missie toegewezen voor vandaag.",
+        "tab_today": "Vandaag",
+        "tab_week": "Week",
+        "tab_all": "Alles",
+        "assigned_missions": "Toegewezen missies",
+        "intervention_list": "Interventielijst",
+        "offline_auth_warning": "Kan offline niet verbinden.",
+        "dossier_aria": "Dossier {{id}}, {{client}}",
+        "archives": "Archief",
+        "archive_word": "Archief",
+        "archive_closed_one": "afgesloten",
+        "archive_closed_other": "afgesloten"
+      }
+    },
+    "day": {
+      "radar": "De Radar",
+      "my_day": "Mijn Dag",
+      "login_required": "Log in om uw missies te zien.",
+      "next": "Volgende",
+      "launch_gps": "Start GPS",
+      "day_finished": "Dag voltooid",
+      "no_other_mission": "Geen andere missie gepland voor vandaag.",
+      "late": "Te laat",
+      "on_time": "Op tijd",
+      "completed_fraction": "{{completed}} / {{total}} voltooid",
+      "no_details": "Details nader te bepalen"
+    },
+    "finish": {
+      "no_mission": "Geen interventie geselecteerd. Open een map vanuit missies, gebruik dan Voltooien.",
+      "select_to_close": "Selecteer een missie op het dashboard om deze te sluiten.",
+      "see_missions": "Zie missies",
+      "connection_unavailable": "Verbinding niet beschikbaar — onmogelijk om te sluiten.",
+      "close": "Sluiten",
+      "presentation_mode": "Presentatiemodus",
+      "capture": "Vastleggen",
+      "next_step": "Volgende stap",
+      "client_signature": "Klant handtekening",
+      "open_mission_list": "Open missielijst",
+      "cancel_close": "Annuleren en sluiten",
+      "camera_done": "Werk voltooid camera",
+      "capture_photo": "Maak foto",
+      "delete_photo": "Verwijder foto",
+      "continue_signature": "Doorgaan naar handtekening",
+      "clear_signature": "Wis handtekening",
+      "back_photos": "Terug naar foto's",
+      "send_closure": "Verstuur afsluiting",
+      "toasts": {
+        "camera_unavailable": "Camera niet beschikbaar",
+        "camera_unavailable_desc": "Sta cameratoegang toe of gebruik HTTPS.",
+        "photo_impossible": "Foto niet mogelijk — wacht op de videostream.",
+        "login_required": "Aanmelden vereist",
+        "signature_missing": "Handtekening ontbreekt",
+        "server_save_title": "Serveropslag",
+        "offline_queue": "Offline wachtrij",
+        "offline_queue_desc": "Automatische synchronisatie zodra het netwerk stabiel is.",
+        "report_sent": "Rapport naar back-office verzonden",
+        "report_sent_desc": "Foto’s en handtekening zijn zichtbaar op de kaartpagina (rechterpaneel). De interventie is afgesloten.",
+        "presentation_mode": "Presentatiemodus",
+        "presentation_mode_desc": "Lichte cloudopslag. Back-office ziet het rapport via de demomodus.",
+        "send_failed": "Verzenden niet mogelijk"
+      },
+      "submit": {
+        "busy": "Afsluiten…",
+        "cta": "Interventie valideren"
+      }
+    },
+    "signature": {
+      "client_signature": "Klant handtekening"
+    }
+  },
+  "common": {
+    "delete": "Verwijderen",
+    "error": "Fout",
+    "try_again": "Probeer het opnieuw.",
+    "cancel": "Annuleren",
+    "save": "Opslaan",
+    "client": "Klant",
+    "urgent": "Dringend",
+    "dash": "—",
+    "back": "Terug",
+    "close": "Sluiten"
+  },
+  "map": {
+    "transcription": {
+      "address": "Adres",
+      "client_name": "Klantnaam",
+      "phone": "Telefoon",
+      "problem": "Type / probleem",
+      "date": "Datum",
+      "time": "Tijd",
+      "urgency": "Dringend"
+    },
+    "mission_overlay": {
+      "phone": "Telefoon",
+      "address": "Adres",
+      "problem_description": "Probleembeschrijving"
+    },
+    "mission": {
+      "fallback_title": "Interventie"
+    },
+    "daily_missions": {
+      "archive_aria": "Archiveren — deze missie verbergen op de kaart van vandaag op dit apparaat",
+      "archive_label": "Archiveren",
+      "archived_toast": "Missie verborgen op de kaart (lokaal archief). Ze blijft in het backoffice.",
+      "mission_actions_aria": "Acties voor deze missie"
+    }
+  },
+  "backoffice": {
+    "inbox": {
+      "report": "Rapport",
+      "terrain_report": "Veldrapport",
+      "back": "Terug",
+      "anonymous_client": "Anonieme klant",
+      "no_description": "Geen beschrijving",
+      "tag_urgent": "Dringend",
+      "tag_request": "Aanvraag",
+      "tag_report": "Rapport",
+      "tag_verified": "Geverifieerd",
+      "empty_requests": "Geen nieuwe aanvragen",
+      "empty_reports": "Geen rapporten om te verifiëren",
+      "detail_title_request": "Aanvraagdetails",
+      "detail_title_report": "Rapportverificatie",
+      "kind_request": "Aanvraag",
+      "kind_report": "Rapport",
+      "no_phone": "Geen telefoon",
+      "location": "Locatie",
+      "problem_label": "Probleem",
+      "report_label": "Technisch verslag",
+      "no_description_provided": "Geen beschrijving opgegeven.",
+      "requested_schedule": "Gewenste planning",
+      "edit": "Bewerken",
+      "tabs": {
+        "requests": "Aanvragen",
+        "reports": "Rapporten",
+        "chat": "Chat"
+      },
+      "asap": "Zo snel mogelijk",
+      "photos_client": "Klantfoto's",
+      "photos_completion": "Eindfoto's",
+      "voice_message": "Spraakbericht",
+      "voice_loading": "Spraakbericht laden",
+      "voice_storage_error": "Kan het spraakbericht niet laden vanuit Firebase Storage (netwerk/quota/herhaal-limiet). Probeer het straks opnieuw of controleer je verbinding.",
+      "voice_empty": "Geen spraakbericht",
+      "signature_client": "Handtekening klant",
+      "signature_alt": "Handtekening",
+      "confirm_assign": "Bevestigen & toewijzen",
+      "verify_report": "Rapport verifiëren",
+      "report_already_verified": "Rapport al geverifieerd",
+      "hide_report": "Dit rapport verbergen",
+      "problem_prefix": "Probleem",
+      "photos": "Foto's",
+      "verify_terrain_report_aria": "Veldrapport verifiëren",
+      "already_verified": "Al geverifieerd"
+    },
+    "toasts": {
+      "request_deleted": "Aanvraag verwijderd",
+      "delete_failed": "Verwijderen mislukt",
+      "request_assigned": "Aanvraag toegewezen",
+      "assign_failed": "Toewijzen mislukt",
+      "firestore_unavailable": "Firestore niet beschikbaar",
+      "report_verified": "Rapport geverifieerd",
+      "permission_denied_verify": "Geen toestemming. Controleer je rol bij het bedrijf of deploy de nieuwste Firestore-regels.",
+      "datetime_updated": "Planning bijgewerkt",
+      "update_failed": "Bijwerken mislukt"
+    },
+    "dashboard": {
+      "folder": "Map",
+      "folder_synthesis": "Mapsynthese",
+      "state": "Staat",
+      "tech": "Tech",
+      "when": "Wanneer",
+      "where": "Waar",
+      "problem": "Probleem",
+      "phone": "Tel.",
+      "open_pdf": "Open PDF-factuur",
+      "history": "Geschiedenis",
+      "company_invitation_required": "Bedrijfsuitnodiging vereist voor interventiedashboard.",
+      "folders": "Mappen",
+      "company_interventions": "Bedrijfsinterventies — tabel en filters",
+      "live": "Live",
+      "login_required": "Inloggen vereist",
+      "login_prompt": "Log in a.u.b.",
+      "done": "Klaar",
+      "invoiced": "Gefactureerd",
+      "revenue_day": "Omzet · dag",
+      "new": "Nieuw",
+      "folder_columns_filters": "Mapkolomfilters",
+      "period": "Periode",
+      "dates_all": "Datums · alles",
+      "today": "Vandaag",
+      "week": "Week",
+      "range": "Bereik",
+      "company": "Bedrijf",
+      "technician": "Technicus",
+      "technicians_all": "Technici · alle",
+      "status": "Status",
+      "statuses_all": "Statussen · alle",
+      "from": "Van",
+      "to": "Tot",
+      "no_intervention_match": "Geen enkele interventie komt overeen met de filters.",
+      "client": "Klant",
+      "close_detail": "Sluit detail",
+      "intervention_history": "Interventiegeschiedenis",
+      "live_feed": "Live feed",
+      "interventions_done_today": "Vandaag voltooide interventies",
+      "interventions_invoiced_today": "Vandaag gefactureerde interventies",
+      "estimated_revenue_day": "Geschatte omzet vandaag",
+      "new_requests_day": "Nieuwe aanvragen vandaag",
+      "folder_filters": "Mapfilters",
+      "no_intervention": "Geen interventie",
+      "folder_list": "Mappenlijst",
+      "client_folder": "Klant / map",
+      "assigned_technician": "Toegewezen technicus",
+      "planned_slot": "Gepland slot",
+      "intervention_address": "Interventieadres"
+    },
+    "incoming_requests": {
+      "company_required": "Bedrijf vereist om aanvragen te zien.",
+      "no_new_request": "Geen nieuwe aanvraag",
+      "request_details": "Aanvraagdetails",
+      "client": "Klant",
+      "address": "Adres",
+      "problem": "Probleem",
+      "voice_message": "Spraakbericht",
+      "desired_datetime": "Gewenste Datum & Tijd",
+      "cancel": "Annuleren",
+      "save": "Opslaan",
+      "photos": "Foto's",
+      "delete": "Verwijderen",
+      "assign": "Toewijzen"
+    },
+    "chat": {
+      "client_portal": "Klant (portaal)",
+      "team": "Team",
+      "reply_in_progress": "Antwoord wordt verwerkt",
+      "your_message": "Uw bericht",
+      "remove_photo": "Foto verwijderen",
+      "add_photos": "Foto's toevoegen",
+      "your_message_placeholder": "Uw bericht…",
+      "send_message": "Bericht versturen"
+    },
+    "audio_player": {
+      "position": "Audiopositie",
+      "download": "Spraakbericht downloaden",
+      "pause": "Pauzeren",
+      "play": "Audio afspelen"
+    }
+  },
+  "smart_form": {
+    "toast": {
+      "success": "Verzoek opgeslagen",
+      "error": "Verzenden mislukt"
+    },
+    "address_placeholder": "Zoek een adres…",
+    "step1": {
+      "region": "Stap 1 — Contactgegevens & Adres",
+      "firstName": "Voornaam",
+      "firstNamePlaceholder": "Tony",
+      "lastName": "Achternaam",
+      "lastNamePlaceholder": "Stark",
+      "phone": "Telefoonnummer",
+      "phonePlaceholder": "+32 470 12 34 56",
+      "addressLabel": "Adres interventie",
+      "locateAria": "Vul adres in via mijn locatie"
+    },
+    "step2": {
+      "region": "Stap 2 — Beschrijving",
+      "title": "Beschrijf uw probleem mondeling",
+      "recording": "Opnemen...",
+      "pressToSpeak": "Druk om te spreken",
+      "transcriptionLabel": "Transcriptie :",
+      "transcribing": "Transcriptie wordt verbeterd...",
+      "descriptionAria": "Beschrijving probleem",
+      "descriptionPlaceholder": "Of typ uw beschrijving hier..."
+    },
+    "step3": {
+      "region": "Stap 3 — Foto's",
+      "dropzoneAria": "Voeg tot {count} afbeeldingen toe, slepen en neerzetten mogelijk",
+      "removePhotoAria": "Verwijder foto {n}",
+      "addPhotoAria": "Voeg een afbeelding toe",
+      "slotAria": "Plaats {n} van {max}, hierna beschikbaar"
+    },
+    "step4": {
+      "region": "Stap 4 — Datum en Tijd",
+      "title": "Wanneer bent u beschikbaar ?",
+      "daysAria": "Beschikbare dagen",
+      "selectDate": "Selecteer een datum hierboven."
+    },
+    "step5": {
+      "region": "Stap 5 — Samenvatting",
+      "contact": "Contact",
+      "notProvided": "Niet ingevuld",
+      "location": "Locatie",
+      "detail": "Detail",
+      "noDetail": "Geen details",
+      "voice": "Stem",
+      "voiceRecorded": "Audio opgenomen",
+      "noVoice": "Geen spraakbericht",
+      "datetime": "Datum & Tijd",
+      "at": "om",
+      "photos": "Foto's",
+      "preview": "Voorbeeld",
+      "close": "Sluiten",
+      "noPhotos": "Geen foto's bij dit verzoek",
+      "urgentMarked": "Verzoek als dringend gemarkeerd",
+      "markUrgent": "Markeer als dringend",
+      "urgent": "Dringend",
+      "sending": "Verzenden...",
+      "submit": "Verzoek indienen"
+    },
+    "common": {
+      "continue": "Doorgaan",
+      "back": "Vorige stap"
+    },
+    "templates": {
+      "blocked": { "label": "Deur geblokkeerd", "seed": "Mijn deur zit vast." },
+      "armored": {
+        "label": "Veiligheidsdeur",
+        "line1": "Veiligheids",
+        "line2": "deur",
+        "seed": "Ik heb een probleem met een veiligheidsdeur."
+      },
+      "broken_key": {
+        "label": "Sleutel gebroken",
+        "line1": "Sleutel",
+        "line2": "gebroken",
+        "seed": "Mijn sleutel is in het slot afgebroken."
+      },
+      "cylinder": { "label": "Cilinder", "seed": "Probleem met de cilinder / het slot." },
+      "locked_out": {
+        "label": "Buitengesloten",
+        "line1": "Buiten",
+        "line2": "gesloten",
+        "seed": "Ik ben buitengesloten, de deur is dichtgevallen."
+      },
+      "safe": {
+        "label": "Kluis",
+        "line1": "Kluis",
+        "line2": "openen",
+        "seed": "Probleem met het openen van een kluis."
+      },
+      "roller_shutter": { "label": "Rolluik", "seed": "Mijn rolluik zit vast." },
+      "digicode": { "label": "Codeklavier", "seed": "Probleem met toegang via codeklavier." },
+      "key_copy": {
+        "label": "Sleutel bijmaken",
+        "line1": "Sleutel",
+        "line2": "bijmaken",
+        "seed": "Ik wil een sleutel laten bijmaken."
+      }
+    }
+  },
+  "calendar": {
+    "weekdays_initials": [
+      "M",
+      "D",
+      "W",
+      "D",
+      "V",
+      "Z",
+      "Z"
+    ]
+  },
+  "smart_time_slot": {
+    "next_availabilities": "Volgende beschikbaarheden",
+    "searching": "Zoeken...",
+    "no_availability": "Geen beschikbaarheid gevonden voor de komende dagen.",
+    "show_more": "Toon meer tijden",
+    "or": "Of",
+    "schedule_later": "Later inplannen",
+    "artisan_unavailable": "De vakman is op deze datum niet beschikbaar.",
+    "today": "Vandaag",
+    "tomorrow": "Morgen",
+    "availabilities_on": "Beschikbaarheid op {{date}}",
+    "days": [
+      "M",
+      "D",
+      "W",
+      "D",
+      "V",
+      "Z",
+      "Z"
+    ]
+  },
+  "invoice_automation": {
+    "title": "Automatische Facturatie",
+    "description1": "Na afsluiting met minimaal één werkplekfoto en de handtekening van de klant op de server, genereert een Cloud-functie een PDF-factuur op Storage en wordt de status op Gefactureerd gezet. De checklist moet compleet zijn vóór generatie.",
+    "description2": "Na afsluiting met een volledige checklist, generatie PDF-factuur en status gefactureerd."
+  },
+  "map_transcription": {
+    "urgent": "Dringend",
+    "download_voice_message": "Spraakbericht downloaden",
+    "delete_voice_message": "Spraakbericht verwijderen"
+  },
+  "profiles": {
+    "roles": {
+      "back_office": "BACK OFFICE",
+      "client": "KLANT",
+      "technician": "TECHNICUS",
+      "admin": "ADMIN"
+    }
+  }
+}

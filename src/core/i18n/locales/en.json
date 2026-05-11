@@ -1,0 +1,552 @@
+{
+  "tracking": {
+    "step0": "Form",
+    "step1": "Request received",
+    "step2": "Searching for a technician",
+    "step3": "Technician assigned",
+    "step4": "On the way",
+    "step5": "On site",
+    "step6": "Intervention completed",
+    "in_progress": "In progress...",
+    "no_active_request": "No active request",
+    "tracking_description": "Real-time tracking of your intervention will appear here.",
+    "search_placeholder": "Name",
+    "client_loading": "Client in progress...",
+    "file_of": "File of",
+    "client_in_progress": "Client in progress..."
+  },
+  "status": {
+    "pending": "Pending",
+    "pending_needs_address": "To complete",
+    "assigned": "Technician assigned",
+    "en_route": "On the way",
+    "on_site": "On site",
+    "in_progress": "In progress",
+    "done": "Done",
+    "invoiced": "Invoiced"
+  },
+  "spotlight": {
+    "search_placeholder": "Name",
+    "map_action_title": "Map",
+    "map_action_desc": "Open interventions map",
+    "tech_action_title": "Technicians",
+    "tech_action_desc": "View available technicians"
+  },
+  "auth": {
+    "email_required": "Enter an email address",
+    "link_sent": "Link sent",
+    "check_inbox": "Check your inbox.",
+    "send_failed": "Could not send",
+    "firebase_not_configured": "Authentication unavailable",
+    "session": "Session",
+    "dashboard": "Dashboard",
+    "signout": "Sign out",
+    "receive_link_label": "Get a sign-in link by email"
+  },
+  "requester": {
+    "profile": {
+      "type_individual": "Individual",
+      "type_login": "Log in",
+      "first_name": "First name",
+      "last_name": "Last name",
+      "phone": "Phone",
+      "usual_address": "Usual address"
+    },
+    "intervention": {
+      "audio_saved_cloud_desc": "Voice message saved (cloud storage).",
+      "geoloc_pending": "Looking up address…",
+      "audio_play_aria": "Play audio",
+      "audio_pause_aria": "Pause",
+      "audio_remove_aria": "Remove voice message",
+      "audio_recorded_toast": "Audio saved",
+      "step0_heading": "What needs fixing?",
+      "step1_title": "Describe the problem",
+      "listening": "Listening…",
+      "description_placeholder": "Description",
+      "voice_saved_label": "Voice message recorded",
+      "voice_download_aria": "Download voice message",
+      "download_failed_toast": "Download failed",
+      "photo_required": "Photo required",
+      "photo_add": "Add",
+      "photos_heading": "Photos",
+      "locate_aria": "Use my location",
+      "submit_request": "Submit request",
+      "step_progress_aria": "Form progress",
+      "step_back_aria": "Previous step",
+      "step_next_aria": "Next step",
+      "step_summary_heading": "Address and submit"
+    },
+    "toasts": {
+      "voice_save_failed_title": "Unable to save voice message",
+      "voice_save_failed_desc": "Check Firebase (Storage bucket + anonymous auth) in the console — local file storage does not work on Vercel.",
+      "voice_save_failed_generic": "Failed to save voice message.",
+      "geoloc_unavailable": "Geolocation not available on this device",
+      "position_saved": "Location saved",
+      "complete_address_desc": "Complete the address if needed.",
+      "address_reverse_failed": "Unable to retrieve address",
+      "location_denied": "Location denied or unavailable",
+      "image_read_failed": "Image could not be read",
+      "login_tab_required": "Please log in via the Login tab (left panel).",
+      "fill_left_panel": "Please fill in your details (left panel)",
+      "address_required": "Address required",
+      "address_searching": "Address still being looked up",
+      "problem_required": "Problem required",
+      "company_required": "Active company required",
+      "request_saved": "Request saved",
+      "auth_failed": "Unable to authenticate",
+      "send_failed": "Unable to send",
+      "server_error": "Server error",
+      "min_one_photo": "Please add at least one photo"
+    },
+    "tracking": {
+      "switched_to_case_prefix": "Switched to case for",
+      "client_fallback": "the client"
+    }
+  },
+  "company_hub": {
+    "aria": {
+      "left": "Who is requesting? — requester hub",
+      "center": "What needs to be fixed? — requester hub",
+      "right": "Case tracking and IVANA chat — requester hub"
+    },
+    "right_tabs": {
+      "aria": "Requester portal categories",
+      "tracking": "Case tracking",
+      "chat": "Chat"
+    }
+  },
+  "technician_hub": {
+    "aria": {
+      "page": "Page",
+      "left": "technician: my day",
+      "center": "technician: missions",
+      "right": "technician: photos"
+    },
+    "dashboard": {
+      "detail": {
+        "no_mission_selected": "Select a mission to see details",
+        "voice_message": "Voice Message",
+        "no_voice_message": "No voice message",
+        "job_title": "Title",
+        "gps_navigation": "GPS Navigation",
+        "mission_completed": "This intervention is finished and closed.",
+        "finish_job": "Finish Job",
+        "updating": "Updating...",
+        "start_intervention": "Start intervention",
+        "on_site": "I am on site",
+        "no_address": "No address",
+        "not_provided": "Not provided"
+      },
+      "images": {
+        "no_mission_selected": "Select a mission to see client photos",
+        "no_photos": "No photos provided by the client",
+        "hidden_after_closure": "Client photos are not shown for a closed intervention.",
+        "photo_alt": "Client photo {{index}}"
+      },
+      "list": {
+        "missions_title": "Missions",
+        "login_required": "Login required for your assigned missions.",
+        "login_prompt": "Log in to load your missions.",
+        "no_mission": "No mission",
+        "no_mission_today": "No mission assigned for today.",
+        "tab_today": "Today",
+        "tab_week": "Week",
+        "tab_all": "All",
+        "assigned_missions": "Assigned Missions",
+        "intervention_list": "Intervention List",
+        "offline_auth_warning": "Cannot connect offline.",
+        "dossier_aria": "File {{id}}, {{client}}",
+        "archives": "Archives",
+        "archive_word": "Archive",
+        "archive_closed_one": "closed",
+        "archive_closed_other": "closed"
+      }
+    },
+    "day": {
+      "radar": "The Radar",
+      "my_day": "My Day",
+      "login_required": "Log in to see your missions.",
+      "next": "Next",
+      "launch_gps": "Launch GPS",
+      "day_finished": "Day Finished",
+      "no_other_mission": "No other mission planned for today.",
+      "late": "Late",
+      "on_time": "On time",
+      "completed_fraction": "{{completed}} / {{total}} completed",
+      "no_details": "Details to be specified"
+    },
+    "finish": {
+      "no_mission": "No intervention selected. Open a folder from missions, then use Finish.",
+      "select_to_close": "Select a mission from the dashboard to close it.",
+      "see_missions": "See missions",
+      "connection_unavailable": "Connection unavailable — impossible to close.",
+      "close": "Close",
+      "presentation_mode": "Presentation mode",
+      "capture": "Capture",
+      "next_step": "Next step",
+      "client_signature": "Client signature",
+      "open_mission_list": "Open mission list",
+      "cancel_close": "Cancel and close",
+      "camera_done": "Work finished camera",
+      "capture_photo": "Capture photo",
+      "delete_photo": "Delete photo",
+      "continue_signature": "Continue to signature",
+      "clear_signature": "Clear signature",
+      "back_photos": "Back to photos",
+      "send_closure": "Send closure",
+      "toasts": {
+        "camera_unavailable": "Camera unavailable",
+        "camera_unavailable_desc": "Allow camera access or use HTTPS.",
+        "photo_impossible": "Unable to take photo — wait for the video stream.",
+        "login_required": "Login required",
+        "signature_missing": "Missing signature",
+        "server_save_title": "Server save",
+        "offline_queue": "Offline queue",
+        "offline_queue_desc": "Automatic sync as soon as the network is stable.",
+        "report_sent": "Report sent to back-office",
+        "report_sent_desc": "Photos and signature are visible on the map page (right panel). The intervention is closed.",
+        "presentation_mode": "Presentation mode",
+        "presentation_mode_desc": "Lightweight cloud save. Back-office sees the report via demo mode.",
+        "send_failed": "Unable to send"
+      },
+      "submit": {
+        "busy": "Closing…",
+        "cta": "Validate intervention"
+      }
+    },
+    "signature": {
+      "client_signature": "Client signature"
+    }
+  },
+  "common": {
+    "delete": "Delete",
+    "error": "Error",
+    "try_again": "Please try again.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "client": "Client",
+    "urgent": "Urgent",
+    "dash": "—",
+    "back": "Back",
+    "close": "Close"
+  },
+  "map": {
+    "transcription": {
+      "address": "Address",
+      "client_name": "Client name",
+      "phone": "Phone",
+      "problem": "Type / Problem",
+      "date": "Date",
+      "time": "Time",
+      "urgency": "Urgent"
+    },
+    "mission_overlay": {
+      "phone": "Phone",
+      "address": "Address",
+      "problem_description": "Problem description"
+    },
+    "mission": {
+      "fallback_title": "Intervention"
+    },
+    "daily_missions": {
+      "archive_aria": "Archive — hide this mission from today’s map on this device",
+      "archive_label": "Archive",
+      "archived_toast": "Mission hidden on the map (local archive). It remains in the back office.",
+      "mission_actions_aria": "Mission actions"
+    }
+  },
+  "backoffice": {
+    "inbox": {
+      "report": "Report",
+      "terrain_report": "Field report",
+      "back": "Back",
+      "anonymous_client": "Anonymous client",
+      "no_description": "No description",
+      "tag_urgent": "Urgent",
+      "tag_request": "Request",
+      "tag_report": "Report",
+      "tag_verified": "Verified",
+      "empty_requests": "No new requests",
+      "empty_reports": "No reports to verify",
+      "detail_title_request": "Request details",
+      "detail_title_report": "Report verification",
+      "kind_request": "Request",
+      "kind_report": "Report",
+      "no_phone": "No phone",
+      "location": "Location",
+      "problem_label": "Problem",
+      "report_label": "Technician report",
+      "no_description_provided": "No description provided.",
+      "requested_schedule": "Requested schedule",
+      "edit": "Edit",
+      "tabs": {
+        "requests": "Requests",
+        "reports": "Reports",
+        "chat": "Chat"
+      },
+      "asap": "As soon as possible",
+      "photos_client": "Client photos",
+      "photos_completion": "Completion photos",
+      "voice_message": "Voice message",
+      "voice_loading": "Loading voice message",
+      "voice_storage_error": "Unable to load the voice message from Firebase Storage (network/quota/retry limit). Please try again in a moment or check your connection.",
+      "voice_empty": "No voice message",
+      "signature_client": "Client signature",
+      "signature_alt": "Signature",
+      "confirm_assign": "Confirm & assign",
+      "verify_report": "Verify report",
+      "report_already_verified": "Report already verified",
+      "hide_report": "Hide this report",
+      "problem_prefix": "Problem",
+      "photos": "Photos",
+      "verify_terrain_report_aria": "Verify field report",
+      "already_verified": "Already verified"
+    },
+    "toasts": {
+      "request_deleted": "Request deleted",
+      "delete_failed": "Delete failed",
+      "request_assigned": "Request assigned",
+      "assign_failed": "Assignment failed",
+      "firestore_unavailable": "Firestore unavailable",
+      "report_verified": "Report verified",
+      "permission_denied_verify": "Permission denied. Check your company role or deploy the latest Firestore rules.",
+      "datetime_updated": "Schedule updated",
+      "update_failed": "Update failed"
+    },
+    "dashboard": {
+      "folder": "Folder",
+      "folder_synthesis": "Folder Synthesis",
+      "state": "State",
+      "tech": "Tech",
+      "when": "When",
+      "where": "Where",
+      "problem": "Problem",
+      "phone": "Phone",
+      "open_pdf": "Open PDF Invoice",
+      "history": "History",
+      "company_invitation_required": "Company invitation required for intervention dashboard.",
+      "folders": "Folders",
+      "company_interventions": "Company Interventions — table and filters",
+      "live": "Live",
+      "login_required": "Login Required",
+      "login_prompt": "Please log in.",
+      "done": "Done",
+      "invoiced": "Invoiced",
+      "revenue_day": "Revenue · day",
+      "new": "New",
+      "folder_columns_filters": "Folder Columns Filters",
+      "period": "Period",
+      "dates_all": "Dates · all",
+      "today": "Today",
+      "week": "Week",
+      "range": "Range",
+      "company": "Company",
+      "technician": "Technician",
+      "technicians_all": "Technicians · all",
+      "status": "Status",
+      "statuses_all": "Statuses · all",
+      "from": "From",
+      "to": "To",
+      "no_intervention_match": "No intervention matches the filters.",
+      "client": "Client",
+      "close_detail": "Close detail",
+      "intervention_history": "Intervention History",
+      "live_feed": "Live Feed",
+      "interventions_done_today": "Interventions finished today",
+      "interventions_invoiced_today": "Interventions invoiced today",
+      "estimated_revenue_day": "Estimated revenue today",
+      "new_requests_day": "New requests today",
+      "folder_filters": "Folder filters",
+      "no_intervention": "No intervention",
+      "folder_list": "Folder list",
+      "client_folder": "Client / folder",
+      "assigned_technician": "Assigned technician",
+      "planned_slot": "Planned slot",
+      "intervention_address": "Intervention address"
+    },
+    "incoming_requests": {
+      "company_required": "Company required to see requests.",
+      "no_new_request": "No new request",
+      "request_details": "Request details",
+      "client": "Client",
+      "address": "Address",
+      "problem": "Problem",
+      "voice_message": "Voice message",
+      "desired_datetime": "Desired Date & Time",
+      "cancel": "Cancel",
+      "save": "Save",
+      "photos": "Photos",
+      "delete": "Delete",
+      "assign": "Assign"
+    },
+    "chat": {
+      "client_portal": "Client (portal)",
+      "team": "Team",
+      "reply_in_progress": "Reply in progress",
+      "your_message": "Your message",
+      "remove_photo": "Remove photo",
+      "add_photos": "Add photos",
+      "your_message_placeholder": "Your message…",
+      "send_message": "Send message"
+    },
+    "audio_player": {
+      "position": "Audio position",
+      "download": "Download voice message",
+      "pause": "Pause",
+      "play": "Play audio"
+    }
+  },
+  "smart_form": {
+    "toast": {
+      "success": "Request saved",
+      "error": "Sending failed"
+    },
+    "address_placeholder": "Search for an address…",
+    "step1": {
+      "region": "Step 1 — Contact details & Address",
+      "firstName": "First name",
+      "firstNamePlaceholder": "Tony",
+      "lastName": "Last name",
+      "lastNamePlaceholder": "Stark",
+      "phone": "Phone number",
+      "phonePlaceholder": "+44 7911 123456",
+      "addressLabel": "Intervention address",
+      "locateAria": "Fill address using my current location"
+    },
+    "step2": {
+      "region": "Step 2 — Description",
+      "title": "Describe your problem vocally",
+      "recording": "Recording in progress...",
+      "pressToSpeak": "Press to speak",
+      "transcriptionLabel": "Transcription :",
+      "transcribing": "Improving transcription...",
+      "descriptionAria": "Problem description",
+      "descriptionPlaceholder": "Or type your description here..."
+    },
+    "step3": {
+      "region": "Step 3 — Photos",
+      "dropzoneAria": "Add up to {count} images, drag and drop supported",
+      "removePhotoAria": "Remove photo {n}",
+      "addPhotoAria": "Add an image",
+      "slotAria": "Slot {n} of {max}, available next"
+    },
+    "step4": {
+      "region": "Step 4 — Date and Time",
+      "title": "When are you available ?",
+      "daysAria": "Available days",
+      "selectDate": "Please select a date above."
+    },
+    "step5": {
+      "region": "Step 5 — Summary",
+      "contact": "Contact",
+      "notProvided": "Not provided",
+      "location": "Location",
+      "detail": "Detail",
+      "noDetail": "No details",
+      "voice": "Voice",
+      "voiceRecorded": "Audio recorded",
+      "noVoice": "No voice message",
+      "datetime": "Date & Time",
+      "at": "at",
+      "photos": "Photos",
+      "preview": "Preview",
+      "close": "Close",
+      "noPhotos": "No photos attached to this request",
+      "urgentMarked": "Request marked as urgent",
+      "markUrgent": "Mark as urgent",
+      "urgent": "Urgent",
+      "sending": "Sending...",
+      "submit": "Submit request"
+    },
+    "common": {
+      "continue": "Continue",
+      "back": "Previous step"
+    },
+    "templates": {
+      "blocked": { "label": "Door jammed", "seed": "My door is jammed." },
+      "armored": {
+        "label": "Security door",
+        "line1": "Security",
+        "line2": "door",
+        "seed": "I have an issue with a security door."
+      },
+      "broken_key": {
+        "label": "Broken key",
+        "line1": "Broken",
+        "line2": "key",
+        "seed": "My key broke in the lock."
+      },
+      "cylinder": { "label": "Cylinder", "seed": "Issue with the lock cylinder." },
+      "locked_out": {
+        "label": "Locked out",
+        "line1": "Locked",
+        "line2": "out",
+        "seed": "I'm locked out, the door slammed shut."
+      },
+      "safe": {
+        "label": "Safe",
+        "line1": "Safe",
+        "line2": "opening",
+        "seed": "Problem opening a safe."
+      },
+      "roller_shutter": { "label": "Roller shutter", "seed": "My roller shutter is stuck." },
+      "digicode": { "label": "Keypad", "seed": "Issue with keypad access." },
+      "key_copy": {
+        "label": "Key copy",
+        "line1": "Key",
+        "line2": "copy",
+        "seed": "I'd like to copy a key."
+      }
+    }
+  },
+  "calendar": {
+    "weekdays_initials": [
+      "M",
+      "T",
+      "W",
+      "T",
+      "F",
+      "S",
+      "S"
+    ]
+  },
+  "smart_time_slot": {
+    "next_availabilities": "Next availabilities",
+    "searching": "Searching...",
+    "no_availability": "No availability found for the coming days.",
+    "show_more": "Show more times",
+    "or": "Or",
+    "schedule_later": "Schedule later",
+    "artisan_unavailable": "The tradesman has no availability for this date.",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "availabilities_on": "Availabilities on {{date}}",
+    "days": [
+      "M",
+      "T",
+      "W",
+      "T",
+      "F",
+      "S",
+      "S"
+    ]
+  },
+  "invoice_automation": {
+    "title": "Automatic Invoicing",
+    "description1": "After closure with at least one site photo and client signature on the server, a Cloud function generates a PDF invoice on Storage and sets the status to Invoiced. The checklist must be complete before generation.",
+    "description2": "After closure with a complete checklist, PDF invoice generation and invoiced status."
+  },
+  "map_transcription": {
+    "urgent": "Urgent",
+    "download_voice_message": "Download voice message",
+    "delete_voice_message": "Delete voice message"
+  },
+  "profiles": {
+    "roles": {
+      "back_office": "BACK OFFICE",
+      "client": "CLIENT",
+      "technician": "TECHNICIAN",
+      "admin": "ADMIN"
+    }
+  }
+}

@@ -1,0 +1,222 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+
+type SpeechResultList = {
+  length: number;
+  item: (index: number) => { isFinal: boolean; 0: { transcript: string } };
+  [index: number]: { isFinal: boolean; 0: { transcript: string } };
+};
+
+type SpeechRecognitionEventLike = {
+  resultIndex: number;
+  results: SpeechResultList;
+};
+
+type SpeechRecognitionErrorLike = { error?: string };
+
+type SpeechRec = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onresult: ((e: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((e: SpeechRecognitionErrorLike) => void) | null;
+  onend: (() => void) | null;
+};
+
+function getSpeechRecognitionCtor(): (new () => SpeechRec) | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: new () => SpeechRec;
+    webkitSpeechRecognition?: new () => SpeechRec;
+  };
+  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
+}
+
+/**
+ * Dictée navigateur (Web Speech API). Ajoute du texte via `appendTranscript`.
+ * Enregistre également l'audio via `MediaRecorder` et appelle `onAudioRecorded` à la fin.
+ */
+export function useBrowserSpeechDictation(
+  appendTranscript: (text: string) => void,
+  onAudioRecorded?: (blob: Blob) => void,
+  opts?: { locale?: string },
+) {
+  const [listening, setListening] = useState(false);
+  const [supported, setSupported] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const recRef = useRef<SpeechRec | null>(null);
+  
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const appendRef = useRef(appendTranscript);
+  appendRef.current = appendTranscript;
+
+  const onAudioRecordedRef = useRef(onAudioRecorded);
+  onAudioRecordedRef.current = onAudioRecorded;
+
+  useEffect(() => {
+    // "Supported" means we can at least record audio OR run dictation.
+    const speechOk = getSpeechRecognitionCtor() !== null;
+    const recordOk =
+      typeof window !== "undefined" &&
+      typeof navigator !== "undefined" &&
+      Boolean(navigator.mediaDevices?.getUserMedia) &&
+      typeof MediaRecorder !== "undefined";
+    setSupported(speechOk || recordOk);
+  }, []);
+
+  const stop = useCallback(() => {
+    try {
+      recRef.current?.stop();
+    } catch {
+      try {
+        recRef.current?.abort();
+      } catch {
+        /* ignore */
+      }
+    }
+    recRef.current = null;
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    mediaRecorderRef.current = null;
+
+    setListening(false);
+    setInterimTranscript("");
+  }, []);
+
+  useEffect(
+    () => () => {
+      try {
+        recRef.current?.abort();
+      } catch {
+        /* ignore */
+      }
+      recRef.current = null;
+
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      mediaRecorderRef.current = null;
+    },
+    [],
+  );
+
+  const toggleListening = useCallback(async () => {
+    const Ctor = getSpeechRecognitionCtor();
+    if (listening) {
+      stop();
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      let mimeType = "";
+      if (typeof MediaRecorder !== "undefined") {
+        if (MediaRecorder.isTypeSupported("audio/webm")) {
+          mimeType = "audio/webm";
+        } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
+          mimeType = "audio/mp4";
+        }
+      }
+
+      const options = mimeType ? { mimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const type = mediaRecorder.mimeType || mimeType || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type });
+        onAudioRecordedRef.current?.(blob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+    } catch (err) {
+      toast.error("Accès au micro refusé.");
+      return;
+    }
+
+    // If SpeechRecognition isn't available, we still record audio (no dictation).
+    if (!Ctor) {
+      toast.message("Dictée vocale indisponible", {
+        description: "L'audio est bien enregistré, mais la transcription automatique n'est pas disponible sur ce navigateur.",
+      });
+      setListening(true);
+      setInterimTranscript("");
+      return;
+    }
+
+    const recognition = new Ctor();
+    recognition.lang = opts?.locale?.trim() || "fr-BE";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onresult = (event: SpeechRecognitionEventLike) => {
+      let currentInterim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const row = event.results[i];
+        const piece = row[0]?.transcript;
+        if (!piece) continue;
+
+        if (row.isFinal) {
+          appendRef.current(piece.trim());
+        } else {
+          currentInterim += piece;
+        }
+      }
+      setInterimTranscript(currentInterim);
+    };
+    recognition.onerror = (ev: SpeechRecognitionErrorLike) => {
+      const err = ev.error;
+      if (err === "no-speech" || err === "aborted") return;
+      if (err === "not-allowed") {
+        toast.error("Micro refusé", { description: "Autorisez le micro pour ce site dans les paramètres du navigateur." });
+      } else {
+        toast.message("Dictée", { description: "Micro arrêté ou indisponible." });
+      }
+      recRef.current = null;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      setListening(false);
+      setInterimTranscript("");
+    };
+    recognition.onend = () => {
+      recRef.current = null;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      setListening(false);
+      setInterimTranscript("");
+    };
+
+    recRef.current = recognition;
+    try {
+      recognition.start();
+      setListening(true);
+      setInterimTranscript("");
+    } catch {
+      toast.error("Impossible de démarrer le micro");
+      recRef.current = null;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      setListening(false);
+    }
+  }, [listening, stop]);
+
+  return { listening, supported, toggleListening, stop, interimTranscript };
+}
