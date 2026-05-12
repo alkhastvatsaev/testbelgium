@@ -771,7 +771,7 @@ export default function BackOfficeInboxPanel() {
                           className={cn(
                             "w-full h-full object-cover",
                             (selectedItem.status !== "pending" && selectedItem.status !== "pending_needs_address") &&
-                              devUiPreviewEnabled &&
+                              (PRESENTATION_PRIVACY_MODE || devUiPreviewEnabled) &&
                               "blur-lg",
                           )}
                         />
