@@ -36,6 +36,7 @@ import {
   pickLatestBridgedReportForIntervention,
   shouldDismissBridgedTerrainReport,
 } from "@/features/backoffice/mergeReportCompletionMedia";
+import { devUiPreviewEnabled } from "@/core/config/devUiPreview";
 import { PRESENTATION_PRIVACY_MODE } from "@/core/config/presentationMode";
 import {
   coerceFirestoreLikeDate,
@@ -764,7 +765,16 @@ export default function BackOfficeInboxPanel() {
                     )?.map((url, i) => (
                       <div key={i} className="aspect-square relative rounded-[20px] overflow-hidden border border-slate-100 bg-slate-50 shadow-sm">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={url} alt="Intervention" className="w-full h-full object-cover" />
+                        <img
+                          src={url}
+                          alt="Intervention"
+                          className={cn(
+                            "w-full h-full object-cover",
+                            (selectedItem.status !== "pending" && selectedItem.status !== "pending_needs_address") &&
+                              devUiPreviewEnabled &&
+                              "blur-lg",
+                          )}
+                        />
                       </div>
                     ))}
                   </div>
@@ -1013,7 +1023,10 @@ export default function BackOfficeInboxPanel() {
                             <img
                               src={url}
                               alt=""
-                              className={cn("w-full h-full object-cover", PRESENTATION_PRIVACY_MODE ? "blur-lg" : null)}
+                              className={cn(
+                                "w-full h-full object-cover",
+                                (PRESENTATION_PRIVACY_MODE || devUiPreviewEnabled) ? "blur-lg" : null,
+                              )}
                             />
                           </div>
                         ))}

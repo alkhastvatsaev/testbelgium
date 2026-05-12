@@ -600,6 +600,7 @@ export default function BackOfficeDashboardPanel() {
                     <th className="border-b border-slate-100 px-2 py-2 sm:px-3" title="Adresse d’intervention">
                       Lieu
                     </th>
+                    <th className="border-b border-slate-100 px-2 py-2 sm:px-3 w-[50px]"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -635,6 +636,20 @@ export default function BackOfficeDashboardPanel() {
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 font-medium text-slate-700">{formatScheduledLabel(iv)}</td>
                         <td className="max-w-[220px] truncate px-3 py-2 text-slate-600">{iv.address?.trim() || "—"}</td>
+                        <td className="px-3 py-2 text-right">
+                          <button
+                            type="button"
+                            data-testid={`back-office-delete-${iv.id}`}
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              handleDelete(iv.id);
+                            }}
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                            title={String(t("common.delete"))}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
