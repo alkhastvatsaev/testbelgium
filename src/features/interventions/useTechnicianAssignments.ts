@@ -63,19 +63,9 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
 
   const interventions = useMemo(() => {
     const filterReleased = (rows: Intervention[]) => {
-      const defaultUid = getDefaultAssignedTechnicianUid();
-      return rows.filter((iv) => {
-        // Toujours visible si explicitement assigné au technicien courant ou au technicien par défaut
-        // (permet de voir et démarrer un dossier pending sans attendre la validation back-office)
-        if (firebaseUid && iv.assignedTechnicianUid === firebaseUid) return true;
-        if (iv.assignedTechnicianUid === defaultUid) return true;
-
-        // Pour le pool (unassigned), on autorise aussi 'pending' pour que le tech puisse "voir" les nouvelles demandes
-        if (!iv.assignedTechnicianUid && iv.status === "pending") return true;
-
-        // Sinon, on suit la règle standard (exclut pending_needs_address par exemple)
-        return isInterventionReleasedToTechnicianField(iv);
-      });
+      // Version ultra-simple : on affiche tout ce que Firestore nous renvoie.
+      // Si c'est dans la collection, c'est que c'est pour le technicien.
+      return rows;
     };
 
     if (
@@ -144,193 +134,26 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
       setError(null);
 
       const db = firestore!;
+      
+      // Requête ultra-simple : on écoute toute la collection. 
+      // Les règles Firestore se chargeront de filtrer ce que l'utilisateur a le droit de voir.
+      const q = query(collection(db, "interventions"));
 
-      const defaultAssignedUid = getDefaultAssignedTechnicianUid();
-      const shouldAlsoListenToDefault =
-        Boolean(user) &&
-        !user?.isAnonymous &&
-        defaultAssignedUid === DEMO_TECHNICIAN_UID &&
-        effectiveUid !== DEMO_TECHNICIAN_UID;
-
-      const shouldCompanyPool = Boolean(tenantCompanyId) && Boolean(effectiveUid);
-
-      let latestPrimary: Intervention[] = [];
-      let latestFallback: Intervention[] = [];
-      let latestUnassignedNull: Intervention[] = [];
-      let latestUnassignedEmpty: Intervention[] = [];
-      let latestDemoInCompany: Intervention[] = [];
-      let latestGlobalUnassigned: Intervention[] = [];
-
-      let primaryReady = false;
-      let fallbackReady = !shouldAlsoListenToDefault;
-      let unassignedNullReady = !shouldCompanyPool;
-      let unassignedEmptyReady = !shouldCompanyPool;
-      let demoInCompanyReady = !shouldCompanyPool;
-      let globalUnassignedReady = false; // On l'écoute toujours pour attraper les dossiers orphelins (sans companyId)
-
-      const publishMerged = () => {
-        if (
-          !primaryReady ||
-          !fallbackReady ||
-          !unassignedNullReady ||
-          !unassignedEmptyReady ||
-          !demoInCompanyReady ||
-          !globalUnassignedReady
-        ) {
-          return;
-        }
-        const map = new Map<string, Intervention>();
-        latestPrimary.forEach((r) => map.set(r.id, r));
-        latestFallback.forEach((r) => map.set(r.id, r));
-        latestGlobalUnassigned.forEach((r) => map.set(r.id, r));
-        if (shouldCompanyPool) {
-          latestUnassignedNull.forEach((r) => map.set(r.id, r));
-          latestUnassignedEmpty.forEach((r) => map.set(r.id, r));
-          latestDemoInCompany.forEach((r) => map.set(r.id, r));
-        }
-        const merged = Array.from(map.values());
-        queryClient.setQueryData([TECHNICIAN_ASSIGNMENTS_QUERY_KEY, effectiveUid], merged);
-        setSnapshotReady(true);
-        setError(null);
-      };
-
-      const qPrimary = query(
-        collection(db, "interventions"),
-        where("assignedTechnicianUid", "==", effectiveUid),
-      );
-
-      const unsubs: Array<() => void> = [];
-
-      const unsubPrimary = onSnapshot(
-        qPrimary,
+      unsubSnap = onSnapshot(
+        q,
         (snapshot) => {
-          latestPrimary = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention));
-          primaryReady = true;
-          publishMerged();
+          const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention));
+          queryClient.setQueryData([TECHNICIAN_ASSIGNMENTS_QUERY_KEY, effectiveUid], data);
+          setSnapshotReady(true);
+          setError(null);
         },
         (e) => {
           console.error("[useTechnicianAssignments]", e);
+          // Si erreur de permission, on peut essayer de filtrer plus agressivement
           setError(e.message || "Erreur Firestore");
           setSnapshotReady(true);
-        },
+        }
       );
-      unsubs.push(unsubPrimary);
-
-      if (shouldAlsoListenToDefault) {
-        const qFallback = query(
-          collection(db, "interventions"),
-          where("assignedTechnicianUid", "==", DEMO_TECHNICIAN_UID),
-        );
-        const unsubFallback = onSnapshot(
-          qFallback,
-          (snapshot) => {
-            latestFallback = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention));
-            fallbackReady = true;
-            publishMerged();
-          },
-          (e) => {
-            console.error("[useTechnicianAssignments:fallback]", e);
-            fallbackReady = true;
-            publishMerged();
-          },
-        );
-        unsubs.push(unsubFallback);
-      }
-
-      // Requête globale pour les interventions non assignées (même sans société associée)
-      // Utile pour voir les missions créées via le formulaire public quand le tenant n'est pas encore configuré.
-      const qGlobalUn = query(
-        collection(db, "interventions"),
-        where("assignedTechnicianUid", "==", null)
-      );
-      unsubs.push(
-        onSnapshot(
-          qGlobalUn,
-          (snapshot) => {
-            latestGlobalUnassigned = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention));
-            globalUnassignedReady = true;
-            publishMerged();
-          },
-          (e) => {
-            console.error("[useTechnicianAssignments:global-unassigned]", e);
-            globalUnassignedReady = true;
-            publishMerged();
-          }
-        )
-      );
-
-      if (shouldCompanyPool && tenantCompanyId) {
-        const cid = tenantCompanyId;
-
-        const qUnNull = query(
-          collection(db, "interventions"),
-          where("companyId", "==", cid),
-          where("assignedTechnicianUid", "==", null),
-        );
-        unsubs.push(
-          onSnapshot(
-            qUnNull,
-            (snapshot) => {
-              latestUnassignedNull = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention));
-              unassignedNullReady = true;
-              publishMerged();
-            },
-            (e) => {
-              console.error("[useTechnicianAssignments:unassigned-null]", e);
-              unassignedNullReady = true;
-              publishMerged();
-            },
-          ),
-        );
-
-        const qUnEmpty = query(
-          collection(db, "interventions"),
-          where("companyId", "==", cid),
-          where("assignedTechnicianUid", "==", ""),
-        );
-        unsubs.push(
-          onSnapshot(
-            qUnEmpty,
-            (snapshot) => {
-              latestUnassignedEmpty = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention));
-              unassignedEmptyReady = true;
-              publishMerged();
-            },
-            (e) => {
-              console.error("[useTechnicianAssignments:unassigned-empty]", e);
-              unassignedEmptyReady = true;
-              publishMerged();
-            },
-          ),
-        );
-
-        const qDemoCo = query(
-          collection(db, "interventions"),
-          where("companyId", "==", cid),
-          where("assignedTechnicianUid", "==", DEMO_TECHNICIAN_UID),
-        );
-        unsubs.push(
-          onSnapshot(
-            qDemoCo,
-            (snapshot) => {
-              latestDemoInCompany = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention));
-              demoInCompanyReady = true;
-              publishMerged();
-            },
-            (e) => {
-              console.error("[useTechnicianAssignments:demo-in-company]", e);
-              demoInCompanyReady = true;
-              publishMerged();
-            },
-          ),
-        );
-      }
-
-      unsubSnap = () => {
-        unsubs.forEach((u) => u());
-      };
-
-      publishMerged();
     });
 
     return () => {

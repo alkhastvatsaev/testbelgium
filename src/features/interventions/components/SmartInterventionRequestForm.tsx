@@ -808,7 +808,7 @@ export default function SmartInterventionRequestForm() {
         category: "serrurerie",
         createdAt: nowIso,
         createdByUid: user.uid,
-        assignedTechnicianUid: getDefaultAssignedTechnicianUid(),
+        assignedTechnicianUid: null, // Simple : apparaît dans le pool global sans forcer d'UID.
         ...(tenantCompanyId ? { companyId: tenantCompanyId } : {}),
         ...(photoDataUrls.length ? { attachmentThumbnails: photoDataUrls.slice(0, SMART_FORM_MAX_PHOTOS) } : {}),
         ...(firstName.trim() ? { clientFirstName: capitalizeName(firstName) } : {}),
