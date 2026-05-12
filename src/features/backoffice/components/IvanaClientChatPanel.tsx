@@ -89,6 +89,7 @@ export default function IvanaClientChatPanel({
   const seenPortalIdsRef = useRef<Set<string>>(new Set());
   const fsHydratedRef = useRef(false);
   const seenFsIdsRef = useRef<Set<string>>(new Set());
+  const sessionStartTimeRef = useRef<number>(Date.now());
 
   const companyIdTrimmed = (chatCompanyId ?? "").trim();
   const firestoreSyncEnabled = Boolean(companyIdTrimmed && isConfigured && firestore);
@@ -183,7 +184,8 @@ export default function IvanaClientChatPanel({
                 Array.isArray(r.imageUrls) && r.imageUrls.length > 0 ? r.imageUrls : undefined,
             };
           })
-          .sort((a, b) => a.createdAt - b.createdAt);
+          .sort((a, b) => a.createdAt - b.createdAt)
+          .filter((m) => m.createdAt >= sessionStartTimeRef.current - 5000); // Small buffer for clock skew
 
         if (!fsHydratedRef.current) {
           fsHydratedRef.current = true;

@@ -281,6 +281,20 @@ export default function AiAssistant({
 
   useEffect(() => {
     mountedRef.current = true;
+
+    // Fix for demo: ensure we don't load old historical messages as "new" on first load
+    if (typeof window !== "undefined") {
+      if (!localStorage.getItem(LS_UPLOAD_LAST_SEEN)) {
+        // We don't have a marker, but we don't want to see all history.
+        // We'll set a marker to "now" so only future uploads are shown.
+        localStorage.setItem(LS_UPLOAD_LAST_SEEN, new Date().toISOString());
+      }
+      if (!localStorage.getItem("ai_last_listened_updated_at")) {
+        // Same for Firestore status
+        localStorage.setItem("ai_last_listened_updated_at", "initial-demo-marker");
+      }
+    }
+
     return () => {
       mountedRef.current = false;
     };
@@ -602,6 +616,12 @@ export default function AiAssistant({
 
       const last = localStorage.getItem("ai_last_listened_updated_at");
       const id = serializeFirestoreUpdatedAt(data.updatedAt);
+
+      if (!last) {
+        localStorage.setItem("ai_last_listened_updated_at", id);
+        return;
+      }
+
       if (id === last) return;
 
       const url = String(data.audioUrl);
@@ -661,7 +681,11 @@ export default function AiAssistant({
 
         const lastSeen = localStorage.getItem(LS_UPLOAD_LAST_SEEN);
         if (!lastSeen) {
-          if (clips.length) localStorage.setItem(LS_UPLOAD_LAST_SEEN, clips[clips.length - 1].createdAt);
+          if (clips.length) {
+            localStorage.setItem(LS_UPLOAD_LAST_SEEN, clips[clips.length - 1].createdAt);
+          } else {
+            localStorage.setItem(LS_UPLOAD_LAST_SEEN, new Date().toISOString());
+          }
           return;
         }
 

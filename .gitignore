@@ -54,3 +54,4 @@ tsconfig.tsbuildinfo
 _prototype_backup/
 test_output.txt
 *.backup
+.vercel
