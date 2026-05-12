@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   getMultiFactorResolver,
   sendSignInLinkToEmail,
-  signInWithEmailAndPassword,
   signOut,
   type MultiFactorResolver,
   type RecaptchaVerifier,
@@ -21,7 +20,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { auth, firestore, isConfigured } from "@/core/config/firebase";
@@ -117,7 +115,6 @@ export default function ClientPortalAuthPanel({ authRailMode = false }: ClientPo
   
   // Login State
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [signingIn, setSigningIn] = useState(false);
   const [sending, setSending] = useState(false);
   const [mfaResolver, setMfaResolver] = useState<MultiFactorResolver | null>(null);
@@ -218,53 +215,6 @@ export default function ClientPortalAuthPanel({ authRailMode = false }: ClientPo
     return recaptchaRef.current;
   };
 
-  const handlePasswordSignIn = async () => {
-    if (!auth) return;
-    if (!email.trim() || !password) {
-      toast.error("E-mail et mot de passe requis");
-      return;
-    }
-    resetMfaUi();
-    setSigningIn(true);
-    try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
-      toast.success("Connexion réussie");
-      setPassword("");
-    } catch (e: unknown) {
-      const err = e as { code?: string };
-      if (err.code === "auth/multi-factor-auth-required") {
-        try {
-          const resolver = getMultiFactorResolver(auth, e as Parameters<typeof getMultiFactorResolver>[1]);
-          setMfaResolver(resolver);
-          const idx = pickDefaultMfaHintIndex(resolver);
-          setMfaHintIndex(idx);
-          setPhoneVerificationId(null);
-          setMfaCode("");
-          const kind = mfaHintKind(resolver.hints[idx] ?? { factorId: "" });
-          toast.message(
-            kind === "totp"
-              ? "Code 2FA — application d’authentification"
-              : "Code 2FA — envoyez le SMS puis saisissez le code",
-          );
-        } catch (inner) {
-          console.error(inner);
-          toast.error("Impossible de démarrer la double authentification");
-        }
-        return;
-      }
-      if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
-        toast.error("E-mail ou mot de passe incorrect");
-      } else if (err.code === "auth/user-not-found") {
-        toast.error("Aucun compte avec cet e-mail");
-      } else if (err.code === "auth/too-many-requests") {
-        toast.error("Trop de tentatives, réessayez plus tard");
-      } else {
-        toast.error("Connexion impossible");
-      }
-    } finally {
-      setSigningIn(false);
-    }
-  };
 
   const handleSendPhoneMfa = async () => {
     if (!auth || !mfaResolver) return;
@@ -309,7 +259,6 @@ export default function ClientPortalAuthPanel({ authRailMode = false }: ClientPo
       }
       toast.success("Connexion réussie");
       resetMfaUi();
-      setPassword("");
     } catch (e) {
       console.error(e);
       toast.error("Code 2FA incorrect ou expiré");
@@ -627,48 +576,31 @@ export default function ClientPortalAuthPanel({ authRailMode = false }: ClientPo
             <h3 className="text-[18px] font-extrabold text-slate-800">Espace Client</h3>
           </div>
 
-          <div className="flex w-full flex-col gap-3">
-            <label htmlFor="client-portal-email-input" className="sr-only">
-              E-mail
-            </label>
-            <input
-              id="client-portal-email-input"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="E-mail"
-              data-testid="client-portal-email"
-              autoComplete="email"
-              className="w-full rounded-[14px] border border-black/[0.06] bg-white px-4 py-3 text-[14px] font-medium text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900/15 shadow-sm"
-            />
-            <label htmlFor="client-portal-password-input" className="sr-only">
-              Mot de passe
-            </label>
-            <div className="relative w-full">
-              <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
+            <div className="flex w-full flex-col gap-3">
+              <label htmlFor="client-portal-email-input" className="sr-only">
+                E-mail
+              </label>
               <input
-                id="client-portal-password-input"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mot de passe"
-                data-testid="client-portal-password"
-                autoComplete="current-password"
-                disabled={Boolean(mfaResolver)}
-                className="w-full rounded-[14px] border border-black/[0.06] bg-white py-3 pl-10 pr-4 text-[14px] font-medium text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900/15 shadow-sm disabled:opacity-50"
+                id="client-portal-email-input"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="E-mail"
+                data-testid="client-portal-email"
+                autoComplete="email"
+                className="w-full rounded-[14px] border border-black/[0.06] bg-white px-4 py-3 text-[14px] font-medium text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900/15 shadow-sm"
               />
+              <button
+                type="button"
+                data-testid="client-portal-magic-send"
+                disabled={sending || !email.trim()}
+                onClick={() => void sendMagicLink()}
+                className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-slate-900 py-3.5 text-[14px] font-bold text-white shadow-[0_8px_16px_-6px_rgba(15,23,42,0.35)] disabled:opacity-45 hover:bg-black transition-colors"
+              >
+                {sending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Mail className="h-4 w-4" aria-hidden />}
+                Recevoir un Smart Link
+              </button>
             </div>
-            <button
-              type="button"
-              data-testid="client-portal-password-signin"
-              disabled={signingIn || Boolean(mfaResolver) || !email.trim() || !password}
-              onClick={() => void handlePasswordSignIn()}
-              className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-slate-900 py-3 text-[14px] font-bold text-white shadow-[0_8px_16px_-6px_rgba(15,23,42,0.35)] disabled:opacity-45 hover:bg-black transition-colors"
-            >
-              {signingIn && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-              Se connecter
-            </button>
-          </div>
 
           <div id="client-portal-recaptcha-container" className="sr-only" aria-hidden />
 
@@ -727,19 +659,7 @@ export default function ClientPortalAuthPanel({ authRailMode = false }: ClientPo
             </div>
           )}
 
-          <div className="flex w-full gap-2">
-            <button
-              type="button"
-              data-testid="client-portal-magic-send"
-              disabled={sending || !email.trim()}
-              onClick={() => void sendMagicLink()}
-              className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-[14px] bg-white px-4 py-3 text-[14px] font-bold text-slate-800 shadow-[0_6px_18px_-10px_rgba(15,23,42,0.12)] ring-1 ring-black/[0.06] disabled:opacity-45 hover:bg-slate-50 transition-colors"
-              aria-label="Smart Link"
-            >
-              {sending ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <Mail className="h-5 w-5" aria-hidden />}
-              Smart Link
-            </button>
-          </div>
+
         </div>
       )}
     </div>
