@@ -252,6 +252,10 @@
       "archive_aria": "Archiver — masquer cette mission de la vue du jour sur cet appareil",
       "archive_label": "Archiver",
       "archived_toast": "Mission masquée sur la carte (archive locale). Elle reste dans le back-office.",
+      "delete_aria": "Supprimer définitivement cette intervention",
+      "delete_label": "Supprimer",
+      "deleted_toast": "Intervention supprimée définitivement.",
+      "delete_confirm": "Voulez-vous vraiment supprimer cette intervention ?",
       "mission_actions_aria": "Actions sur la mission"
     }
   },

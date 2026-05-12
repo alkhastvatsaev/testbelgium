@@ -31,6 +31,11 @@ import IvanaClientChatPanel from "@/features/backoffice/components/IvanaClientCh
 import { IVANA_PORTAL_MESSAGE_EVENT } from "@/features/backoffice/ivanaChatPortalBridge";
 import RequestDetailAudioPlayer from "@/features/backoffice/components/RequestDetailAudioPlayer";
 import { useTechnicianBackofficeReportBridgeOptional } from "@/context/TechnicianBackofficeReportBridgeContext";
+import {
+  mergeReportCompletionMedia,
+  pickLatestBridgedReportForIntervention,
+  shouldDismissBridgedTerrainReport,
+} from "@/features/backoffice/mergeReportCompletionMedia";
 import { PRESENTATION_PRIVACY_MODE } from "@/core/config/presentationMode";
 import {
   coerceFirestoreLikeDate,
@@ -189,6 +194,15 @@ export default function BackOfficeInboxPanel() {
     () => (selectedItemId ? interventions.find((x) => x.id === selectedItemId) ?? null : null),
     [interventions, selectedItemId],
   );
+
+  const selectedReportCompletion = useMemo(() => {
+    if (!selectedItem) return { photoUrls: [] as string[], signatureUrl: null as string | null };
+    if (selectedItem.status === "pending" || selectedItem.status === "pending_needs_address") {
+      return { photoUrls: [], signatureUrl: null };
+    }
+    const bridged = pickLatestBridgedReportForIntervention(bridgedTerrainReports, selectedItem.id);
+    return mergeReportCompletionMedia(selectedItem, bridged);
+  }, [selectedItem, bridgedTerrainReports]);
   const [selectedTerrainLocalId, setSelectedTerrainLocalId] = useState<string | null>(null);
   const [isEditingDateTime, setIsEditingDateTime] = useState(false);
   const [editDate, setEditDate] = useState("");
@@ -296,7 +310,7 @@ export default function BackOfficeInboxPanel() {
     }
   };
 
-  const handleVerify = async (id: string, terrainLocalId?: string | null) => {
+  const handleVerify = async (id: string) => {
     if (!firestore) {
       toast.error(t("common.error"), { description: t("backoffice.toasts.firestore_unavailable") });
       return;
@@ -307,8 +321,9 @@ export default function BackOfficeInboxPanel() {
       });
       toast.success(t("backoffice.toasts.report_verified"));
       setSelectedItemId(null);
-      if (terrainLocalId) {
-        terrainBridge?.dismissReport(terrainLocalId);
+      if (terrainBridge) {
+        const lids = terrainBridge.reports.filter((r) => r.interventionId === id).map((r) => r.localId);
+        lids.forEach((lid) => terrainBridge.dismissReport(lid));
       }
       setSelectedTerrainLocalId(null);
     } catch (e) {
@@ -351,7 +366,7 @@ export default function BackOfficeInboxPanel() {
 
     bridgedTerrainReports.forEach((r) => {
       const iv = interventions.find((x) => x.id === r.interventionId);
-      if (iv?.status === "done" || iv?.status === "invoiced") {
+      if (shouldDismissBridgedTerrainReport(iv)) {
         terrainBridge.dismissReport(r.localId);
       }
     });
@@ -733,8 +748,9 @@ export default function BackOfficeInboxPanel() {
 
               {/* Photos Grid */}
               {(((selectedItem.status === "pending" || selectedItem.status === "pending_needs_address") && selectedItem.attachmentThumbnails) ||
-                (!(selectedItem.status === "pending" || selectedItem.status === "pending_needs_address") && selectedItem.completionPhotoUrls)) && (
-                <div className="space-y-3">
+                (!(selectedItem.status === "pending" || selectedItem.status === "pending_needs_address") &&
+                  selectedReportCompletion.photoUrls.length > 0)) && (
+                <div className="space-y-3" data-testid="backoffice-report-detail-photos-section">
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     {selectedItem.status === "pending" || selectedItem.status === "pending_needs_address"
                       ? t("backoffice.inbox.photos_client")
@@ -744,7 +760,7 @@ export default function BackOfficeInboxPanel() {
                     {(
                       (selectedItem.status === "pending" || selectedItem.status === "pending_needs_address")
                         ? selectedItem.attachmentThumbnails
-                        : selectedItem.completionPhotoUrls
+                        : selectedReportCompletion.photoUrls
                     )?.map((url, i) => (
                       <div key={i} className="aspect-square relative rounded-[20px] overflow-hidden border border-slate-100 bg-slate-50 shadow-sm">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -807,17 +823,22 @@ export default function BackOfficeInboxPanel() {
               ) : null}
 
               {/* Signature for reports */}
-              {!(selectedItem.status === "pending" || selectedItem.status === "pending_needs_address") && selectedItem.completionSignatureUrl && (
-                <div className="space-y-3">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    {t("backoffice.inbox.signature_client")}
-                  </span>
-                  <div className="rounded-[20px] bg-slate-50 p-4 border border-slate-100 flex items-center justify-center">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={selectedItem.completionSignatureUrl} alt={t("backoffice.inbox.signature_alt")} className="max-h-32 object-contain" />
+              {!(selectedItem.status === "pending" || selectedItem.status === "pending_needs_address") &&
+                selectedReportCompletion.signatureUrl && (
+                  <div className="space-y-3" data-testid="backoffice-report-detail-signature-section">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                      {t("backoffice.inbox.signature_client")}
+                    </span>
+                    <div className="rounded-[20px] bg-slate-50 p-4 border border-slate-100 flex items-center justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={selectedReportCompletion.signatureUrl}
+                        alt={t("backoffice.inbox.signature_alt")}
+                        className="max-h-32 object-contain"
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
 
             {/* Sticky Actions */}
@@ -840,21 +861,30 @@ export default function BackOfficeInboxPanel() {
                   </button>
                 </>
               ) : (
-                <button
-                  disabled={selectedItem.status === "invoiced"}
-                  onClick={() => handleVerify(selectedItem.id)}
-                  className={cn(
-                    "w-full flex items-center justify-center gap-2 py-4 px-4 rounded-[20px] font-bold text-[14px] transition-all",
-                    selectedItem.status === "invoiced"
-                      ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                      : "bg-green-600 text-white shadow-[0_8px_20px_rgba(22,163,74,0.3)] hover:bg-green-700 active:scale-95"
-                  )}
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  {selectedItem.status === "invoiced"
-                    ? t("backoffice.inbox.report_already_verified")
-                    : t("backoffice.inbox.verify_report")}
-                </button>
+                <>
+                  <button
+                    onClick={() => handleDelete(selectedItem.id)}
+                    className="flex-1 flex items-center justify-center gap-2 py-4 px-4 rounded-[20px] border border-red-100 bg-red-50 text-red-600 font-bold text-[14px] hover:bg-red-100 active:scale-95 transition-all"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    {t("common.delete")}
+                  </button>
+                  <button
+                    disabled={selectedItem.status === "invoiced"}
+                    onClick={() => handleVerify(selectedItem.id)}
+                    className={cn(
+                      "flex-[1.5] flex items-center justify-center gap-2 py-4 px-4 rounded-[20px] font-bold text-[14px] transition-all",
+                      selectedItem.status === "invoiced"
+                        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                        : "bg-green-600 text-white shadow-[0_8px_20px_rgba(22,163,74,0.3)] hover:bg-green-700 active:scale-95"
+                    )}
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    {selectedItem.status === "invoiced"
+                      ? t("backoffice.inbox.report_already_verified")
+                      : t("backoffice.inbox.verify_report")}
+                  </button>
+                </>
               )}
             </div>
           </motion.div>
@@ -1001,14 +1031,26 @@ export default function BackOfficeInboxPanel() {
                     </div>
                   </div>
 
-                  <div className="p-6 border-t border-slate-100 bg-white/80 backdrop-blur-md">
+                  <div className="p-6 border-t border-slate-100 bg-white/80 backdrop-blur-md flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleDelete(r.interventionId);
+                        terrainBridge?.dismissReport(r.localId);
+                        setSelectedTerrainLocalId(null);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-2 py-4 px-4 rounded-[20px] border border-red-100 bg-red-50 text-red-600 font-bold text-[14px] hover:bg-red-100 active:scale-95 transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {t("common.delete")}
+                    </button>
                     <button
                       type="button"
                       data-testid={`backoffice-bridged-report-validate-${r.localId}`}
                       disabled={!iv || isAlreadyValidated}
-                      onClick={() => handleVerify(r.interventionId, r.localId)}
+                      onClick={() => void handleVerify(r.interventionId)}
                       className={cn(
-                        "w-full flex items-center justify-center gap-2 py-4 px-4 rounded-[20px] font-bold text-[14px] transition-all",
+                        "flex-[1.5] flex items-center justify-center gap-2 py-4 px-4 rounded-[20px] font-bold text-[14px] transition-all",
                         !iv
                           ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                           : isAlreadyValidated

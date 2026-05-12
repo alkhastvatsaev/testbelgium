@@ -2,7 +2,9 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Archive } from "lucide-react";
+import { Archive, Trash2 } from "lucide-react";
+import { doc, deleteDoc } from 'firebase/firestore';
+import { firestore } from '@/core/config/firebase';
 import { toast } from "sonner";
 import DailyMissions from '@/features/dashboard/components/DailyMissions';
 import BackOfficeInboxPanel from '@/features/backoffice/components/BackOfficeInboxPanel';
@@ -109,6 +111,30 @@ export default function MapboxView() {
       archiveKey(missionStableKey(mission));
       setSelectedMission((prev) => (prev && missionStableKey(prev) === missionStableKey(mission) ? null : prev));
       toast.success(String(t("map.daily_missions.archived_toast")));
+    },
+    [archiveKey, t],
+  );
+  
+  const handleDeleteMission = React.useCallback(
+    async (mission: Mission) => {
+      const ok = window.confirm(String(t("map.daily_missions.delete_confirm")));
+      if (!ok) return;
+
+      if (mission.source === "live" && mission.key && !mission.key.endsWith(".json")) {
+        // Real Firestore mission
+        try {
+          await deleteDoc(doc(firestore!, "interventions", mission.key));
+          toast.success(String(t("map.daily_missions.deleted_toast")));
+          setSelectedMission(null);
+        } catch (e) {
+          toast.error("Erreur de suppression");
+        }
+      } else {
+        // Mock mission, just archive it locally
+        archiveKey(missionStableKey(mission));
+        setSelectedMission(null);
+        toast.success(String(t("map.daily_missions.deleted_toast")));
+      }
     },
     [archiveKey, t],
   );
@@ -485,15 +511,24 @@ export default function MapboxView() {
                   )}
                 </div>
 
-                <div className="mt-6 flex justify-center sm:mt-8">
+                <div className="mt-6 flex justify-center gap-4 sm:mt-8">
                   <button
                     type="button"
                     onClick={() => handleArchiveMission(selectedMission)}
                     aria-label={String(t("map.daily_missions.archive_aria"))}
                     title={String(t("map.daily_missions.archive_aria"))}
-                    className="rounded-full border border-white/20 bg-white/[0.06] p-2 text-white/50 shadow-sm transition hover:border-white/35 hover:bg-white/10 hover:text-white/85"
+                    className="rounded-full border border-white/20 bg-white/[0.06] p-2.5 text-white/50 shadow-sm transition hover:border-white/35 hover:bg-white/10 hover:text-white/85"
                   >
                     <Archive className="h-4 w-4" strokeWidth={2} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteMission(selectedMission)}
+                    aria-label={String(t("map.daily_missions.delete_aria"))}
+                    title={String(t("map.daily_missions.delete_aria"))}
+                    className="rounded-full border border-red-500/30 bg-red-500/10 p-2.5 text-red-400/70 shadow-sm transition hover:border-red-500/50 hover:bg-red-500/20 hover:text-red-300"
+                  >
+                    <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
                   </button>
                 </div>
               </div>

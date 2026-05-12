@@ -6,15 +6,19 @@ import {
   AlertCircle,
   Building2,
   CalendarClock,
+  CheckCircle2,
   Euro,
   ExternalLink,
   LayoutDashboard,
   Sparkles,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
 import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
 import { auth, firestore, isConfigured } from "@/core/config/firebase";
+import { deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { toast } from "sonner";
 import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { type VariantProps } from "class-variance-authority";
@@ -93,11 +97,15 @@ function BackOfficeDetailDrawer({
   technicians,
   isAdmin,
   onClose,
+  onDelete,
+  onArchive,
 }: {
   intervention: Intervention;
   technicians: Technician[];
   isAdmin: boolean;
   onClose: () => void;
+  onDelete: (id: string) => Promise<void>;
+  onArchive: (id: string) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const live = useInterventionLive(intervention.id, true);
@@ -202,6 +210,28 @@ function BackOfficeDetailDrawer({
           </ul>
         </div>
       </div>
+
+      <div className="flex shrink-0 gap-3 border-t border-black/[0.06] bg-white/50 p-4 backdrop-blur-md">
+        <button
+          type="button"
+          onClick={() => onDelete(merged.id)}
+          className="flex-1 flex items-center justify-center gap-2 rounded-[16px] border border-red-100 bg-red-50 py-3.5 text-[14px] font-bold text-red-600 transition-all hover:bg-red-100 active:scale-95"
+        >
+          <Trash2 className="h-4 w-4" aria-hidden />
+          {String(t("common.delete"))}
+        </button>
+
+        {merged.status !== "invoiced" && (
+          <button
+            type="button"
+            onClick={() => onArchive(merged.id)}
+            className="flex-[1.5] flex items-center justify-center gap-2 rounded-[16px] bg-emerald-600 py-3.5 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(16,185,129,0.25)] transition-all hover:bg-emerald-700 active:scale-95"
+          >
+            <CheckCircle2 className="h-4 w-4" aria-hidden />
+            {String(t("backoffice.inbox.verify_report"))}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -229,6 +259,34 @@ export default function BackOfficeDashboardPanel() {
     const f = applyBackofficeFilters(interventions, filters);
     return sortBackofficeRowsDesc(f);
   }, [interventions, filters]);
+
+  const handleDelete = async (id: string) => {
+    if (!firestore) return;
+    if (!window.confirm(String(t("common.confirm_delete")) || "Confirmer la suppression ?")) return;
+
+    try {
+      await deleteDoc(doc(firestore, "interventions", id));
+      toast.success(String(t("backoffice.toasts.request_deleted")));
+      setDetail(null);
+    } catch (e) {
+      console.error("Delete failed:", e);
+      toast.error(String(t("common.error")));
+    }
+  };
+
+  const handleArchive = async (id: string) => {
+    if (!firestore) return;
+    try {
+      await updateDoc(doc(firestore, "interventions", id), {
+        status: "invoiced",
+      });
+      toast.success(String(t("backoffice.toasts.status_updated")));
+      setDetail(null);
+    } catch (e) {
+      console.error("Archive failed:", e);
+      toast.error(String(t("common.error")));
+    }
+  };
 
   const techUids = useMemo(() => uniqueAssignedTechnicianUids(interventions), [interventions]);
 
@@ -593,6 +651,8 @@ export default function BackOfficeDashboardPanel() {
           technicians={technicians}
           isAdmin={ws.activeRole === "admin"}
           onClose={() => setDetail(null)}
+          onDelete={handleDelete}
+          onArchive={handleArchive}
         />
       ) : null}
     </div>
