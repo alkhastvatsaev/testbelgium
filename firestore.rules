@@ -221,18 +221,15 @@ service cloud.firestore {
        * Plusieurs `allow read` → combinés en OU. Une seule clause avec `||` peut faire échouer les **requêtes**
        * `where("assignedTechnicianUid","==",request.auth.uid)` (erreur « Missing or insufficient permissions »).
        */
-      allow read: if isAuthed()
-        && resource.data.keys().hasAny(['assignedTechnicianUid'])
-        && (resource.data.assignedTechnicianUid == request.auth.uid || resource.data.assignedTechnicianUid == 'demo-tech-local');
+      // Version Ultra-Simple : Tout utilisateur connecté (hors portail client) peut lire toutes les interventions.
+      // Cela permet d'utiliser une seule requête globale simple dans le tableau de bord.
+      allow read: if isAuthed() && !isCompanyPortalUser();
 
+      // Pour les utilisateurs du portail client, on garde l'isolation par société.
       allow read: if isAuthed()
         && isCompanyPortalUser()
         && interventionHasTenantScope(resource.data)
         && tenantClaimsIncludeCompany(resource.data.companyId);
-
-      allow read: if isAuthed()
-        && !isCompanyPortalUser()
-        && nonPortalCanReadIntervention();
 
       allow create: if isAuthed() && (
         (
