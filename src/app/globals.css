@@ -596,6 +596,23 @@
             --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+        :root {
+            --safe-vw: 1vw;
+            --safe-vh: 1vh;
+        }
+
+        @media (min-width: 1440px) {
+            :root {
+                --safe-vw: 14.4px;
+            }
+        }
+
+        @media (min-height: 900px) {
+            :root {
+                --safe-vh: 9px;
+            }
+        }
+
         :root { 
             --background: oklch(1 0 0); 
             --foreground: oklch(0.145 0 0); 
