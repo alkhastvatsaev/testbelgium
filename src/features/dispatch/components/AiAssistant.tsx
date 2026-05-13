@@ -202,6 +202,7 @@ export default function AiAssistant({
   const queueRef = useRef<QueuedClip[]>([]);
   const pausedByUserRef = useRef(false);
   const diskInitRef = useRef(false);
+  const isFirstFirestoreSnapshot = useRef(true);
   const pendingPlayRef = useRef(false);
   const isPlayingRef = useRef(false);
   
@@ -614,15 +615,18 @@ export default function AiAssistant({
       const data = docSnap.data();
       if (!data?.audioUrl || data.updatedAt == null) return;
 
-      const last = localStorage.getItem("ai_last_listened_updated_at");
       const id = serializeFirestoreUpdatedAt(data.updatedAt);
 
-      if (!last) {
-        localStorage.setItem("ai_last_listened_updated_at", id);
+      if (isFirstFirestoreSnapshot.current) {
+        isFirstFirestoreSnapshot.current = false;
+        sessionStorage.setItem("ai_last_listened_updated_at", id);
         return;
       }
 
+      const last = sessionStorage.getItem("ai_last_listened_updated_at");
       if (id === last) return;
+
+      sessionStorage.setItem("ai_last_listened_updated_at", id);
 
       const url = String(data.audioUrl);
       setQueue((prev) => {
@@ -673,21 +677,17 @@ export default function AiAssistant({
 
         if (!diskInitRef.current) {
           diskInitRef.current = true;
-          if (!localStorage.getItem(LS_UPLOAD_LAST_SEEN) && clips.length) {
-            localStorage.setItem(LS_UPLOAD_LAST_SEEN, clips[clips.length - 1].createdAt);
-            return;
-          }
-        }
-
-        const lastSeen = localStorage.getItem(LS_UPLOAD_LAST_SEEN);
-        if (!lastSeen) {
+          // En mode démo, on ignore tout ce qui existe déjà au démarrage
           if (clips.length) {
-            localStorage.setItem(LS_UPLOAD_LAST_SEEN, clips[clips.length - 1].createdAt);
+            sessionStorage.setItem(LS_UPLOAD_LAST_SEEN, clips[clips.length - 1].createdAt);
           } else {
-            localStorage.setItem(LS_UPLOAD_LAST_SEEN, new Date().toISOString());
+            sessionStorage.setItem(LS_UPLOAD_LAST_SEEN, new Date().toISOString());
           }
           return;
         }
+
+        const lastSeen = sessionStorage.getItem(LS_UPLOAD_LAST_SEEN);
+        if (!lastSeen) return;
 
         const t = new Date(lastSeen).getTime();
         const fresh = clips.filter((a) => new Date(a.createdAt).getTime() > t);
