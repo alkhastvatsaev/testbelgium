@@ -619,14 +619,14 @@ export default function AiAssistant({
 
       if (isFirstFirestoreSnapshot.current) {
         isFirstFirestoreSnapshot.current = false;
-        sessionStorage.setItem("ai_last_listened_updated_at", id);
+        localStorage.setItem("ai_last_listened_updated_at", id);
         return;
       }
 
-      const last = sessionStorage.getItem("ai_last_listened_updated_at");
+      const last = localStorage.getItem("ai_last_listened_updated_at");
       if (id === last) return;
 
-      sessionStorage.setItem("ai_last_listened_updated_at", id);
+      localStorage.setItem("ai_last_listened_updated_at", id);
 
       const url = String(data.audioUrl);
       setQueue((prev) => {
@@ -679,14 +679,14 @@ export default function AiAssistant({
           diskInitRef.current = true;
           // En mode démo, on ignore tout ce qui existe déjà au démarrage
           if (clips.length) {
-            sessionStorage.setItem(LS_UPLOAD_LAST_SEEN, clips[clips.length - 1].createdAt);
+            localStorage.setItem(LS_UPLOAD_LAST_SEEN, clips[clips.length - 1].createdAt);
           } else {
-            sessionStorage.setItem(LS_UPLOAD_LAST_SEEN, new Date().toISOString());
+            localStorage.setItem(LS_UPLOAD_LAST_SEEN, new Date().toISOString());
           }
           return;
         }
 
-        const lastSeen = sessionStorage.getItem(LS_UPLOAD_LAST_SEEN);
+        const lastSeen = localStorage.getItem(LS_UPLOAD_LAST_SEEN);
         if (!lastSeen) return;
 
         const t = new Date(lastSeen).getTime();
