@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "audioFileName": "M_DUPONT/call-unknown-1777727964572-v8wnlvma.wav",
+  "publicUrl": "/uploads/M_DUPONT/call-unknown-1777727964572-v8wnlvma.wav",
+  "phone": null,
+  "receivedAt": "2026-05-14T19:47:57.942Z",
+  "processedAt": "2026-05-14T19:48:06.235Z",
+  "source": "upload-auto",
+  "openai": {
+    "transcriptionModel": "gpt-4o-transcribe",
+    "dispatchModel": "gpt-4o-mini"
+  },
+  "rawTranscript": "Oui, bonjour, c'est Monsieur Dupont. Écoutez, j'aurais besoin qu'un serrurier passe pour changer la porte et aussi la serrure. Peut-être il faudra tout changer, je sais pas. Est-ce que c'est possible de passer au 9 rue des Lombardes à Bruxelles ? Et si possible à 19h. Merci beaucoup, bonne soirée.",
+  "audio": {
+    "sizeBytes": 729166,
+    "clientOriginalFileName": "M_DUPONT/call-unknown-1777727964572-v8wnlvma.wav",
+    "storedRelativePath": "uploads/M_DUPONT/call-unknown-1777727964572-v8wnlvma.wav",
+    "transcodedToWavForStt": false
+  },
+  "analysis": {
+    "transcription": "Bonjour, c'est Monsieur Dupont. J'aurais besoin qu'un serrurier passe pour changer la porte et la serrure. Est-ce possible de passer au 9 rue des Lombardes à Bruxelles à 19h ? Merci beaucoup.",
+    "probleme": "changer la porte et la serrure",
+    "adresse": "9 rue des Lombardes, Bruxelles",
+    "urgence": false,
+    "est_serrurerie": true
+  }
+}
