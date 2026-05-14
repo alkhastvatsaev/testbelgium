@@ -27,6 +27,11 @@ import TechnicianNotificationBootstrap from "@/features/notifications/components
 import DevPreviewAnonymousAuth from "@/features/dev/DevPreviewAnonymousAuth";
 import { RequesterHubProvider } from "@/features/interventions/context/RequesterHubContext";
 import { TechnicianBackofficeReportBridgeProvider } from "@/context/TechnicianBackofficeReportBridgeContext";
+import {
+  DASHBOARD_DESKTOP_CENTER_COL_CLASS,
+  DASHBOARD_DESKTOP_SIDE_COL_CLASS,
+  DASHBOARD_DESKTOP_TRACK_CLASS,
+} from "@/core/ui/dashboardDesktopLayout";
 
 /** Écran d’accueil — **3 pages** : carte · hub société · hub technicien (back-office via inbox sur la carte). */
 export default function Dashboard() {
@@ -68,16 +73,24 @@ export default function Dashboard() {
                               className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex justify-center p-6 md:p-8 lg:p-12"
                               data-testid="dashboard-global-header"
                             >
-                              <div className="flex w-full max-w-[1580px] items-start justify-center gap-6 lg:gap-8">
-                                <div className="pointer-events-auto flex w-[380px] shrink-0 flex-col lg:w-[400px]">
+                              <div
+                                className={`pointer-events-auto ${DASHBOARD_DESKTOP_TRACK_CLASS}`}
+                              >
+                                <aside
+                                  className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} pointer-events-auto`}
+                                >
                                   <ClockCalendar />
-                                </div>
-                                <div className="pointer-events-auto flex min-w-0 max-w-[720px] flex-1 justify-center">
+                                </aside>
+                                <div
+                                  className={`${DASHBOARD_DESKTOP_CENTER_COL_CLASS} pointer-events-auto`}
+                                >
                                   <SpotlightSearch />
                                 </div>
-                                <div className="pointer-events-auto flex w-[380px] shrink-0 flex-col lg:w-[400px]">
+                                <aside
+                                  className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} pointer-events-auto`}
+                                >
                                   <UserProfile />
-                                </div>
+                                </aside>
                               </div>
                             </div>
 

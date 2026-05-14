@@ -4,6 +4,7 @@ import { Command } from 'cmdk';
 import { Search, X, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GLASS_PANEL_OVERFLOW_PADDING } from '@/core/ui/glassPanelChrome';
+import { DASHBOARD_DESKTOP_CENTER_MAX_W_CLASS } from '@/core/ui/dashboardDesktopLayout';
 import { useTranslation, Language } from '@/core/i18n/I18nContext';
 
 const languages: { code: Language; label: string }[] = [
@@ -35,7 +36,7 @@ export default function SpotlightSearch() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Ouvrir la recherche"
-        className="relative z-[1] flex h-[70px] w-full max-w-[720px] items-center justify-end rounded-[24px] border-[1px] border-black/[0.06] bg-white/95 px-8 font-semibold text-gray-900/60 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),0_26px_56px_-22px_rgba(15,23,42,0.08)] backdrop-blur-[24px] transition-all duration-300 hover:bg-white hover:text-gray-900 group"
+        className={`relative z-[1] flex h-[70px] w-full ${DASHBOARD_DESKTOP_CENTER_MAX_W_CLASS} items-center justify-end rounded-[24px] border-[1px] border-black/[0.06] bg-white/95 px-8 font-semibold text-gray-900/60 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),0_26px_56px_-22px_rgba(15,23,42,0.08)] backdrop-blur-[24px] transition-all duration-300 hover:bg-white hover:text-gray-900 group`}
         style={{ fontFamily: "'Outfit', sans-serif" }}
       >
 

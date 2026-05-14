@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useDashboardPager } from "@/features/dashboard/dashboardPagerContext";
 import DashboardPagerControls from "@/features/dashboard/components/DashboardPagerControls";
+import { DASHBOARD_DESKTOP_PAGER_TOP_FOR_HEADER } from "@/core/ui/dashboardDesktopLayout";
 
 type Props = {
   pages: ReactNode[];
@@ -26,7 +27,7 @@ export default function DashboardPager({ pages }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-0 overflow-hidden pt-[calc(70px+1.5rem)] md:pt-[calc(70px+2rem)] lg:pt-[calc(70px+3rem)]"
+      className={`fixed inset-0 z-0 overflow-hidden ${DASHBOARD_DESKTOP_PAGER_TOP_FOR_HEADER}`}
       data-testid="dashboard-pager-root"
     >
       <div
