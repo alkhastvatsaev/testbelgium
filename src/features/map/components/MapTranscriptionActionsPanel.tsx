@@ -374,8 +374,8 @@ export default function MapTranscriptionActionsPanel({
             transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.8 }}
             className={
               railScreenRect
-                ? "pointer-events-auto fixed top-1/2 z-[9999] flex h-[70vh] min-h-0 -translate-y-1/2 flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/85 shadow-[0_36px_72px_-22px_rgba(0,0,0,0.18),0_24px_52px_-22px_rgba(15,23,42,0.1)] backdrop-blur-2xl"
-                : "pointer-events-auto fixed left-6 top-1/2 z-[9999] flex h-[70vh] min-h-0 w-[380px] max-w-[min(400px,calc(100vw-1.5rem))] -translate-y-1/2 flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/85 shadow-[0_36px_72px_-22px_rgba(0,0,0,0.18),0_24px_52px_-22px_rgba(15,23,42,0.1)] backdrop-blur-2xl lg:w-[400px]"
+                ? "pointer-events-auto fixed top-1/2 z-[9999] flex h-[min(70dvh,720px)] min-h-0 -translate-y-1/2 flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/85 shadow-[0_36px_72px_-22px_rgba(0,0,0,0.18),0_24px_52px_-22px_rgba(15,23,42,0.1)] backdrop-blur-2xl"
+                : "pointer-events-auto fixed left-6 top-1/2 z-[9999] flex h-[min(70dvh,720px)] min-h-0 w-[380px] max-w-[min(400px,calc(100vw-1.5rem))] -translate-y-1/2 flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/85 shadow-[0_36px_72px_-22px_rgba(0,0,0,0.18),0_24px_52px_-22px_rgba(15,23,42,0.1)] backdrop-blur-2xl lg:w-[400px]"
             }
             style={
               railScreenRect

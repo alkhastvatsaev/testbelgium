@@ -34,6 +34,7 @@ import {
   DASHBOARD_DESKTOP_ROOT_CLASS,
   DASHBOARD_DESKTOP_SIDE_COL_CLASS,
   DASHBOARD_DESKTOP_TRACK_CLASS,
+  dashboardMapCenterSquareClass,
   dashboardMapRightShellClass,
   dashboardTripleSideShellClass,
 } from "@/core/ui/dashboardDesktopLayout";
@@ -430,11 +431,12 @@ export default function MapboxView() {
           </div>
         </aside>
 
-        <main
-          id="map-container"
-          className={`${DASHBOARD_DESKTOP_CENTER_COL_CLASS} relative z-0 overflow-hidden rounded-[24px] border border-black/[0.06] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1),0_32px_64px_-24px_rgba(15,23,42,0.07),0_0_100px_rgba(59,130,246,0.1)] transition-all duration-[400ms] ease-[cubic-bezier(0.25,1,0.5,1)]`}
-          style={{ userSelect: "none", WebkitUserSelect: "none", background: "#f8fafc" }}
-        >
+        <div className={DASHBOARD_DESKTOP_CENTER_COL_CLASS}>
+          <main
+            id="map-container"
+            className={`${dashboardMapCenterSquareClass}`}
+            style={{ userSelect: "none", WebkitUserSelect: "none", background: "#f8fafc" }}
+          >
           <div ref={mapContainerRef} id="map" style={{ position: "absolute", top: 0, bottom: 0, width: "100%" }} />
       
       {/* Premium Recenter Button */}
@@ -560,7 +562,8 @@ export default function MapboxView() {
           </motion.div>
         )}
       </AnimatePresence>
-        </main>
+          </main>
+        </div>
 
         <aside
           className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} ${dashboardMapRightShellClass}`}

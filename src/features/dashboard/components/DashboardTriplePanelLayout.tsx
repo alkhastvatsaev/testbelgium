@@ -67,19 +67,17 @@ export default function DashboardTriplePanelLayout({
           </div>
         </section>
 
-        <section
-          aria-label={centerAriaLabel}
-          data-testid={centerTestId}
-          className={`${DASHBOARD_DESKTOP_CENTER_COL_CLASS} ${dashboardTripleCenterShellClass}`}
-        >
-          <div
-            className={
-              centerPadding
-                ? `${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`
-                : "flex min-h-0 flex-1 flex-col overflow-hidden"
-            }
-          >
-            {center}
+        <section aria-label={centerAriaLabel} data-testid={centerTestId} className={DASHBOARD_DESKTOP_CENTER_COL_CLASS}>
+          <div className={dashboardTripleCenterShellClass}>
+            <div
+              className={
+                centerPadding
+                  ? `${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`
+                  : "flex min-h-0 flex-1 flex-col overflow-hidden"
+              }
+            >
+              {center}
+            </div>
           </div>
         </section>
 

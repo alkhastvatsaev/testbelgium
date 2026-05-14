@@ -659,7 +659,7 @@ export default function RequesterInterventionPanel() {
               transition={springTransition}
               className="absolute inset-0 flex flex-col overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
-              <div className="flex min-h-full flex-1 flex-col items-center justify-center py-4">
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-start px-1 pt-4 pb-28">
                 <h2 className="sr-only">{String(t("requester.intervention.step0_heading"))}</h2>
                 <div className="-translate-y-3 grid w-full max-w-[440px] grid-cols-3 gap-3 px-1">
                   {SMART_FORM_TEMPLATES.map((tpl) => {
