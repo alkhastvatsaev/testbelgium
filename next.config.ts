@@ -61,7 +61,7 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_GIT_SHA: resolveGitShaForBuild(),
   },
-  outputFileTracingRoot: __dirname,
+  outputFileTracingRoot: process.cwd(),
 };
 
 export default withPWA(nextConfig);
