@@ -29,6 +29,15 @@ import { useTranslation } from "@/core/i18n/I18nContext";
 import { devUiPreviewEnabled } from "@/core/config/devUiPreview";
 import { missionStableKey } from "@/features/map/missionStableKey";
 import { useMapArchivedMissions } from "@/features/map/useMapArchivedMissions";
+import {
+  DASHBOARD_DESKTOP_CENTER_COL_CLASS,
+  DASHBOARD_DESKTOP_ROOT_CLASS,
+  DASHBOARD_DESKTOP_SIDE_COL_CLASS,
+  DASHBOARD_DESKTOP_TRACK_CLASS,
+  dashboardMapRightShellClass,
+  dashboardTripleSideShellClass,
+} from "@/core/ui/dashboardDesktopLayout";
+import { GLASS_PANEL_BODY_SCROLL } from "@/core/ui/glassPanelChrome";
 
 export default function MapboxView() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -406,12 +415,27 @@ export default function MapboxView() {
 
 
   return (
-    <div
-      id="map-container"
-      className="relative z-0"
-      style={{ userSelect: 'none', WebkitUserSelect: 'none', background: '#f8fafc' }}
-    >
-      <div ref={mapContainerRef} id="map" style={{ position: 'absolute', top: 0, bottom: 0, width: '100%' }} />
+    <div className={DASHBOARD_DESKTOP_ROOT_CLASS}>
+      <div className={DASHBOARD_DESKTOP_TRACK_CLASS}>
+        <aside
+          id="dashboard-left-rail"
+          className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} ${dashboardTripleSideShellClass}`}
+        >
+          <div className={`${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`}>
+            <DailyMissions
+              missions={visibleMissions}
+              onMissionClick={handleMissionClick}
+              isEmbedded
+            />
+          </div>
+        </aside>
+
+        <main
+          id="map-container"
+          className={`${DASHBOARD_DESKTOP_CENTER_COL_CLASS} relative z-0 overflow-hidden rounded-[24px] border border-black/[0.06] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1),0_32px_64px_-24px_rgba(15,23,42,0.07),0_0_100px_rgba(59,130,246,0.1)] transition-all duration-[400ms] ease-[cubic-bezier(0.25,1,0.5,1)]`}
+          style={{ userSelect: "none", WebkitUserSelect: "none", background: "#f8fafc" }}
+        >
+          <div ref={mapContainerRef} id="map" style={{ position: "absolute", top: 0, bottom: 0, width: "100%" }} />
       
       {/* Premium Recenter Button */}
       <button
@@ -536,18 +560,20 @@ export default function MapboxView() {
           </motion.div>
         )}
       </AnimatePresence>
+        </main>
 
-      <DailyMissions missions={visibleMissions} onMissionClick={handleMissionClick} />
-
-      {/* Panel à droite : inbox toujours monté (messages portail) ; suivi client sur les autres pages du carrousel. */}
-      <div className="fixed right-12 top-1/2 -translate-y-1/2 z-40 flex h-[70vh] min-h-0 w-[calc(50vw-35vh-100px+5mm)] flex-col overflow-hidden rounded-[24px] border border-blue-400/20 bg-white/70 shadow-[0_0_60px_-15px_rgba(59,130,246,0.3),0_24px_56px_-22px_rgba(15,23,42,0.08)] backdrop-blur-[24px] backdrop-saturate-[180%] transition-all duration-500">
-        <div className={cn("flex min-h-0 flex-1 flex-col", dashboardPageIndex !== 0 && "hidden")}>
-          <BackOfficeInboxPanel />
-        </div>
-        <div className={cn("flex min-h-0 flex-1 flex-col", dashboardPageIndex === 0 && "hidden")}>
-          <RequesterTrackingPanel />
-        </div>
+        <aside
+          className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} ${dashboardMapRightShellClass}`}
+        >
+          <div className={cn("flex min-h-0 flex-1 flex-col", dashboardPageIndex !== 0 && "hidden")}>
+            <BackOfficeInboxPanel />
+          </div>
+          <div className={cn("flex min-h-0 flex-1 flex-col", dashboardPageIndex === 0 && "hidden")}>
+            <RequesterTrackingPanel />
+          </div>
+        </aside>
       </div>
     </div>
   );
 }
+

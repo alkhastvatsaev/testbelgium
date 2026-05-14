@@ -1,12 +1,11 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useDateContext } from '@/context/DateContext';
 import { useTranslation } from "@/core/i18n/I18nContext";
+import { cn } from "@/lib/utils";
 
 export default function ClockCalendar() {
-  const [mounted, setMounted] = useState(false);
   const [time, setTime] = useState<Date | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [calendarDate, setCalendarDate] = useState<Date | null>(null);
@@ -16,7 +15,6 @@ export default function ClockCalendar() {
   const locale = language === "nl" ? "nl-NL" : language === "en" ? "en-GB" : "fr-FR";
 
   useEffect(() => {
-    setMounted(true);
     setTime(new Date());
     setCalendarDate(selectedDate);
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -95,7 +93,10 @@ export default function ClockCalendar() {
       <div 
         id="dynamic-widget" 
         data-testid="clock-calendar-widget"
-        className={isCalendarOpen ? 'state-calendar' : 'state-clock'}
+        className={cn(
+          isCalendarOpen ? "state-calendar" : "state-clock",
+          !isCalendarOpen && "relative z-[1] w-full min-w-0",
+        )}
         onClick={() => {
           if (!isCalendarOpen) {
             setCalendarDate(selectedDate);

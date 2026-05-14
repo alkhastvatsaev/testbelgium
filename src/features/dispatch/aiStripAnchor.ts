@@ -2,7 +2,8 @@
 export const AI_STRIP_EDGE_INSET_PX = 5;
 
 
-export const AI_STRIP_BOTTOM_OFFSET_PX = 40;
+/** Marge au bord bas de l’écran pour la bande Galaxy (alignée sur `bottom-4` Tailwind ≈ 16px). */
+export const AI_STRIP_BOTTOM_OFFSET_PX = 16;
 
 
 export const AI_STRIP_BAR_HEIGHT_PX = 56;

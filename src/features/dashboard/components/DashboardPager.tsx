@@ -26,7 +26,7 @@ export default function DashboardPager({ pages }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-0 overflow-hidden"
+      className="fixed inset-0 z-0 overflow-hidden pt-[calc(70px+1.5rem)] md:pt-[calc(70px+2rem)] lg:pt-[calc(70px+3rem)]"
       data-testid="dashboard-pager-root"
     >
       <div

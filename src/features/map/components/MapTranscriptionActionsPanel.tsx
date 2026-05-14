@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { auth, firestore, isConfigured } from "@/core/config/firebase";
 import type { AudioUploadSidecar } from "@/core/services/audio/transcription.types";
@@ -58,8 +58,43 @@ export default function MapTranscriptionActionsPanel({
     time: "",
   });
 
+  /** Aligne le panneau d’édition sur le rail gauche **visible** (évite les coords du pager hors écran). */
+  const [railScreenRect, setRailScreenRect] = useState<{ left: number; width: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!editOpen) {
+      setRailScreenRect(null);
+      return;
+    }
+    const read = () => {
+      const el = document.getElementById("dashboard-left-rail");
+      if (!el) {
+        setRailScreenRect(null);
+        return;
+      }
+      const r = el.getBoundingClientRect();
+      if (r.width < 8 || r.right < 24 || r.left > window.innerWidth - 24) {
+        setRailScreenRect(null);
+        return;
+      }
+      setRailScreenRect({ left: r.left, width: r.width });
+    };
+    read();
+    const raf = window.requestAnimationFrame(read);
+    const el = document.getElementById("dashboard-left-rail");
+    const ro = new ResizeObserver(read);
+    if (el) ro.observe(el);
+    window.addEventListener("resize", read);
+    window.visualViewport?.addEventListener("resize", read);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener("resize", read);
+      window.visualViewport?.removeEventListener("resize", read);
+    };
+  }, [editOpen]);
+
   useEffect(() => {
-    if (!armed || scopedClipPublicUrl === undefined) return;
     const s = scopedClipPublicUrl?.trim() ?? "";
     if (s) return;
     setLatest(null);
@@ -337,7 +372,21 @@ export default function MapTranscriptionActionsPanel({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 18, scale: 0.99 }}
             transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.8 }}
-            className="pointer-events-auto fixed left-12 top-1/2 z-[9999] flex h-[70vh] min-h-0 w-[calc(50vw-35vh-100px+5mm)] -translate-y-1/2 flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/85 shadow-[0_36px_72px_-22px_rgba(0,0,0,0.18),0_24px_52px_-22px_rgba(15,23,42,0.1)] backdrop-blur-2xl"
+            className={
+              railScreenRect
+                ? "pointer-events-auto fixed top-1/2 z-[9999] flex h-[70vh] min-h-0 -translate-y-1/2 flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/85 shadow-[0_36px_72px_-22px_rgba(0,0,0,0.18),0_24px_52px_-22px_rgba(15,23,42,0.1)] backdrop-blur-2xl"
+                : "pointer-events-auto fixed left-6 top-1/2 z-[9999] flex h-[70vh] min-h-0 w-[380px] max-w-[min(400px,calc(100vw-1.5rem))] -translate-y-1/2 flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/85 shadow-[0_36px_72px_-22px_rgba(0,0,0,0.18),0_24px_52px_-22px_rgba(15,23,42,0.1)] backdrop-blur-2xl lg:w-[400px]"
+            }
+            style={
+              railScreenRect
+                ? {
+                    left: railScreenRect.left,
+                    width: railScreenRect.width,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                  }
+                : undefined
+            }
           >
             <div className={`${GLASS_PANEL_BODY_SCROLL_COMPACT} grid grid-cols-2 gap-3 pr-2`}>
               <label className="col-span-2">

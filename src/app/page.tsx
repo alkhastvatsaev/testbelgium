@@ -63,10 +63,26 @@ export default function Dashboard() {
                             </Suspense>
                             <ClientPortalAuthEffects />
                             <DashboardPager pages={dashboardPages} />
-                            <SpotlightSearch />
-                            <ClockCalendar />
-                            <UserProfile />
+                            {/* Bandeau global : même grille max-w + rails que le contenu (pas de `fixed` dans les enfants). */}
+                            <div
+                              className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex justify-center p-6 md:p-8 lg:p-12"
+                              data-testid="dashboard-global-header"
+                            >
+                              <div className="flex w-full max-w-[1580px] items-start justify-center gap-6 lg:gap-8">
+                                <div className="pointer-events-auto flex w-[380px] shrink-0 flex-col lg:w-[400px]">
+                                  <ClockCalendar />
+                                </div>
+                                <div className="pointer-events-auto flex min-w-0 max-w-[720px] flex-1 justify-center">
+                                  <SpotlightSearch />
+                                </div>
+                                <div className="pointer-events-auto flex w-[380px] shrink-0 flex-col lg:w-[400px]">
+                                  <UserProfile />
+                                </div>
+                              </div>
+                            </div>
+
                             <DashboardGalaxyLayer />
+
                           </TechnicianFinishJobProvider>
                         </TechnicianBackofficeReportBridgeProvider>
                       </TechnicianCaseIntentProvider>

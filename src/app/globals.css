@@ -6,15 +6,14 @@
 
 
 
+        /* Grille flex gérée par `MapboxView` / `DashboardTriplePanelLayout` (`dashboardDesktopLayout.ts`). */
         .dashboard-layout {
             display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            width: 100vw;
+            min-height: 0;
+            height: 100%;
+            width: 100%;
             background: transparent;
             overflow: hidden;
-            padding: 40px;
         }
 
         @media (max-width: 1024px) {
@@ -192,6 +191,7 @@
             --map-panel-outer-width: calc(100vw - 48px);
             z-index: 9999;
             transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            border-radius: 24px;
         }
         #dashboard-header {
             display: flex;
@@ -208,20 +208,11 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
+        /* Bordure / ombre : classes Tailwind sur `#map-container` dans `MapboxView`. */
         #map-container {
             position: relative;
-            width: 70vh; /* Largeur basée sur la hauteur pour faire un carré parfait */
-            height: 70vh; /* Hauteur égale à la largeur */
-            /* Largeur partagée avec la barre Galaxy (AiAssistant), position fixed mais même taille que la carte */
-            --map-panel-outer-width: 70vh;
-            border-radius: 24px;
             overflow: hidden;
-            border: 1px solid rgba(0, 0, 0, 0.06);
-            box-shadow:
-                0 25px 50px -12px rgba(0, 0, 0, 0.1),
-                0 32px 64px -24px rgba(15, 23, 42, 0.07),
-                0 0 100px rgba(59, 130, 246, 0.1);
-            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            --map-panel-outer-width: min(720px, calc(100vw - 4rem));
         }
         #map { 
             position: absolute; 
@@ -332,10 +323,13 @@
             background: rgba(0, 0, 0, 0.05) !important;
         }
 
-        /* --- MORPHING HORLOGE -> CALENDRIER --- */
+        /* --- MORPHING HORLOGE -> CALENDRIER ---
+         * Mode horloge : dans le flux (bandeau `page.tsx`), pas en fixed — évite chevauchement carte / rails.
+         * Mode calendrier : overlay fixed centré.
+         */
         #dynamic-widget {
-            position: fixed;
-            z-index: 101; /* Au dessus de l'overlay */
+            position: relative;
+            z-index: 1;
             background: rgba(255, 255, 255, 0.7);
             backdrop-filter: blur(24px) saturate(180%);
             -webkit-backdrop-filter: blur(24px) saturate(180%);
@@ -348,6 +342,18 @@
             overflow: hidden;
             transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
             box-sizing: border-box;
+            transform-origin: center center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #dynamic-widget.state-clock {
+            width: 100%;
+            height: 70px;
+            border-radius: 24px;
+            padding: 12px 24px;
+            cursor: pointer;
         }
 
         /* Panel Techniciens : En haut à gauche */
@@ -377,31 +383,9 @@
             display: none;
         }
 
-        /* Container principal */
-        #dynamic-widget {
-            position: fixed;
-            transform-origin: center center;
-            transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
-            z-index: 50;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #dynamic-widget.state-clock {
-            top: 24px;
-            left: 48px;
-            width: calc(50vw - 35vh - 100px + 5mm);
-            height: 70px;
-            border-radius: 24px;
-            padding: 12px 24px;
-            cursor: pointer;
-            transform: translate(0, 0) scale(1);
-        }
-
-        /* État 2 : Calendrier au centre */
+        /* État calendrier : overlay centré (sort du flux du bandeau). */
         #dynamic-widget.state-calendar {
+            position: fixed;
             top: 50%; 
             left: 50%;
             transform: translate(-50%, -50%) scale(1);
@@ -412,6 +396,7 @@
             z-index: 150;
             cursor: default;
         }
+
 
         /* Contenu Horloge */
         #clock-content {

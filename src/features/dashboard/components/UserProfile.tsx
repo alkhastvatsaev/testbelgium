@@ -49,22 +49,13 @@ export default function UserProfile() {
   };
 
   return (
-    <div 
-      className="fixed z-50 flex items-center justify-center cursor-pointer group hover:bg-white/80 hover:scale-[1.01] hover:shadow-[0_36px_72px_-18px_rgba(15,23,42,0.14)] active:scale-[0.99] transition-all duration-300 ease-out"
-      style={{ 
-        top: '24px',
-        right: '48px',
-        width: 'calc(50vw - 35vh - 100px + 5mm)',
-        height: '70px',
-        borderRadius: '24px',
-        background: 'rgba(255, 255, 255, 0.7)',
-        backdropFilter: 'blur(24px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-        border: '1px solid rgba(0, 0, 0, 0.06)',
-        boxShadow: '0 30px 60px -15px rgba(0, 0, 0, 0.1), 0 26px 56px -22px rgba(15, 23, 42, 0.08)',
+    <div
+      className="relative z-[1] flex h-[70px] w-full min-w-0 cursor-pointer items-center justify-center rounded-[24px] border border-black/[0.06] bg-white/70 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),0_26px_56px_-22px_rgba(15,23,42,0.08)] backdrop-blur-[24px] backdrop-saturate-[180%] transition-all duration-300 ease-out hover:scale-[1.01] hover:bg-white/80 hover:shadow-[0_36px_72px_-18px_rgba(15,23,42,0.14)] active:scale-[0.99]"
+      style={{
         fontFamily: "'Outfit', sans-serif",
       }}
     >
+
       <div className="flex items-center justify-between w-full px-4">
         <button 
           onClick={handlePrev}
