@@ -4,6 +4,10 @@
  * **Lignes directrices (concordance)** — même logique partout :
  * - Une **grille 3 colonnes** identique pour le bandeau fixe (`page.tsx`) et la piste (`MapboxView`, `DashboardTriplePanelLayout`) :
  *   rails `380px` → `400px` (`lg`) · centre `1fr` (Spotlight / carré / Galaxy alignés sur la même verticale).
+ * - **Espacement inter-panneaux (équidistance)** : `DASHBOARD_DESKTOP_PANEL_GAP_CLASS` — une seule valeur pour tous les
+ *   interstices gauche–centre et centre–droite (propriété CSS `gap` sur la grille) ; pas de `gap` différent en `lg`
+ *   pour que le pas reste identique sur toute la plage desktop. Les stacks à l’intérieur des rails (hubs) réutilisent
+ *   la même classe pour garder le même rythme visuel.
  * - **Marges page** : `px-6 md:px-8 lg:px-12` alignées sur le `p-*` du bandeau fixe (bords gauche/droit communs).
  * - **Haut** : `DASHBOARD_DESKTOP_PAGER_TOP_FOR_HEADER` = hauteur bandeau (70px + padding vertical du wrapper fixe) pour que le haut des vitres épouse le bas du bandeau.
  * - **Bas** : `pb` racine réserve la bande Galaxy ; côté du carré central = `min(70dvh, 720px)`.
@@ -18,11 +22,18 @@ export const DASHBOARD_DESKTOP_CENTER_MAX_W_CLASS = "max-w-[min(70dvh,720px)]";
 export const DASHBOARD_DESKTOP_CANVAS_PAD_X_CLASS = "px-6 md:px-8 lg:px-12";
 
 /**
+ * Pas unique entre panneaux vitrés (grille 3 col + colonnes empilées en `grid-cols-1`).
+ * `gap` assure gauche–centre = centre–droite ; une valeur pour tous les breakpoints desktop.
+ */
+export const DASHBOARD_DESKTOP_PANEL_GAP_CLASS = "gap-6";
+
+/**
  * Grille 3 colonnes — **à réutiliser** pour le bandeau et la piste (lignes directrices concordantes).
  * `minmax(0,1fr)` évite le débordement du rail central (carré + contenu).
  */
 export const DASHBOARD_DESKTOP_TRACK_CLASS =
-  "mx-auto grid w-full min-h-0 max-w-[1580px] grid-cols-1 items-start gap-6 md:grid-cols-[380px_minmax(0,1fr)_380px] lg:grid-cols-[400px_minmax(0,1fr)_400px] lg:gap-8";
+  "mx-auto grid w-full min-h-0 max-w-[1580px] grid-cols-1 items-start md:grid-cols-[380px_minmax(0,1fr)_380px] lg:grid-cols-[400px_minmax(0,1fr)_400px] " +
+  DASHBOARD_DESKTOP_PANEL_GAP_CLASS;
 
 /** Aligné en haut ; pas de `pt` ici (le pager aligne le premier pixel utile sous le bandeau). Réserve bas = Galaxy. */
 export const DASHBOARD_DESKTOP_ROOT_CLASS =

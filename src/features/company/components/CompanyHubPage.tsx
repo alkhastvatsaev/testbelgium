@@ -12,10 +12,12 @@ import {
   COMPANY_HUB_ANCHOR_SMART_FORM,
   COMPANY_HUB_ANCHOR_WORKSPACE,
 } from "@/features/company/companyHubNavigation";
+import { DASHBOARD_DESKTOP_PANEL_GAP_CLASS } from "@/core/ui/dashboardDesktopLayout";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/core/i18n/I18nContext";
 
-const railGap = "flex min-h-0 flex-1 flex-col gap-6 pb-4";
+/** Même pas que la grille desktop (`DASHBOARD_DESKTOP_PANEL_GAP_CLASS`) — rythme équidistant. */
+const railGap = `flex min-h-0 flex-1 flex-col ${DASHBOARD_DESKTOP_PANEL_GAP_CLASS} pb-4`;
 
 type CompanyHubRightCategory = "tracking" | "chat";
 
