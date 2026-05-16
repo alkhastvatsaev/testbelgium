@@ -33,7 +33,7 @@ describe("DashboardTriplePanelLayout", () => {
       />,
     );
 
-    expect(container.querySelector(".dashboard-desktop-track")).toBeInTheDocument();
+    expect(container.querySelector(".dashboard-desktop-grid")).toBeInTheDocument();
   });
 
   it("applique l’ombre dashboard unifiée sur les coques vitrées", () => {
@@ -45,11 +45,10 @@ describe("DashboardTriplePanelLayout", () => {
       />,
     );
 
-    expect(screen.getByTestId("triple-left")).toHaveClass("dashboard-panel-shadow");
+    expect(screen.getByTestId("triple-left")).toHaveClass("panel-glass");
+    expect(screen.getByTestId("triple-left")).toHaveAttribute("data-glass-panel");
     expect(screen.getByTestId("triple-left")).toHaveClass("dashboard-desktop-col");
-    expect(screen.getByTestId("triple-right")).toHaveClass("dashboard-panel-shadow");
-    expect(screen.getByTestId("triple-center").firstElementChild).toHaveClass(
-      "dashboard-panel-shadow",
-    );
+    expect(screen.getByTestId("triple-right")).toHaveClass("panel-glass");
+    expect(screen.getByTestId("triple-center")).toHaveClass("panel-glass");
   });
 });

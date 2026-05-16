@@ -1,0 +1,59 @@
+/**
+ * Panel glass + shadow tokens
+ * ===========================
+ * Shell: `.panel-glass` (+ optional `.panel-glass--blur`)
+ * Inner clip: `[data-glass-panel-inner]` / `.panel-glass-inner`
+ * Never put `overflow: hidden` on `.panel-glass`.
+ */
+
+:root {
+    --panel-shadow:
+        0 10px 30px -15px rgb(0 0 0 / 0.15),
+        0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+    --panel-shadow-hover:
+        0 14px 36px -12px rgb(0 0 0 / 0.18),
+        0 6px 10px -4px rgb(0 0 0 / 0.12);
+
+    --dashboard-panel-shadow: var(--panel-shadow);
+    --dashboard-panel-shadow-hover: var(--panel-shadow-hover);
+}
+
+/* Unified glass shell — use on every dashboard panel */
+.panel-glass,
+.panel-shadow,
+.dashboard-panel-shadow,
+[data-glass-panel] {
+    border-radius: 24px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: var(--panel-shadow);
+    min-width: 0;
+}
+
+.panel-glass--blur {
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+
+.panel-glass-hover:hover,
+.panel-shadow-hover:hover,
+[data-glass-panel][data-panel-shadow-hover]:hover {
+    box-shadow: var(--panel-shadow-hover);
+}
+
+[data-glass-panel-inner],
+.panel-glass-inner,
+.panel-shadow-inner {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: inherit;
+}
+
+/* Galaxy dock: one shadow on chrome, not on premium button */
+.dashboard-desktop-galaxy-dock-chrome.panel-glass .premium-btn {
+    box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.04);
+}

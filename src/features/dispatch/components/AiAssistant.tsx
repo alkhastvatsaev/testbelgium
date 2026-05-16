@@ -168,19 +168,18 @@ export type AiPlaybackSync =
   | null;
 
 type AiAssistantProps = {
-  
+  /** Bande dans le dock (largeur colonne centre = carte), pas en flottant viewport. */
+  dockLayout?: boolean;
   onUserPressPlay?: () => void;
-  
   onPlaybackSync?: (sync: AiPlaybackSync) => void;
-  
   onActiveClipUrlChange?: (clipPublicUrl: string | null) => void;
-  
   transcriptOverlayVisible?: boolean;
   onUserLongPress?: () => void;
   onQueueChange?: (queue: QueuedClip[]) => void;
 };
 
 export default function AiAssistant({
+  dockLayout = false,
   onUserPressPlay,
   onPlaybackSync,
   onActiveClipUrlChange,
@@ -789,10 +788,11 @@ export default function AiAssistant({
   const mapPanelRect = useAiStripInsetRect();
 
   const stripInsetTotal = AI_STRIP_EDGE_INSET_PX * 2;
-  const stripFallbackWidth = `calc(min(720px, calc(100vw - 2 * var(--dashboard-canvas-pad-x))) - ${stripInsetTotal}px)`;
+  const stripFallbackWidth = `calc(min(var(--dashboard-stack-max-width), calc(100vw - 2 * var(--dashboard-canvas-pad-x))) - ${stripInsetTotal}px)`;
 
-  const stripPositionStyle: React.CSSProperties =
-    mapPanelRect != null
+  const stripPositionStyle: React.CSSProperties | undefined = dockLayout
+    ? undefined
+    : mapPanelRect != null
       ? {
           left: mapPanelRect.left,
           width: mapPanelRect.width,

@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import { useDashboardPager } from "@/features/dashboard/dashboardPagerContext";
 import DashboardPagerControls from "@/features/dashboard/components/DashboardPagerControls";
-import { DASHBOARD_DESKTOP_PAGER_OFFSET_CLASS } from "@/core/ui/dashboardDesktopLayout";
 
 type Props = {
   pages: ReactNode[];
@@ -25,7 +24,7 @@ export default function DashboardPager({ pages }: Props) {
 
   return (
     <div
-      className={`absolute inset-0 z-0 overflow-hidden ${DASHBOARD_DESKTOP_PAGER_OFFSET_CLASS}`}
+      className="absolute inset-0 z-0 overflow-hidden"
       data-testid="dashboard-pager-root"
     >
       <div

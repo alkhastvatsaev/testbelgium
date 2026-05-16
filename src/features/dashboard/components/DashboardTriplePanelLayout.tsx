@@ -2,14 +2,14 @@
 
 import type { ReactNode } from "react";
 import {
-  DASHBOARD_DESKTOP_CENTER_COL_CLASS,
+  DASHBOARD_DESKTOP_COL_CLASS,
+  DASHBOARD_DESKTOP_GRID_CLASS,
+  DASHBOARD_DESKTOP_GRID_FILL_CLASS,
   DASHBOARD_DESKTOP_ROOT_CLASS,
-  DASHBOARD_DESKTOP_SIDE_COL_CLASS,
-  DASHBOARD_DESKTOP_TRACK_CLASS,
-  DASHBOARD_PANEL_INNER_CLIP_CLASS,
   dashboardTripleCenterShellClass,
   dashboardTripleSideShellClass,
 } from "@/core/ui/dashboardDesktopLayout";
+import GlassPanel from "@/core/ui/GlassPanel";
 import { GLASS_PANEL_BODY_SCROLL } from "@/core/ui/glassPanelChrome";
 
 export {
@@ -17,7 +17,6 @@ export {
   dashboardTripleCenterShellClass,
 } from "@/core/ui/dashboardDesktopLayout";
 
-/** Zone latérale vide : pas de cadre intérieur — surface utilisable à 100 %. */
 export function DashboardTriplePanelSidePlaceholder() {
   return <div aria-label="Zone vide" className="flex-1 bg-transparent" />;
 }
@@ -37,10 +36,7 @@ type Props = {
   rightPadding?: boolean;
 };
 
-/**
- * Gabarit commun : panneau gauche / centre / droite (pages secondaires du carousel).
- * Layout stable en flex (voir `dashboardDesktopLayout.ts`) — plus d’absolute + calc vw/vh.
- */
+/** 3-column grid page — each rail is a direct grid child + `panel-glass` shell. */
 export default function DashboardTriplePanelLayout({
   rootTestId,
   leftTestId,
@@ -57,52 +53,47 @@ export default function DashboardTriplePanelLayout({
 }: Props) {
   return (
     <div data-testid={rootTestId} className={DASHBOARD_DESKTOP_ROOT_CLASS}>
-      <div className={DASHBOARD_DESKTOP_TRACK_CLASS}>
-        <section
+      <div className={`${DASHBOARD_DESKTOP_GRID_CLASS} ${DASHBOARD_DESKTOP_GRID_FILL_CLASS}`}>
+        <GlassPanel
+          as="section"
           aria-label={leftAriaLabel}
           data-testid={leftTestId}
-          className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} ${dashboardTripleSideShellClass}`}
+          className={`${DASHBOARD_DESKTOP_COL_CLASS} dashboard-desktop-col--left`}
+          shellClassName={dashboardTripleSideShellClass}
+          innerClassName={`${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`}
         >
-          <div className={DASHBOARD_PANEL_INNER_CLIP_CLASS}>
-            <div className={`${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`}>
-              {left ?? <DashboardTriplePanelSidePlaceholder />}
-            </div>
-          </div>
-        </section>
+          {left ?? <DashboardTriplePanelSidePlaceholder />}
+        </GlassPanel>
 
-        <section aria-label={centerAriaLabel} data-testid={centerTestId} className={DASHBOARD_DESKTOP_CENTER_COL_CLASS}>
-          <div className={dashboardTripleCenterShellClass}>
-            <div className={DASHBOARD_PANEL_INNER_CLIP_CLASS}>
-              <div
-                className={
-                  centerPadding
-                    ? `${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`
-                    : "flex min-h-0 flex-1 flex-col overflow-hidden"
-                }
-              >
-                {center}
-              </div>
-            </div>
-          </div>
-        </section>
+        <GlassPanel
+          as="section"
+          aria-label={centerAriaLabel}
+          data-testid={centerTestId}
+          className={`${DASHBOARD_DESKTOP_COL_CLASS} dashboard-desktop-col--center`}
+          shellClassName={dashboardTripleCenterShellClass}
+          innerClassName={
+            centerPadding
+              ? `${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`
+              : "flex min-h-0 flex-1 flex-col overflow-hidden"
+          }
+        >
+          {center}
+        </GlassPanel>
 
-        <section
+        <GlassPanel
+          as="section"
           aria-label={rightAriaLabel}
           data-testid={rightTestId}
-          className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} ${dashboardTripleSideShellClass}`}
+          className={`${DASHBOARD_DESKTOP_COL_CLASS} dashboard-desktop-col--right`}
+          shellClassName={dashboardTripleSideShellClass}
+          innerClassName={
+            rightPadding
+              ? `${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`
+              : "flex min-h-0 flex-1 flex-col overflow-hidden"
+          }
         >
-          <div className={DASHBOARD_PANEL_INNER_CLIP_CLASS}>
-            <div
-              className={
-                rightPadding
-                  ? `${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`
-                  : "flex min-h-0 flex-1 flex-col overflow-hidden"
-              }
-            >
-              {right ?? <DashboardTriplePanelSidePlaceholder />}
-            </div>
-          </div>
-        </section>
+          {right ?? <DashboardTriplePanelSidePlaceholder />}
+        </GlassPanel>
       </div>
     </div>
   );

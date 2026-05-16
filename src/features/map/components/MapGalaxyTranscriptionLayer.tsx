@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import AiAssistant, { type AiPlaybackSync, type QueuedClip } from "@/features/dispatch/components/AiAssistant";
 import MapTranscriptionOverlay from "@/features/map/components/MapTranscriptionOverlay";
 import MapTranscriptionActionsPanel from "@/features/map/components/MapTranscriptionActionsPanel";
 import { DASHBOARD_DESKTOP_GALAXY_RAIL_CLASS } from "@/core/ui/dashboardDesktopLayout";
+
+const OVERLAY_ROOT_ID = "dashboard-overlay-root";
 
 type Props = {
   transcriptionArmed: boolean;
@@ -26,10 +29,19 @@ export default function MapGalaxyTranscriptionLayer({ transcriptionArmed, onUser
   const [transcriptTextEnabled, setTranscriptTextEnabled] = useState(false);
   /** Clip en cours dans la file AiAssistant — pour ne pas afficher le « dernier » fichier disque par erreur. */
   const [activeClipPublicUrl, setActiveClipPublicUrl] = useState<string | null>(null);
+  const [overlayRoot, setOverlayRoot] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!transcriptionArmed) setActiveClipPublicUrl(null);
   }, [transcriptionArmed]);
+
+  useEffect(() => {
+    const sync = () => setOverlayRoot(document.getElementById(OVERLAY_ROOT_ID));
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
 
   /**
    * AiAssistant envoie `null` quand la file est vide (ex. fin du dernier clip) : ne pas effacer,
@@ -49,7 +61,7 @@ export default function MapGalaxyTranscriptionLayer({ transcriptionArmed, onUser
     }
   }, []);
 
-  return (
+  const overlays = (
     <>
       <MapTranscriptionOverlay
         armed={transcriptionArmed}
@@ -66,7 +78,17 @@ export default function MapGalaxyTranscriptionLayer({ transcriptionArmed, onUser
         openEditSignal={openEditSignal}
         scopedClipPublicUrl={activeClipPublicUrl}
       />
+      {historyModeOpen ? (
+        <HistoryPanel queue={queue} onClose={() => setHistoryModeOpen(false)} />
+      ) : null}
+    </>
+  );
+
+  return (
+    <>
+      {overlayRoot ? createPortal(overlays, overlayRoot) : null}
       <AiAssistant
+        dockLayout
         transcriptOverlayVisible={transcriptOverlayOpen}
         onActiveClipUrlChange={onActiveClipFromAssistant}
         onUserPressPlay={() => {
@@ -78,12 +100,6 @@ export default function MapGalaxyTranscriptionLayer({ transcriptionArmed, onUser
         onUserLongPress={() => setHistoryModeOpen(true)}
         onQueueChange={setQueue}
       />
-      {historyModeOpen && (
-        <HistoryPanel
-          queue={queue}
-          onClose={() => setHistoryModeOpen(false)}
-        />
-      )}
     </>
   );
 }

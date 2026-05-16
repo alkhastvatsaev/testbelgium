@@ -1,173 +1,268 @@
 /**
- * Dashboard desktop layout — responsive system
- * =============================================
+ * Dashboard desktop layout — Rail system (definitive)
+ * =================================================
  *
- * Strategy (Linear / Vercel pattern):
- * 1. Three-column CSS Grid with explicit minmax() — rails never shrink below
- *    --dashboard-panel-min-width; centre absorbs remaining space via 1fr.
- * 2. Track has a computed min-width; canvas adds horizontal padding.
- * 3. When viewport < canvas min-width, `.dashboard-desktop-app` scrolls horizontally
- *    instead of compressing panels (no crushed side rails, no overflow clipping).
- * 4. Header, pager content, and Galaxy reserve share the same padding/gap tokens.
+ * Vertical rails (same grid for header, main, galaxy):
  *
- * Supported viewport band: 768px–∞ (DesktopOnlyGate). Below canvas min-width → horizontal scroll.
+ *   Rail 1          Rail 2          Rail 3          Rail 4
+ *   |               |               |               |
+ *   [  Left panel  ] gap [  Map center  ] gap [  Right panel  ]
+ *   |               |               |               |
+ *   [    date      ]     [  search   ]     [  IVANA       ]
+ *   |               |               |               |
+ *                       [ Galaxy bar only here ]
+ *                       (Rail 2 → Rail 3, grid column 2)
  *
- * TypeScript mirror: `src/core/ui/dashboardDesktopLayout.ts`
+ * Outer padding on `.dashboard-desktop-stack` = inset before Rail 1 / after Rail 4.
+ * Gutter between columns = `--dashboard-grid-gap` (1.5rem / gap-6).
+ *
+ * Grid template (single token — never duplicate):
+ *   minmax(320px, 1fr) | minmax(500px, 1fr) | minmax(320px, 1fr)
+ *
+ * TypeScript: `src/core/ui/dashboardDesktopLayout.ts`
+ * Panels: `.panel-glass` in `panel-tokens.css`
  */
 
 :root {
-    /* ---- Panel / column sizing ---- */
-    --dashboard-panel-min-width: 380px;
-    --dashboard-panel-max-width: 400px;
-    --dashboard-rail-min-width: var(--dashboard-panel-min-width);
-    --dashboard-rail-max-width: var(--dashboard-panel-max-width);
-    --dashboard-center-min-width: 400px;
-
-    /* ---- Spacing ---- */
     --dashboard-grid-gap: 1.5rem;
     --dashboard-gutter: var(--dashboard-grid-gap);
 
     --dashboard-header-height: 70px;
-    --dashboard-canvas-max-width: 1580px;
+    --dashboard-galaxy-band-height: 3.5rem;
+
+    --dashboard-rail-min-width: 320px;
+    --dashboard-center-min-width: 500px;
+
+    --dashboard-stack-max-width: 1480px;
 
     --dashboard-canvas-pad-x: 1.5rem;
     --dashboard-canvas-pad-top: 1.5rem;
 
-    /* Bande Galaxy : même gutter que la grille (gap-6) + hauteur barre AiAssistant (h-14) */
-    --dashboard-galaxy-band-height: 3.5rem;
-    --dashboard-galaxy-bottom-offset: var(--dashboard-grid-gap);
+    /** Rails 1–4: one grid definition for header, pager pages, and galaxy alignment */
+    --dashboard-grid-columns:
+        minmax(var(--dashboard-rail-min-width), 1fr)
+        minmax(var(--dashboard-center-min-width), 1fr)
+        minmax(var(--dashboard-rail-min-width), 1fr);
 
-    /* ---- Derived widths (do not edit by hand) ---- */
     --dashboard-track-min-width: calc(
-        2 * var(--dashboard-rail-min-width) + var(--dashboard-center-min-width) +
+        2 * var(--dashboard-rail-min-width) +
+            var(--dashboard-center-min-width) +
             2 * var(--dashboard-grid-gap)
     );
+
     --dashboard-canvas-min-width: calc(
         var(--dashboard-track-min-width) + 2 * var(--dashboard-canvas-pad-x)
     );
 
-    /* Single source for grid-template-columns (used by .dashboard-desktop-track) */
-    --dashboard-grid-columns:
-        minmax(var(--dashboard-rail-min-width), var(--dashboard-rail-max-width))
-        minmax(var(--dashboard-center-min-width), 1fr)
-        minmax(var(--dashboard-rail-min-width), var(--dashboard-rail-max-width));
+    --dashboard-panel-min-width: var(--dashboard-rail-min-width);
+    --dashboard-panel-max-width: var(--dashboard-rail-min-width);
+    --dashboard-canvas-max-width: var(--dashboard-stack-max-width);
 }
 
 @media (min-width: 768px) {
     :root {
         --dashboard-canvas-pad-x: 2rem;
-        --dashboard-canvas-pad-top: 1.5rem;
+        --dashboard-canvas-pad-top: 2rem;
     }
 }
 
 @media (min-width: 1024px) {
     :root {
-        --dashboard-canvas-pad-x: 3rem;
-        --dashboard-canvas-pad-top: 1.5rem;
+        --dashboard-canvas-pad-x: 2.5rem;
+        --dashboard-canvas-pad-top: 2.5rem;
     }
 }
 
-/* Scroll host: entire dashboard (header + pager) moves together when narrow */
+/* ── Viewport ── */
 .dashboard-desktop-app {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
 }
 
-/* Min-width floor = track + padding; never crushes grid below token mins */
 .dashboard-desktop-canvas {
-    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
     width: 100%;
     min-width: var(--dashboard-canvas-min-width);
     min-height: 0;
+}
+
+/**
+ * Centered block — padding defines outer bounds; inner grids align Rails 1–4.
+ */
+.dashboard-desktop-stack {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: var(--dashboard-stack-max-width);
+    min-width: var(--dashboard-track-min-width);
+    min-height: 0;
     flex: 1 1 auto;
-}
-
-.dashboard-desktop-canvas-pad-x {
+    margin-inline: auto;
     padding-inline: var(--dashboard-canvas-pad-x);
-}
-
-.dashboard-desktop-canvas-pad-top {
     padding-top: var(--dashboard-canvas-pad-top);
+    padding-bottom: max(var(--dashboard-canvas-pad-x), env(safe-area-inset-bottom, 0px));
+    gap: var(--dashboard-grid-gap);
 }
 
-/* 3-column track — bandeau + MapboxView + hub pages */
-.dashboard-desktop-track {
+.dashboard-desktop-stack-header {
+    flex-shrink: 0;
+    width: 100%;
+}
+
+.dashboard-desktop-stack-body {
+    position: relative;
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+}
+
+.dashboard-desktop-pager-host {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+}
+
+.dashboard-desktop-overlay-root {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/**
+ * 3-column rail grid — header slots + pager page content.
+ * Children 1–3 = left / center / right columns.
+ */
+.dashboard-desktop-grid {
     display: grid;
     width: 100%;
-    min-width: var(--dashboard-track-min-width);
-    max-width: var(--dashboard-canvas-max-width);
-    margin-inline: auto;
-    align-items: start;
+    min-width: 0;
+    align-items: stretch;
     grid-template-columns: var(--dashboard-grid-columns);
     gap: var(--dashboard-grid-gap);
 }
 
-/* Grid children: allow flex descendants to truncate (enterprise overflow pattern) */
-.dashboard-desktop-col {
-    min-width: 0;
-    max-width: 100%;
+.dashboard-desktop-grid--fill {
+    height: 100%;
+    min-height: 0;
 }
 
-/* Page roots inside pager — same horizontal pad + Galaxy reserve as layout tokens */
+.dashboard-desktop-col {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+}
+
+/* Optional rail labels (documentation / tests) */
+.dashboard-desktop-col--left {
+    grid-column: 1;
+}
+
+.dashboard-desktop-col--center {
+    grid-column: 2;
+}
+
+.dashboard-desktop-col--right {
+    grid-column: 3;
+}
+
 .dashboard-desktop-page-root {
     display: flex;
     width: 100%;
-    min-height: 0;
     height: 100%;
-    align-items: flex-start;
-    justify-content: center;
-    overflow: visible;
-    padding-inline: var(--dashboard-canvas-pad-x);
-    padding-bottom: calc(
-        var(--dashboard-galaxy-band-height) + var(--dashboard-galaxy-bottom-offset) +
-            env(safe-area-inset-bottom, 0px)
-    );
+    min-height: 0;
+    flex-direction: column;
 }
 
-/* Pager clears fixed header: header + top pad + gutter (2B) */
-.dashboard-desktop-pager-offset {
-    padding-top: calc(
-        var(--dashboard-header-height) + var(--dashboard-canvas-pad-top) + var(--dashboard-grid-gap)
-    );
+.dashboard-layout {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    background: transparent;
 }
 
-/* Bande Galaxy (bouton) — alignée sur la colonne centre, même offset bas que les panels */
-.dashboard-desktop-galaxy-strip {
-    position: absolute;
-    bottom: var(--dashboard-galaxy-bottom-offset);
-    z-index: 10000;
-    box-sizing: border-box;
+.dashboard-layout.mode-presentation {
+    min-height: 0;
+}
+
+/**
+ * Galaxy dock — SAME grid as header/body so the bar sits under the map only.
+ * Rule: chrome lives in grid column 2 (between Rail 2 and Rail 3).
+ * Width always matches #map-container; never spans columns 1–3.
+ */
+.dashboard-desktop-galaxy-dock {
+    display: grid;
+    flex-shrink: 0;
+    width: 100%;
     min-width: 0;
+    grid-template-columns: var(--dashboard-grid-columns);
+    gap: var(--dashboard-grid-gap);
+}
+
+.dashboard-desktop-galaxy-dock-chrome {
+    grid-column: 2;
+    width: 100%;
+    min-width: 0;
+    overflow: visible;
+}
+
+.dashboard-desktop-galaxy-dock-chrome-inner {
+    width: 100%;
+    overflow: hidden;
+    border-radius: inherit;
+}
+
+.dashboard-desktop-galaxy-strip {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .dashboard-desktop-galaxy-strip-inner {
-    height: var(--dashboard-galaxy-band-height);
     width: 100%;
     min-width: 0;
     max-width: 100%;
+    height: var(--dashboard-galaxy-band-height);
 }
 
-/* Overlays transcription / historique — même pad-x et gutter bas que le canevas */
 .dashboard-desktop-galaxy-rail {
     position: absolute;
-    inset-inline: 0;
-    bottom: var(--dashboard-galaxy-bottom-offset);
+    inset: 0;
+    z-index: 20;
     display: flex;
-    min-height: var(--dashboard-galaxy-band-height);
+    align-items: flex-end;
     justify-content: center;
-    padding-inline: var(--dashboard-canvas-pad-x);
+    padding-bottom: calc(var(--dashboard-galaxy-band-height) + var(--dashboard-grid-gap));
     pointer-events: none;
     box-sizing: border-box;
 }
 
-/* Legacy presentation shell inside home page */
-.dashboard-layout {
-    display: flex;
-    min-height: 0;
-    height: 100%;
+/* Legacy aliases */
+.dashboard-desktop-track {
+    display: grid;
     width: 100%;
-    background: transparent;
-    overflow: hidden;
+    min-width: 0;
+    align-items: stretch;
+    grid-template-columns: var(--dashboard-grid-columns);
+    gap: var(--dashboard-grid-gap);
+}
+
+.dashboard-desktop-track-fill {
+    height: 100%;
+    min-height: 0;
 }

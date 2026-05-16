@@ -27,14 +27,8 @@ import TechnicianNotificationBootstrap from "@/features/notifications/components
 import DevPreviewAnonymousAuth from "@/features/dev/DevPreviewAnonymousAuth";
 import { RequesterHubProvider } from "@/features/interventions/context/RequesterHubContext";
 import { TechnicianBackofficeReportBridgeProvider } from "@/context/TechnicianBackofficeReportBridgeContext";
-import {
-  DASHBOARD_DESKTOP_APP_SHELL_CLASS,
-  DASHBOARD_DESKTOP_CANVAS_CLASS,
-  DASHBOARD_DESKTOP_CENTER_COL_CLASS,
-  DASHBOARD_DESKTOP_HEADER_WRAPPER_CLASS,
-  DASHBOARD_DESKTOP_SIDE_COL_CLASS,
-  DASHBOARD_DESKTOP_TRACK_CLASS,
-} from "@/core/ui/dashboardDesktopLayout";
+import DashboardDesktopShell from "@/features/dashboard/components/DashboardDesktopShell";
+import { DASHBOARD_DESKTOP_COL_CLASS } from "@/core/ui/dashboardDesktopLayout";
 
 /** Écran d’accueil — **3 pages** : carte · hub société · hub technicien (back-office via inbox sur la carte). */
 export default function Dashboard() {
@@ -70,42 +64,29 @@ export default function Dashboard() {
                               <TechnicianNotificationBootstrap />
                             </Suspense>
                             <ClientPortalAuthEffects />
-                            <div
-                              id="dashboard-root-scroll"
-                              className={DASHBOARD_DESKTOP_APP_SHELL_CLASS}
-                            >
-                              <div className={DASHBOARD_DESKTOP_CANVAS_CLASS}>
-                                <DashboardPager pages={dashboardPages} />
-                                {/* Bandeau : même grille que la piste ; scroll horizontal synchronisé. */}
-                                <div
-                                  className={DASHBOARD_DESKTOP_HEADER_WRAPPER_CLASS}
-                                  data-testid="dashboard-global-header"
-                                >
-                                  <div
-                                    className={`pointer-events-auto ${DASHBOARD_DESKTOP_TRACK_CLASS}`}
+                            <DashboardDesktopShell
+                              header={
+                                <>
+                                  <aside
+                                    className={`${DASHBOARD_DESKTOP_COL_CLASS} dashboard-desktop-col--left pointer-events-auto`}
                                   >
-                                    <aside
-                                      className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} pointer-events-auto`}
-                                    >
-                                      <ClockCalendar />
-                                    </aside>
-                                    <div
-                                      className={`${DASHBOARD_DESKTOP_CENTER_COL_CLASS} pointer-events-auto`}
-                                    >
-                                      <SpotlightSearch />
-                                    </div>
-                                    <aside
-                                      className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} pointer-events-auto`}
-                                    >
-                                      <UserProfile />
-                                    </aside>
+                                    <ClockCalendar />
+                                  </aside>
+                                  <div
+                                    className={`${DASHBOARD_DESKTOP_COL_CLASS} dashboard-desktop-col--center pointer-events-auto`}
+                                  >
+                                    <SpotlightSearch />
                                   </div>
-                                </div>
-
-                                <DashboardGalaxyLayer />
-                              </div>
-                            </div>
-
+                                  <aside
+                                    className={`${DASHBOARD_DESKTOP_COL_CLASS} dashboard-desktop-col--right pointer-events-auto`}
+                                  >
+                                    <UserProfile />
+                                  </aside>
+                                </>
+                              }
+                              pager={<DashboardPager pages={dashboardPages} />}
+                              galaxy={<DashboardGalaxyLayer />}
+                            />
                           </TechnicianFinishJobProvider>
                         </TechnicianBackofficeReportBridgeProvider>
                       </TechnicianCaseIntentProvider>

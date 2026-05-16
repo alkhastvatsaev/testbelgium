@@ -90,10 +90,12 @@ export default function ClockCalendar() {
         onClick={() => setIsCalendarOpen(false)}
       />
       
-      <div 
-        id="dynamic-widget" 
+      <div
+        id="dynamic-widget"
+        data-glass-panel=""
         data-testid="clock-calendar-widget"
         className={cn(
+          "panel-glass panel-glass--blur",
           isCalendarOpen ? "state-calendar" : "state-clock",
           !isCalendarOpen && "relative z-[1] w-full min-w-0",
         )}
@@ -104,6 +106,7 @@ export default function ClockCalendar() {
           }
         }}
       >
+        <div data-glass-panel-inner="" className="flex h-full w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[inherit]">
         <div id="clock-content" className="flex items-center justify-between w-full px-2">
           {!isCalendarOpen && (
             <button 
@@ -154,6 +157,7 @@ export default function ClockCalendar() {
           <div className="calendar-grid" id="calendar-days">
             {renderCalendarDays()}
           </div>
+        </div>
         </div>
       </div>
     </>

@@ -223,7 +223,7 @@ export default function RequesterTrackingPanel() {
   return (
     <div
       data-testid="requester-tracking-panel"
-      className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white/60 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] border-l border-white/40 font-brand"
+      className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-transparent font-brand"
     >
       {/* Search Bar */}
       <div className="px-6 pt-6 pb-2">

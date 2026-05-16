@@ -30,17 +30,17 @@ import { devUiPreviewEnabled } from "@/core/config/devUiPreview";
 import { missionStableKey } from "@/features/map/missionStableKey";
 import { useMapArchivedMissions } from "@/features/map/useMapArchivedMissions";
 import {
-  DASHBOARD_DESKTOP_CENTER_COL_CLASS,
+  DASHBOARD_DESKTOP_COL_CLASS,
+  DASHBOARD_DESKTOP_GRID_CLASS,
+  DASHBOARD_DESKTOP_GRID_FILL_CLASS,
   DASHBOARD_DESKTOP_ROOT_CLASS,
-  DASHBOARD_DESKTOP_SIDE_COL_CLASS,
-  DASHBOARD_DESKTOP_TRACK_CLASS,
-  DASHBOARD_PANEL_INNER_CLIP_CLASS,
   dashboardMapCenterSquareClass,
   dashboardMapRightShellClass,
   dashboardTripleSideShellClass,
   DASHBOARD_DESKTOP_GALAXY_BOTTOM_CLASS,
   DASHBOARD_DESKTOP_GALAXY_INSET_END_CLASS,
 } from "@/core/ui/dashboardDesktopLayout";
+import GlassPanel from "@/core/ui/GlassPanel";
 import { GLASS_PANEL_BODY_SCROLL } from "@/core/ui/glassPanelChrome";
 
 export default function MapboxView() {
@@ -420,29 +420,33 @@ export default function MapboxView() {
 
   return (
     <div className={DASHBOARD_DESKTOP_ROOT_CLASS}>
-      <div className={DASHBOARD_DESKTOP_TRACK_CLASS}>
-        <aside
+      <div className={`${DASHBOARD_DESKTOP_GRID_CLASS} ${DASHBOARD_DESKTOP_GRID_FILL_CLASS}`}>
+        <GlassPanel
+          as="aside"
           id="dashboard-left-rail"
-          className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} ${dashboardTripleSideShellClass}`}
+          className={`${DASHBOARD_DESKTOP_COL_CLASS} dashboard-desktop-col--left`}
+          shellClassName={dashboardTripleSideShellClass}
+          innerClassName={`${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`}
         >
-          <div className={DASHBOARD_PANEL_INNER_CLIP_CLASS}>
-            <div className={`${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`}>
-              <DailyMissions
-                missions={visibleMissions}
-                onMissionClick={handleMissionClick}
-                isEmbedded
-              />
-            </div>
-          </div>
-        </aside>
+          <DailyMissions
+            missions={visibleMissions}
+            onMissionClick={handleMissionClick}
+            isEmbedded
+          />
+        </GlassPanel>
 
-        <div className={DASHBOARD_DESKTOP_CENTER_COL_CLASS}>
-          <main id="map-container" className={dashboardMapCenterSquareClass}>
+        <GlassPanel
+          as="main"
+          id="map-container"
+          className={`${DASHBOARD_DESKTOP_COL_CLASS} dashboard-desktop-col--center`}
+          shellClassName={dashboardMapCenterSquareClass}
+          innerClassName="relative min-h-0 flex-1 p-0"
+        >
             <div
-              className={`${DASHBOARD_PANEL_INNER_CLIP_CLASS} relative flex-1`}
+              className="relative flex min-h-0 flex-1 flex-col"
               style={{ userSelect: "none", WebkitUserSelect: "none", background: "#f8fafc" }}
             >
-          <div ref={mapContainerRef} id="map" style={{ position: "absolute", top: 0, bottom: 0, width: "100%" }} />
+          <div ref={mapContainerRef} id="map" className="absolute inset-0 h-full w-full" />
       
       {/* Premium Recenter Button */}
       <button
@@ -567,22 +571,22 @@ export default function MapboxView() {
           </motion.div>
         )}
       </AnimatePresence>
-            </div>
-          </main>
-        </div>
-
-        <aside
-          className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} ${dashboardMapRightShellClass}`}
-        >
-          <div className={DASHBOARD_PANEL_INNER_CLIP_CLASS}>
-            <div className={cn("flex min-h-0 flex-1 flex-col", dashboardPageIndex !== 0 && "hidden")}>
-              <BackOfficeInboxPanel />
-            </div>
-            <div className={cn("flex min-h-0 flex-1 flex-col", dashboardPageIndex === 0 && "hidden")}>
-              <RequesterTrackingPanel />
-            </div>
           </div>
-        </aside>
+        </GlassPanel>
+
+        <GlassPanel
+          as="aside"
+          className={`${DASHBOARD_DESKTOP_COL_CLASS} dashboard-desktop-col--right`}
+          shellClassName={dashboardMapRightShellClass}
+          innerClassName="flex min-h-0 flex-1 flex-col"
+        >
+          <div className={cn("flex min-h-0 flex-1 flex-col", dashboardPageIndex !== 0 && "hidden")}>
+            <BackOfficeInboxPanel />
+          </div>
+          <div className={cn("flex min-h-0 flex-1 flex-col", dashboardPageIndex === 0 && "hidden")}>
+            <RequesterTrackingPanel />
+          </div>
+        </GlassPanel>
       </div>
     </div>
   );
