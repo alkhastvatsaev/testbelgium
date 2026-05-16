@@ -5,7 +5,7 @@ export type BackofficeBucket = "pending" | "in_progress" | "done" | "invoiced";
 
 export function interventionBackofficeBucket(status: Intervention["status"]): BackofficeBucket {
   if (status === "pending" || status === "pending_needs_address") return "pending";
-  if (status === "in_progress") return "in_progress";
+  if (status === "assigned" || status === "in_progress") return "in_progress";
   if (status === "done") return "done";
   return "invoiced";
 }

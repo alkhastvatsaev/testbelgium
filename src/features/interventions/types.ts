@@ -3,7 +3,14 @@ export interface Intervention {
   title: string;
   address: string;
   time: string;
-  status: 'pending' | 'en_route' | 'in_progress' | 'done' | 'pending_needs_address' | 'invoiced';
+  status:
+    | 'pending'
+    | 'assigned'
+    | 'en_route'
+    | 'in_progress'
+    | 'done'
+    | 'pending_needs_address'
+    | 'invoiced';
   location: {
     lat: number;
     lng: number;
@@ -33,6 +40,10 @@ export interface Intervention {
   createdByUid?: string | null;
   /** Technicien désigné — filtre sécurité + dashboard Prompt 4. */
   assignedTechnicianUid?: string | null;
+  /** Horodatage acceptation terrain (passage `assigned` → `en_route`). */
+  technicianAcceptedAt?: string | null;
+  technicianDeclinedAt?: string | null;
+  technicianDeclinedByUid?: string | null;
   /** Planification optionnelle (AAAA-MM-JJ + HH:mm), sinon repli sur createdAt. */
   scheduledDate?: string | null;
   scheduledTime?: string | null;

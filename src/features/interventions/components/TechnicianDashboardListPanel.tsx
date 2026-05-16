@@ -10,10 +10,12 @@ import { useTechnicianMissionDayAnchor } from "@/features/interventions/useTechn
 import type { Intervention } from "@/features/interventions/types";
 
 import {
-  interventionMatchesTab,
+  interventionVisibleInTechnicianMissionList,
   sortInterventionsByScheduleAsc,
   formatScheduledTimeOnly,
 } from "@/features/interventions/technicianSchedule";
+import { isTechnicianAssignmentAwaitingResponse } from "@/features/interventions/technicianAssignmentActions";
+import TechnicianAssignmentOfferCard from "@/features/interventions/components/TechnicianAssignmentOfferCard";
 
 const outfit = { fontFamily: "'Outfit', sans-serif" } as const;
 
@@ -138,9 +140,20 @@ export default function TechnicianDashboardListPanel({
   const [missionsArchiveExpanded, setMissionsArchiveExpanded] = useState(false);
 
   const filteredSorted = useMemo(() => {
-    const rows = interventions.filter((iv) => interventionMatchesTab(iv, "today", missionDayAnchor));
-    return sortInterventionsByScheduleAsc(rows);
-  }, [interventions, missionDayAnchor]);
+    const rows = interventions.filter((iv) =>
+      interventionVisibleInTechnicianMissionList(iv, "today", firebaseUid, missionDayAnchor),
+    );
+    const awaiting = rows.filter((iv) =>
+      isTechnicianAssignmentAwaitingResponse(iv, firebaseUid),
+    );
+    const rest = rows.filter(
+      (iv) => !isTechnicianAssignmentAwaitingResponse(iv, firebaseUid),
+    );
+    return [
+      ...sortInterventionsByScheduleAsc(awaiting),
+      ...sortInterventionsByScheduleAsc(rest),
+    ];
+  }, [interventions, missionDayAnchor, firebaseUid]);
 
   const { activeMissions, archivedMissions } = useMemo(() => {
     const archived = filteredSorted.filter((iv) => iv.status === "done" || iv.status === "invoiced");
@@ -211,15 +224,26 @@ export default function TechnicianDashboardListPanel({
               className="grid grid-cols-1 gap-1.5 pb-1"
               aria-label={t("technician_hub.dashboard.list.intervention_list")}
             >
-              {activeMissions.map((iv, index) => (
-                <CaseCard
-                  key={iv.id}
-                  iv={iv}
-                  index={index}
-                  isSelected={selectedCaseId === iv.id}
-                  onOpen={() => onSelect(iv.id)}
-                />
-              ))}
+              {activeMissions.map((iv, index) =>
+                isTechnicianAssignmentAwaitingResponse(iv, firebaseUid) ? (
+                  <TechnicianAssignmentOfferCard
+                    key={iv.id}
+                    iv={iv}
+                    index={index}
+                    isSelected={selectedCaseId === iv.id}
+                    technicianUid={firebaseUid!}
+                    onSelect={() => onSelect(iv.id)}
+                  />
+                ) : (
+                  <CaseCard
+                    key={iv.id}
+                    iv={iv}
+                    index={index}
+                    isSelected={selectedCaseId === iv.id}
+                    onOpen={() => onSelect(iv.id)}
+                  />
+                ),
+              )}
             </div>
           ) : null}
 

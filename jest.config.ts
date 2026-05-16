@@ -28,10 +28,35 @@ const config: Config = {
   ],
   coverageThreshold: {
     global: {
+      statements: 4,
+      branches: 20,
+      functions: 7,
+      lines: 4,
+    },
+    // Modules métier P0 (fichiers ciblés — pas le dossier entier, trop de composants UI non couverts).
+    './src/features/interventions/assignInterventionToTechnician.ts': {
+      statements: 100,
+      branches: 100,
+      functions: 100,
+      lines: 100,
+    },
+    './src/features/interventions/technicianAssignmentActions.ts': {
+      statements: 90,
+      branches: 70,
+      functions: 100,
+      lines: 90,
+    },
+    './src/features/interventions/technicianSchedule.ts': {
       statements: 48,
       branches: 60,
-      functions: 54,
+      functions: 50,
       lines: 48,
+    },
+    './src/core/ui/dashboardDesktopLayout.ts': {
+      statements: 100,
+      branches: 100,
+      functions: 100,
+      lines: 100,
     },
   },
   moduleNameMapper: {

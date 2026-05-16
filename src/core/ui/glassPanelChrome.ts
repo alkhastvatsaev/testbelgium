@@ -8,6 +8,10 @@
 export const PANEL_CSS_VAR = {
   shadow: "--panel-shadow",
   shadowHover: "--panel-shadow-hover",
+  shadowAmbient: "--panel-shadow-ambient",
+  shadowContact: "--panel-shadow-contact",
+  shadowRim: "--panel-shadow-rim",
+  borderColor: "--panel-border-color",
   dashboardShadow: "--dashboard-panel-shadow",
 } as const;
 

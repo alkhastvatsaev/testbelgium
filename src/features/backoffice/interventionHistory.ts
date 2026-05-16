@@ -43,7 +43,11 @@ export function buildInterventionHistory(iv: Intervention): InterventionHistoryE
 
   const completedMs = unknownTimestampToMs(iv.completedAt as unknown);
   const hasLifecycleBeyondPending =
-    iv.status === "in_progress" || iv.status === "done" || iv.status === "invoiced";
+    iv.status === "assigned" ||
+    iv.status === "en_route" ||
+    iv.status === "in_progress" ||
+    iv.status === "done" ||
+    iv.status === "invoiced";
   if (completedMs != null || hasLifecycleBeyondPending) {
     let detail: string | undefined;
     if (completedMs != null) detail = formatWhen(completedMs);

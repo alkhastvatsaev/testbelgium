@@ -16,9 +16,10 @@ import {
 import { useTechnicianAssignments } from "@/features/interventions/useTechnicianAssignments";
 import { useTechnicianMissionDayAnchor } from "@/features/interventions/useTechnicianMissionDayAnchor";
 import {
-  interventionMatchesTab,
+  interventionVisibleInTechnicianMissionList,
   sortInterventionsByScheduleAsc,
 } from "@/features/interventions/technicianSchedule";
+import { isTechnicianAssignmentAwaitingResponse } from "@/features/interventions/technicianAssignmentActions";
 import { AnimatePresence, motion } from "framer-motion";
 
 type Props = { slotIndex: number };
@@ -34,16 +35,25 @@ export default function TechnicianHubPage({ slotIndex }: Props) {
   const { finishJobInterventionId } = useTechnicianFinishJob();
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
-  const { interventions } = useTechnicianAssignments();
+  const { interventions, firebaseUid } = useTechnicianAssignments();
   const missionDayAnchor = useTechnicianMissionDayAnchor();
 
   /** Même filtre « aujourd’hui » que la liste gauche (sélection auto du 1er dossier du jour). */
   const filteredSorted = useMemo(() => {
     const todayRows = interventions.filter((iv) =>
-      interventionMatchesTab(iv, "today", missionDayAnchor),
+      interventionVisibleInTechnicianMissionList(iv, "today", firebaseUid, missionDayAnchor),
     );
-    return sortInterventionsByScheduleAsc(todayRows);
-  }, [interventions, missionDayAnchor]);
+    const awaiting = todayRows.filter((iv) =>
+      isTechnicianAssignmentAwaitingResponse(iv, firebaseUid),
+    );
+    const rest = todayRows.filter(
+      (iv) => !isTechnicianAssignmentAwaitingResponse(iv, firebaseUid),
+    );
+    return [
+      ...sortInterventionsByScheduleAsc(awaiting),
+      ...sortInterventionsByScheduleAsc(rest),
+    ];
+  }, [interventions, missionDayAnchor, firebaseUid]);
 
   /** Ne pas auto-sélectionner une mission déjà en archives (évite détail « clôturée » + photos sans clic explicite). */
   const activeTodaySorted = useMemo(
@@ -62,14 +72,16 @@ export default function TechnicianHubPage({ slotIndex }: Props) {
       if (prev) {
         const iv = interventions.find((x) => x.id === prev);
         if (!iv) return activeTodaySorted[0]?.id ?? null;
-        if (!interventionMatchesTab(iv, "today", missionDayAnchor)) {
+        if (
+          !interventionVisibleInTechnicianMissionList(iv, "today", firebaseUid, missionDayAnchor)
+        ) {
           return activeTodaySorted[0]?.id ?? null;
         }
         return prev;
       }
       return activeTodaySorted[0]?.id ?? null;
     });
-  }, [pendingCaseId, setPendingCaseId, interventions, missionDayAnchor, activeTodaySorted]);
+  }, [pendingCaseId, setPendingCaseId, interventions, missionDayAnchor, activeTodaySorted, firebaseUid]);
 
   return (
     <DashboardTriplePanelLayout

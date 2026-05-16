@@ -23,6 +23,7 @@ import {
   formatScheduledTimeOnly,
   interventionMatchesTab,
   dailyMissionCardToneFromStatus,
+  isInterventionReleasedToTechnicianField,
 } from '@/features/interventions/technicianSchedule';
 import { cn } from '@/lib/utils';
 import { useTranslation } from "@/core/i18n/I18nContext";
@@ -68,6 +69,7 @@ export default function MapboxView() {
     const liveForDay = liveMissions.filter((m) => !m.date || m.date === selectedDateStr);
     
     const realMissions: Mission[] = firestoreInterventions
+      .filter((iv) => isInterventionReleasedToTechnicianField(iv))
       .filter(iv => interventionMatchesTab(iv, "today", selectedDate))
       .filter(iv => iv.location && typeof iv.location.lat === "number" && typeof iv.location.lng === "number")
       .map(iv => {

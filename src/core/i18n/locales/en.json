@@ -135,7 +135,16 @@
         "start_intervention": "Start intervention",
         "on_site": "I am on site",
         "no_address": "No address",
-        "not_provided": "Not provided"
+        "not_provided": "Not provided",
+        "new_assignment": "New assignment",
+        "new_assignment_hint": "Accept the job to start, or decline to send it back to IVANA.",
+        "accept_assignment": "Accept",
+        "decline_assignment": "Decline",
+        "assignment_accepted": "Job accepted",
+        "assignment_declined": "Job declined — sent back to IVANA requests",
+        "assignment_action_failed": "Action failed",
+        "update_failed": "Update failed",
+        "assignment_respond_in_list": "Accept or decline this job using the list on the left."
       },
       "images": {
         "no_mission_selected": "Select a mission to see client photos",

@@ -135,7 +135,16 @@
         "start_intervention": "Démarrer l'intervention",
         "on_site": "Je suis sur place",
         "no_address": "Pas d'adresse",
-        "not_provided": "Non renseigné"
+        "not_provided": "Non renseigné",
+        "new_assignment": "Nouvelle assignation",
+        "new_assignment_hint": "Acceptez la mission pour la démarrer, ou refusez pour la renvoyer à IVANA.",
+        "accept_assignment": "Accepter",
+        "decline_assignment": "Refuser",
+        "assignment_accepted": "Mission acceptée",
+        "assignment_declined": "Mission refusée — renvoyée aux demandes IVANA",
+        "assignment_action_failed": "Action impossible",
+        "update_failed": "Mise à jour impossible",
+        "assignment_respond_in_list": "Acceptez ou refusez cette mission dans la liste à gauche."
       },
       "images": {
         "no_mission_selected": "Sélectionnez une mission pour voir les photos du client",

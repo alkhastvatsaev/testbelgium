@@ -19,10 +19,10 @@ import {
 
 describe("dashboardDesktopLayout tokens", () => {
   it("defines v2 grid minimums", () => {
-    expect(DASHBOARD_RAIL_MIN_WIDTH_PX).toBe(320);
+    expect(DASHBOARD_RAIL_MIN_WIDTH_PX).toBe(380);
     expect(DASHBOARD_CENTER_MIN_WIDTH_PX).toBe(500);
-    expect(DASHBOARD_STACK_MAX_WIDTH_PX).toBe(1480);
-    expect(DASHBOARD_CANVAS_MAX_WIDTH_PX).toBe(1480);
+    expect(DASHBOARD_STACK_MAX_WIDTH_PX).toBe(1520);
+    expect(DASHBOARD_CANVAS_MAX_WIDTH_PX).toBe(1520);
     expect(DASHBOARD_GRID_GAP_PX).toBe(24);
     expect(DASHBOARD_HEADER_HEIGHT_PX).toBe(70);
     expect(DASHBOARD_VIEWPORT_MIN_WIDTH_PX).toBe(768);

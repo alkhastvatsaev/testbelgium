@@ -8,6 +8,9 @@ describe("glassPanelChrome", () => {
   it("exposes canonical panel shadow CSS variables", () => {
     expect(PANEL_CSS_VAR.shadow).toBe("--panel-shadow");
     expect(PANEL_CSS_VAR.shadowHover).toBe("--panel-shadow-hover");
+    expect(PANEL_CSS_VAR.shadowAmbient).toBe("--panel-shadow-ambient");
+    expect(PANEL_CSS_VAR.shadowContact).toBe("--panel-shadow-contact");
+    expect(PANEL_CSS_VAR.shadowRim).toBe("--panel-shadow-rim");
   });
 
   it("includes panel-glass on every glass shell", () => {

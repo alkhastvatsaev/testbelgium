@@ -30,10 +30,12 @@
     --dashboard-header-height: 70px;
     --dashboard-galaxy-band-height: 3.5rem;
 
-    --dashboard-rail-min-width: 320px;
+    /* Rail System column widths */
+    --dashboard-rail-min-width: 380px;
     --dashboard-center-min-width: 500px;
 
-    --dashboard-stack-max-width: 1480px;
+    /* Rail System centered wrapper width */
+    --dashboard-stack-max-width: 1520px;
 
     --dashboard-canvas-pad-x: 1.5rem;
     --dashboard-canvas-pad-top: 1.5rem;

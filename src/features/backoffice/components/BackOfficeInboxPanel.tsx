@@ -297,7 +297,7 @@ export default function BackOfficeInboxPanel() {
       const schedule = scheduledFieldsWhenReleasingToTechnician(row ?? {}, new Date());
       const targetUid = auth?.currentUser?.uid || getDefaultAssignedTechnicianUid();
       await updateDoc(doc(firestore, "interventions", id), {
-        status: "in_progress",
+        status: "assigned",
         assignedTechnicianUid: targetUid,
         scheduledDate: schedule.scheduledDate,
         scheduledTime: schedule.scheduledTime,

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, onSnapshot, query } from "firebase/firestore";
 import { auth, firestore, isConfigured } from "@/core/config/firebase";
 import {
   DEMO_TECHNICIAN_UID,
@@ -14,8 +14,12 @@ import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
 import type { Intervention } from "@/features/interventions/types";
 import { TECHNICIAN_ASSIGNMENTS_QUERY_KEY } from "@/features/offline/technicianQueryKeys";
 import { generateDailyAssignmentsAsInterventions } from "@/utils/dailyMockAssignments";
-import { getDefaultAssignedTechnicianUid } from "@/features/interventions/defaultAssignedTechnicianUid";
 import { isInterventionReleasedToTechnicianField } from "@/features/interventions/technicianSchedule";
+import {
+  getTechnicianAssignmentUid,
+  matchesAssignedTechnician,
+} from "@/features/interventions/technicianAssignmentActions";
+import { getDefaultAssignedTechnicianUid } from "@/features/interventions/defaultAssignedTechnicianUid";
 
 export type UseTechnicianAssignmentsResult = {
   interventions: Intervention[];
@@ -63,22 +67,24 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
 
   const interventions = useMemo(() => {
     const filterReleased = (rows: Intervention[]) => {
-      // Version ultra-simple : on affiche tout ce que Firestore nous renvoie.
-      // Si c'est dans la collection, c'est que c'est pour le technicien.
-      return rows;
+      const uid = (firebaseUid ?? "").trim();
+      if (!uid) return [];
+      return rows.filter((iv) => {
+        if (!isInterventionReleasedToTechnicianField(iv)) return false;
+        return matchesAssignedTechnician(iv, uid);
+      });
     };
 
+    const defaultTechUid = getDefaultAssignedTechnicianUid();
     if (
       devUiPreviewEnabled &&
-      firebaseUid === DEMO_TECHNICIAN_UID &&
+      firebaseUid === defaultTechUid &&
       !realInterventionsOnly
     ) {
       const mockRows = generateDailyAssignmentsAsInterventions(dashboardDate);
       const map = new Map(mockRows.map((r) => [r.id, r]));
       firestoreInterventions.forEach((r) => map.set(r.id, r));
-      return stripKnownSyntheticInterventions(
-        filterReleased(Array.from(map.values())),
-      );
+      return filterReleased(Array.from(map.values()));
     }
     return stripKnownSyntheticInterventions(filterReleased(firestoreInterventions));
   }, [firestoreInterventions, dashboardDate, firebaseUid]);
@@ -96,7 +102,7 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
   useEffect(() => {
     if (!isConfigured || !firestore || !auth) {
       if (devUiPreviewEnabled) {
-        setFirebaseUid(DEMO_TECHNICIAN_UID);
+        setFirebaseUid(getTechnicianAssignmentUid(DEMO_TECHNICIAN_UID));
         setSnapshotReady(true);
         setError(null);
       } else {
@@ -112,24 +118,27 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
       unsubSnap?.();
       unsubSnap = undefined;
 
-      const effectiveUid =
-        devUiPreviewEnabled && (!user || user.isAnonymous) ? DEMO_TECHNICIAN_UID : user?.uid;
+      const authUid =
+        devUiPreviewEnabled && (!user || user.isAnonymous)
+          ? DEMO_TECHNICIAN_UID
+          : user?.uid ?? null;
+      const technicianUid = getTechnicianAssignmentUid(authUid);
 
       queryClient.removeQueries({
         predicate: (q) =>
           Array.isArray(q.queryKey) &&
           q.queryKey[0] === TECHNICIAN_ASSIGNMENTS_QUERY_KEY &&
-          q.queryKey[1] !== effectiveUid,
+          q.queryKey[1] !== technicianUid,
       });
 
-      if (!effectiveUid) {
+      if (!technicianUid) {
         setFirebaseUid(null);
         setError(null);
         setSnapshotReady(true);
         return;
       }
 
-      setFirebaseUid(effectiveUid);
+      setFirebaseUid(technicianUid);
       setSnapshotReady(false);
       setError(null);
 
@@ -143,7 +152,7 @@ export function useTechnicianAssignments(): UseTechnicianAssignmentsResult {
         q,
         (snapshot) => {
           const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Intervention));
-          queryClient.setQueryData([TECHNICIAN_ASSIGNMENTS_QUERY_KEY, effectiveUid], data);
+          queryClient.setQueryData([TECHNICIAN_ASSIGNMENTS_QUERY_KEY, technicianUid], data);
           setSnapshotReady(true);
           setError(null);
         },

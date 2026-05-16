@@ -1,4 +1,5 @@
 import type { Intervention } from "@/features/interventions/types";
+import { isTechnicianAssignmentAwaitingResponse } from "@/features/interventions/technicianAssignmentActions";
 
 export type TechnicianTabFilter = "today" | "week" | "all";
 
@@ -105,6 +106,20 @@ function endOfWeekSunday(ref: Date): Date {
   e.setDate(e.getDate() + 6);
   e.setHours(23, 59, 59, 999);
   return e;
+}
+
+/**
+ * Liste missions technicien (panneau gauche) : les assignations en attente
+ * d’acceptation sont toujours visibles, même si la date planifiée n’est pas « aujourd’hui ».
+ */
+export function interventionVisibleInTechnicianMissionList(
+  iv: Intervention,
+  tab: TechnicianTabFilter,
+  technicianUid: string | null | undefined,
+  now = new Date(),
+): boolean {
+  if (isTechnicianAssignmentAwaitingResponse(iv, technicianUid)) return true;
+  return interventionMatchesTab(iv, tab, now);
 }
 
 export function interventionMatchesTab(iv: Intervention, tab: TechnicianTabFilter, now = new Date()): boolean {
@@ -230,6 +245,8 @@ export function statusLabelKey(status: Intervention["status"]): string {
   switch (status) {
     case "pending":
       return "status.pending";
+    case "assigned":
+      return "status.assigned";
     case "en_route":
       return "status.en_route";
     case "pending_needs_address":
@@ -255,6 +272,6 @@ export type DailyMissionCardTone = "done" | "active" | "upcoming";
 export function dailyMissionCardToneFromStatus(status: Intervention["status"] | null | undefined): DailyMissionCardTone {
   if (!status) return "upcoming";
   if (status === "done" || status === "invoiced") return "done";
-  if (status === "en_route" || status === "in_progress") return "active";
+  if (status === "assigned" || status === "en_route" || status === "in_progress") return "active";
   return "upcoming";
 }

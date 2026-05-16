@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, Clock3, MapPin, User, Play, Navigation, Phone, CheckCircle2, Mic, Pause } from "lucide-react";
+import { Camera, MapPin, Play, Navigation, CheckCircle2, Pause } from "lucide-react";
 import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { SlideAction } from "@/components/ui/slide-action";
 import { Badge } from "@/components/ui/badge";
 import { doc, updateDoc } from "firebase/firestore";
 import { firestore } from "@/core/config/firebase";
+import { toast } from "sonner";
 import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
 import { useInterventionLive } from "@/features/interventions/useInterventionLive";
 import type { Intervention } from "@/features/interventions/types";
@@ -170,6 +171,7 @@ export default function TechnicianDashboardDetailPanel({
       await updateDoc(ref, { status: newStatus });
     } catch (err) {
       console.error("Failed to update status", err);
+      toast.error(String(t("technician_hub.dashboard.detail.update_failed")));
     } finally {
       setIsUpdating(false);
     }
@@ -261,6 +263,27 @@ export default function TechnicianDashboardDetailPanel({
     );
   };
 
+  const renderAwaitingAssignmentHint = () => (
+    <motion.div
+      key="assigned-hint"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      className="flex flex-col gap-4 h-full pb-2"
+      data-testid="technician-assignment-detail-hint"
+    >
+      <div className={mainContainerClass}>
+        <div className="flex flex-col gap-4">
+          <p className="rounded-[16px] border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-center text-[14px] font-semibold text-amber-950">
+            {t("technician_hub.dashboard.detail.assignment_respond_in_list")}
+          </p>
+          {renderContactClient()}
+          <div className="h-px bg-slate-100/80 w-full" />
+          {renderAudioAndTranscription()}
+        </div>
+      </div>
+    </motion.div>
+  );
   const renderPending = () => (
     <motion.div
       key="pending"
@@ -396,6 +419,9 @@ export default function TechnicianDashboardDetailPanel({
   );
 
   const renderContent = () => {
+    if (liveIv.status === "assigned") {
+      return renderAwaitingAssignmentHint();
+    }
     if (liveIv.status === "pending" || liveIv.status === "pending_needs_address") return renderPending();
     if (liveIv.status === "en_route") return renderEnRoute();
     if (liveIv.status === "in_progress") return renderInProgress();

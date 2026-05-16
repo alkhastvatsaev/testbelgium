@@ -12,8 +12,9 @@ import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
 import { cn } from "@/lib/utils";
 import { useBackOfficeInterventions } from "@/features/backoffice/useBackOfficeInterventions";
 import type { Intervention } from "@/features/interventions/types";
+import { buildAssignInterventionToTechnicianUpdate } from "@/features/interventions/assignInterventionToTechnician";
 import { getDefaultAssignedTechnicianUid } from "@/features/interventions/defaultAssignedTechnicianUid";
-import { scheduledFieldsWhenReleasingToTechnician } from "@/features/interventions/technicianSchedule";
+import { isInterventionPendingBackOfficeIntake } from "@/features/interventions/technicianSchedule";
 import { capitalizeName, formatAddress } from "@/utils/stringUtils";
 import { useResolvedInterventionAudio } from "@/features/backoffice/useResolvedInterventionAudio";
 import { guessGenderPrefixFromName } from "@/utils/genderDetection";
@@ -36,7 +37,7 @@ export default function IncomingClientRequestsPanel() {
 
 
   const pendingRequests = interventions
-    .filter((inv) => inv.status === "pending")
+    .filter((inv) => isInterventionPendingBackOfficeIntake(inv))
     .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
   const handleDelete = async (id: string) => {
@@ -54,13 +55,10 @@ export default function IncomingClientRequestsPanel() {
     if (!firestore) return;
     try {
       const row = interventions.find((x) => x.id === id);
-      const schedule = scheduledFieldsWhenReleasingToTechnician(row ?? {}, new Date());
-      await updateDoc(doc(firestore, "interventions", id), {
-        status: "in_progress",
-        assignedTechnicianUid: getDefaultAssignedTechnicianUid(),
-        scheduledDate: schedule.scheduledDate,
-        scheduledTime: schedule.scheduledTime,
-      });
+      await updateDoc(
+        doc(firestore, "interventions", id),
+        buildAssignInterventionToTechnicianUpdate(row, getDefaultAssignedTechnicianUid()),
+      );
       toast.success(String(t("backoffice.toasts.request_assigned")));
       setSelectedRequest(null);
     } catch (e) {
@@ -142,6 +140,7 @@ export default function IncomingClientRequestsPanel() {
               return (
                 <motion.div
                   key={req.id}
+                  data-testid={`incoming-request-card-${req.id}`}
                   onClick={() => setSelectedRequest(req)}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -332,6 +331,8 @@ export default function IncomingClientRequestsPanel() {
                 {String(t("backoffice.incoming_requests.delete"))}
               </button>
               <button
+                type="button"
+                data-testid="incoming-request-assign"
                 onClick={() => handleAssign(selectedRequest.id)}
                 className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-[16px] bg-slate-900 text-white font-semibold text-[14px] transition-all hover:bg-slate-800 hover:shadow-[0_8px_20px_rgba(15,23,42,0.2)] active:scale-95"
               >

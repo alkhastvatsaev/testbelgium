@@ -24,7 +24,7 @@ export {
 
 /* ── Numeric mirrors (keep in sync with dashboard-layout.css :root) ── */
 
-export const DASHBOARD_RAIL_MIN_WIDTH_PX = 320;
+export const DASHBOARD_RAIL_MIN_WIDTH_PX = 380;
 
 /** @deprecated */
 export const DASHBOARD_PANEL_MIN_WIDTH_PX = DASHBOARD_RAIL_MIN_WIDTH_PX;
@@ -37,7 +37,7 @@ export const DASHBOARD_RAIL_MAX_WIDTH_PX = DASHBOARD_RAIL_MIN_WIDTH_PX;
 
 export const DASHBOARD_CENTER_MIN_WIDTH_PX = 500;
 
-export const DASHBOARD_STACK_MAX_WIDTH_PX = 1480;
+export const DASHBOARD_STACK_MAX_WIDTH_PX = 1520;
 
 /** @deprecated */
 export const DASHBOARD_CANVAS_MAX_WIDTH_PX = DASHBOARD_STACK_MAX_WIDTH_PX;
