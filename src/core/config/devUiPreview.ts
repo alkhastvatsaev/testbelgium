@@ -7,11 +7,9 @@
  * Production : toujours désactivé.
  */
 export const devUiPreviewEnabled =
-  (process.env.NODE_ENV === "development" ||
-    process.env.NEXT_PUBLIC_FORCE_DEV_UI_PREVIEW === "true") &&
   process.env.NEXT_PUBLIC_DISABLE_DEV_UI_PREVIEW !== "true";
 
-const inDevOrPreview = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_FORCE_DEV_UI_PREVIEW === "true";
+const inDevOrPreview = true;
 
 /**
  * Masque missions / grilles générées (carte, technicien démo, etc.) et fichiers locaux `.intervention.json`.
