@@ -5,7 +5,13 @@ import { useDateContext } from "@/context/DateContext";
 import { generateDailyMissions, type Mission } from "@/utils/mockMissions";
 import { devUiPreviewEnabled, realInterventionsOnly } from "@/core/config/devUiPreview";
 import { dailyMissionCardToneFromStatus } from "@/features/interventions/technicianSchedule";
-import { GLASS_PANEL_BODY_SCROLL } from "@/core/ui/glassPanelChrome";
+import {
+  DASHBOARD_PANEL_CHROME_BLUR,
+  DASHBOARD_PANEL_CHROME_BORDER,
+  DASHBOARD_PANEL_CHROME_ROUNDED,
+  DASHBOARD_PANEL_SHADOW_CLASS,
+  GLASS_PANEL_BODY_SCROLL,
+} from "@/core/ui/glassPanelChrome";
 import { cn } from "@/lib/utils";
 
 export default function DailyMissions({
@@ -31,7 +37,7 @@ export default function DailyMissions({
       !isEmbedded && GLASS_PANEL_BODY_SCROLL
     )}>
       {/* Aligning the mission items to the top */}
-      <div className="grid grid-cols-3 gap-4 px-3 pb-8 pt-4">
+      <div className="grid grid-cols-3 gap-3 px-3 pb-8 pt-4 [grid-template-columns:repeat(3,minmax(0,1fr))]">
           {missions.map((mission, index) => {
             const tone =
               (mission as any).statusCode
@@ -88,7 +94,7 @@ export default function DailyMissions({
                   opacity: { duration: 0.4, delay: index * 0.1 },
                 }}
                 onClick={() => onMissionClick && onMissionClick(mission)}
-                className={`group relative w-[95px] p-3 rounded-[24px] bg-white/95 backdrop-blur-xl transition-all duration-[400ms] ease-out cursor-pointer flex flex-col items-center justify-center gap-1.5 aspect-square text-center hover:scale-[1.02] active:scale-[0.96]`}
+                className={`group relative w-full max-w-[95px] justify-self-center p-3 rounded-[24px] bg-white/95 backdrop-blur-xl transition-all duration-[400ms] ease-out cursor-pointer flex flex-col items-center justify-center gap-1.5 aspect-square text-center hover:scale-[1.02] active:scale-[0.96]`}
               >
                 <h3 className={`text-[14px] font-bold tracking-[-0.02em] leading-tight bg-gradient-to-br ${textGradient} bg-clip-text text-transparent`}>
                   {mission.clientName}
@@ -109,8 +115,10 @@ export default function DailyMissions({
   }
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/70 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),0_24px_56px_-22px_rgba(15,23,42,0.08)] backdrop-blur-[24px] backdrop-saturate-[180%] transition-all duration-500">
-      {content}
+    <div
+      className={`flex h-full w-full flex-col ${DASHBOARD_PANEL_CHROME_ROUNDED} ${DASHBOARD_PANEL_CHROME_BORDER} bg-white/70 ${DASHBOARD_PANEL_SHADOW_CLASS} ${DASHBOARD_PANEL_CHROME_BLUR} transition-all duration-500`}
+    >
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[inherit]">{content}</div>
     </div>
   );
 }

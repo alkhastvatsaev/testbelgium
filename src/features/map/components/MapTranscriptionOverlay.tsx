@@ -379,11 +379,11 @@ function MapTranscriptionOverlayInner({
       {/* Transcription Scrim : Assombrissement de la carte derrière le texte */}
       <div
         data-testid="map-transcription-dim"
-        className="pointer-events-none fixed inset-0 z-[9990] bg-gradient-to-b from-black/0 via-black/35 to-black/75 transition-opacity duration-200"
+        className="pointer-events-none absolute inset-0 z-[9990] bg-gradient-to-b from-black/0 via-black/35 to-black/75 transition-opacity duration-200"
       />
 
       {/* Bouton fermeture en haut à droite de la carte */}
-      <div className="pointer-events-none fixed top-3 right-3 z-[9999]">
+      <div className="pointer-events-none absolute top-3 right-3 z-[9999]">
         <button
           type="button"
           data-testid="map-transcription-close"
@@ -402,7 +402,7 @@ function MapTranscriptionOverlayInner({
       {/* Texte directement sur la carte */}
       <div
         data-testid="map-transcription-overlay"
-        className="pointer-events-none fixed inset-x-0 bottom-10 z-[9999] flex min-h-[3rem] justify-center px-6"
+        className="dashboard-desktop-galaxy-rail z-[9999]"
       >
         {transcriptTextEnabled && fullText.trim() ? (
           <div

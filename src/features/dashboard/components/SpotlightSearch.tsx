@@ -3,8 +3,15 @@ import React, { useEffect, useState } from 'react';
 import { Command } from 'cmdk';
 import { Search, X, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GLASS_PANEL_OVERFLOW_PADDING } from '@/core/ui/glassPanelChrome';
-import { DASHBOARD_DESKTOP_CENTER_MAX_W_CLASS } from '@/core/ui/dashboardDesktopLayout';
+import {
+  DASHBOARD_PANEL_CHROME_BLUR,
+  DASHBOARD_PANEL_CHROME_BORDER,
+  DASHBOARD_PANEL_CHROME_ROUNDED,
+  DASHBOARD_PANEL_INNER_CLIP_CLASS,
+  DASHBOARD_PANEL_SHADOW_CLASS,
+  GLASS_PANEL_OVERFLOW_PADDING,
+} from '@/core/ui/glassPanelChrome';
+import { dashboardHeaderPanelShellClass } from '@/core/ui/dashboardDesktopLayout';
 import { useTranslation, Language } from '@/core/i18n/I18nContext';
 
 const languages: { code: Language; label: string }[] = [
@@ -36,11 +43,11 @@ export default function SpotlightSearch() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Ouvrir la recherche"
-        className={`relative z-[1] flex h-[70px] w-full ${DASHBOARD_DESKTOP_CENTER_MAX_W_CLASS} items-center justify-end rounded-[24px] border-[1px] border-black/[0.06] bg-white/95 px-8 font-semibold text-gray-900/60 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),0_26px_56px_-22px_rgba(15,23,42,0.08)] backdrop-blur-[24px] transition-all duration-300 hover:bg-white hover:text-gray-900 group`}
+        className={`${dashboardHeaderPanelShellClass} items-center justify-end bg-white/95 px-8 font-semibold text-gray-900/60 hover:bg-white hover:text-gray-900 group`}
         style={{ fontFamily: "'Outfit', sans-serif" }}
       >
 
-        <Search className="w-6 h-6 opacity-60 group-hover:scale-110 transition-transform" />
+
       </button>
 
       <AnimatePresence>
@@ -58,14 +65,14 @@ export default function SpotlightSearch() {
               initial={{ opacity: 0, scale: 0.98, y: -10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98, y: -10 }}
-              className="relative flex max-h-[min(90vh,720px)] min-h-0 w-full max-w-xl flex-col overflow-hidden rounded-[24px] border-[1px] border-black/[0.06] bg-white/75 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.14),0_28px_56px_-22px_rgba(15,23,42,0.1)] backdrop-blur-[24px]"
+              className={`relative flex max-h-[min(90vh,720px)] min-h-0 w-full max-w-xl flex-col ${DASHBOARD_PANEL_CHROME_ROUNDED} ${DASHBOARD_PANEL_CHROME_BORDER} bg-white/75 ${DASHBOARD_PANEL_SHADOW_CLASS} ${DASHBOARD_PANEL_CHROME_BLUR}`}
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
-              <Command className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+              <Command className={`flex min-h-0 w-full flex-1 flex-col ${DASHBOARD_PANEL_INNER_CLIP_CLASS}`}>
                 
                 {/* Header: Search Input & Close */}
                 <div className="flex items-center px-8 border-b border-black/5 bg-white/50 backdrop-blur-md z-10">
-                  <Search className="w-6 h-6 opacity-30 mr-4 shrink-0" />
+
                   <Command.Input 
                     autoFocus 
                     placeholder={t('spotlight.search_placeholder')}

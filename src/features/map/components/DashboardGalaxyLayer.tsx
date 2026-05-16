@@ -19,12 +19,11 @@ export default function DashboardGalaxyLayer() {
 
   if (!mounted) return null;
 
-  return createPortal(
+  return (
     <MapGalaxyTranscriptionLayer
       transcriptionArmed={transcriptionArmed}
       onUserPressPlay={armTranscription}
       onInterventionCreated={emitInterventionCreated}
-    />,
-    document.body
+    />
   );
 }

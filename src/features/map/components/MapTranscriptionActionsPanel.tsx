@@ -7,7 +7,17 @@ import type { AudioUploadSidecar } from "@/core/services/audio/transcription.typ
 import { addDoc, collection } from "firebase/firestore";
 import { extractClientNameFromText, extractDateTimeFromText } from "./transcriptionFormInference";
 import { useCompanyWorkspaceOptional } from "@/context/CompanyWorkspaceContext";
-import { GLASS_PANEL_BODY_SCROLL_COMPACT } from "@/core/ui/glassPanelChrome";
+import {
+  DASHBOARD_PANEL_CHROME_BLUR,
+  DASHBOARD_PANEL_CHROME_BORDER,
+  DASHBOARD_PANEL_CHROME_ROUNDED,
+  DASHBOARD_PANEL_INNER_CLIP_CLASS,
+  DASHBOARD_PANEL_SHADOW_CLASS,
+  GLASS_PANEL_BODY_SCROLL_COMPACT,
+} from "@/core/ui/glassPanelChrome";
+
+const MAP_TRANSCRIPTION_PANEL_SHELL =
+  `pointer-events-auto absolute top-1/2 z-[9999] flex h-[min(70dvh,720px)] min-h-0 -translate-y-1/2 flex-col ${DASHBOARD_PANEL_CHROME_ROUNDED} ${DASHBOARD_PANEL_CHROME_BORDER} bg-white/85 ${DASHBOARD_PANEL_SHADOW_CLASS} ${DASHBOARD_PANEL_CHROME_BLUR}`;
 import { recordDuplicateAlertIfNeeded } from "@/features/interventions/recordDuplicateAlertIfNeeded";
 import { useTranslation } from "@/core/i18n/I18nContext";
 
@@ -77,18 +87,32 @@ export default function MapTranscriptionActionsPanel({
         setRailScreenRect(null);
         return;
       }
-      setRailScreenRect({ left: r.left, width: r.width });
+      const container = document.getElementById("dashboard-root-scroll");
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        const left = r.left - containerRect.left + container.scrollLeft;
+        setRailScreenRect({ left, width: r.width });
+      } else {
+        setRailScreenRect({ left: r.left, width: r.width });
+      }
     };
     read();
     const raf = window.requestAnimationFrame(read);
     const el = document.getElementById("dashboard-left-rail");
+    const container = document.getElementById("dashboard-root-scroll");
     const ro = new ResizeObserver(read);
     if (el) ro.observe(el);
+    if (container) {
+      container.addEventListener("scroll", read);
+    }
     window.addEventListener("resize", read);
     window.visualViewport?.addEventListener("resize", read);
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      if (container) {
+        container.removeEventListener("scroll", read);
+      }
       window.removeEventListener("resize", read);
       window.visualViewport?.removeEventListener("resize", read);
     };
@@ -374,8 +398,8 @@ export default function MapTranscriptionActionsPanel({
             transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.8 }}
             className={
               railScreenRect
-                ? "pointer-events-auto fixed top-1/2 z-[9999] flex h-[min(70dvh,720px)] min-h-0 -translate-y-1/2 flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/85 shadow-[0_36px_72px_-22px_rgba(0,0,0,0.18),0_24px_52px_-22px_rgba(15,23,42,0.1)] backdrop-blur-2xl"
-                : "pointer-events-auto fixed left-6 top-1/2 z-[9999] flex h-[min(70dvh,720px)] min-h-0 w-[380px] max-w-[min(400px,calc(100vw-1.5rem))] -translate-y-1/2 flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/85 shadow-[0_36px_72px_-22px_rgba(0,0,0,0.18),0_24px_52px_-22px_rgba(15,23,42,0.1)] backdrop-blur-2xl lg:w-[400px]"
+                ? MAP_TRANSCRIPTION_PANEL_SHELL
+                : `${MAP_TRANSCRIPTION_PANEL_SHELL} left-6 w-[min(var(--dashboard-rail-max-width),calc(100vw-1.5rem))] min-w-[var(--dashboard-rail-min-width)]`
             }
             style={
               railScreenRect
@@ -388,6 +412,7 @@ export default function MapTranscriptionActionsPanel({
                 : undefined
             }
           >
+            <div className={DASHBOARD_PANEL_INNER_CLIP_CLASS}>
             <div className={`${GLASS_PANEL_BODY_SCROLL_COMPACT} grid grid-cols-2 gap-3 pr-2`}>
               <label className="col-span-2">
                 <div className="mb-1 text-[11px] font-bold text-slate-700">
@@ -495,6 +520,7 @@ export default function MapTranscriptionActionsPanel({
               >
                 Créer
               </button>
+            </div>
             </div>
           </motion.div>
         ) : null}

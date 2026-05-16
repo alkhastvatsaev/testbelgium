@@ -1,87 +1,182 @@
 /**
- * Layout desktop « triple rail » (hub secondaire + écran carte d’accueil).
+ * Dashboard desktop layout — TypeScript surface (classes + numeric constants).
  *
- * **Lignes directrices (concordance)** — même logique partout :
- * - Une **grille 3 colonnes** identique pour le bandeau fixe (`page.tsx`) et la piste (`MapboxView`, `DashboardTriplePanelLayout`) :
- *   rails `380px` → `400px` (`lg`) · centre `1fr` (Spotlight / carré / Galaxy alignés sur la même verticale).
- * - **Espacement inter-panneaux (équidistance)** : `DASHBOARD_DESKTOP_PANEL_GAP_CLASS` — une seule valeur pour tous les
- *   interstices gauche–centre et centre–droite (propriété CSS `gap` sur la grille) ; pas de `gap` différent en `lg`
- *   pour que le pas reste identique sur toute la plage desktop. Les stacks à l’intérieur des rails (hubs) réutilisent
- *   la même classe pour garder le même rythme visuel.
- * - **Marges page** : `px-6 md:px-8 lg:px-12` alignées sur le `p-*` du bandeau fixe (bords gauche/droit communs).
- * - **Haut** : `DASHBOARD_DESKTOP_PAGER_TOP_FOR_HEADER` = hauteur bandeau (70px + padding vertical du wrapper fixe) pour que le haut des vitres épouse le bas du bandeau.
- * - **Bas** : `pb` racine réserve la bande Galaxy ; côté du carré central = `min(70dvh, 720px)`.
+ * **Layout contract (1A · 2B · 3A · 4A · 5A)**
+ * - **1A** — Un seul gap entre cadres vitrés (`--dashboard-grid-gap`).
+ * - **2B** — Bandeau → piste : `header + pad-top + gap` (`.dashboard-desktop-pager-offset`).
+ * - **3A** — Colonne centre en `1fr` (pleine largeur utile).
+ * - **4A** — Stacks internes hubs : `DASHBOARD_DESKTOP_PANEL_GAP_CLASS`.
+ * - **5A** — Réserve Galaxy via `.dashboard-desktop-page-root` padding-bottom.
  *
- * Les coques verre gardent ombres / blur / bordures existantes.
+ * **Responsive strategy** (see `src/app/dashboard-layout.css`)
+ * - Grid: `minmax(380px, 400px) | minmax(400px, 1fr) | minmax(380px, 400px)`.
+ * - Viewport &lt; canvas min-width → horizontal scroll on `.dashboard-desktop-app` (never crush rails).
+ * - Grid cells use `.dashboard-desktop-col` + `min-w-0` so content truncates inside columns.
+ *
+ * All sizing tokens live in CSS (`:root`). Update `dashboard-layout.css` first, then mirror px here for tests.
  */
 
-/** Largeur max commune : carré central · barre Spotlight (même « colonne » visuelle). */
-export const DASHBOARD_DESKTOP_CENTER_MAX_W_CLASS = "max-w-[min(70dvh,720px)]";
+import {
+  DASHBOARD_PANEL_CHROME_BLUR,
+  DASHBOARD_PANEL_CHROME_BORDER,
+  DASHBOARD_PANEL_CHROME_ROUNDED,
+  DASHBOARD_PANEL_INNER_CLIP_CLASS,
+  DASHBOARD_PANEL_SHADOW_CLASS,
+} from "@/core/ui/glassPanelChrome";
 
-/** Même `px` que le bandeau fixe — bords verticaux du canevas alignés. */
-export const DASHBOARD_DESKTOP_CANVAS_PAD_X_CLASS = "px-6 md:px-8 lg:px-12";
+export {
+  DASHBOARD_PANEL_INNER_CLIP_CLASS,
+  DASHBOARD_PANEL_SHADOW_CLASS,
+  DASHBOARD_PANEL_SHADOW_HOVER_CLASS,
+} from "@/core/ui/glassPanelChrome";
+
+/* ── Numeric mirrors of CSS custom properties (tests, Storybook, docs) ── */
+
+/** Minimum comfortable width of a side glass panel (px). */
+export const DASHBOARD_PANEL_MIN_WIDTH_PX = 380;
+
+/** @deprecated Use DASHBOARD_PANEL_MIN_WIDTH_PX */
+export const DASHBOARD_RAIL_MIN_WIDTH_PX = DASHBOARD_PANEL_MIN_WIDTH_PX;
+
+/** Maximum side panel width before centre takes priority (px). */
+export const DASHBOARD_PANEL_MAX_WIDTH_PX = 400;
+
+/** @deprecated Use DASHBOARD_PANEL_MAX_WIDTH_PX */
+export const DASHBOARD_RAIL_MAX_WIDTH_PX = DASHBOARD_PANEL_MAX_WIDTH_PX;
+
+/** Minimum width of the centre column (map / hub) (px). */
+export const DASHBOARD_CENTER_MIN_WIDTH_PX = 400;
+
+/** Max content width of the 3-column track (px). */
+export const DASHBOARD_CANVAS_MAX_WIDTH_PX = 1580;
+
+/** Grid gap between columns (px) — sync with `--dashboard-grid-gap` (1.5rem). */
+export const DASHBOARD_GRID_GAP_PX = 24;
+
+/** Galaxy bar height (px) — sync with `--dashboard-galaxy-band-height` (3.5rem). */
+export const DASHBOARD_GALAXY_BAND_HEIGHT_PX = 56;
+
+/** @deprecated Use DASHBOARD_GRID_GAP_PX */
+export const DASHBOARD_GUTTER_PX = DASHBOARD_GRID_GAP_PX;
+
+/** Global header band height (px) — sync with `--dashboard-header-height`. */
+export const DASHBOARD_HEADER_HEIGHT_PX = 70;
+
+/** Minimum supported viewport width for desktop dashboard (px). */
+export const DASHBOARD_VIEWPORT_MIN_WIDTH_PX = 768;
 
 /**
- * Pas unique entre panneaux vitrés (grille 3 col + colonnes empilées en `grid-cols-1`).
- * `gap` assure gauche–centre = centre–droite ; une valeur pour tous les breakpoints desktop.
+ * Track min-width without page padding: 2×380 + 400 + 2×24 = 1208px.
+ * Below this, `.dashboard-desktop-app` enables horizontal scroll.
  */
+export const DASHBOARD_TRACK_MIN_WIDTH_PX =
+  DASHBOARD_PANEL_MIN_WIDTH_PX * 2 +
+  DASHBOARD_CENTER_MIN_WIDTH_PX +
+  DASHBOARD_GRID_GAP_PX * 2;
+
+/** @deprecated Use DASHBOARD_TRACK_MIN_WIDTH_PX */
+export const DASHBOARD_CANVAS_MIN_WIDTH_PX = DASHBOARD_TRACK_MIN_WIDTH_PX;
+
+/** CSS custom property names — single source of truth for var() references. */
+export const DASHBOARD_CSS_VAR = {
+  panelMin: "--dashboard-panel-min-width",
+  panelMax: "--dashboard-panel-max-width",
+  railMin: "--dashboard-rail-min-width",
+  railMax: "--dashboard-rail-max-width",
+  centerMin: "--dashboard-center-min-width",
+  canvasMax: "--dashboard-canvas-max-width",
+  canvasMin: "--dashboard-canvas-min-width",
+  trackMin: "--dashboard-track-min-width",
+  canvasPadX: "--dashboard-canvas-pad-x",
+  canvasPadTop: "--dashboard-canvas-pad-top",
+  gridGap: "--dashboard-grid-gap",
+  gutter: "--dashboard-gutter",
+  gridColumns: "--dashboard-grid-columns",
+  headerHeight: "--dashboard-header-height",
+  galaxyBandHeight: "--dashboard-galaxy-band-height",
+  galaxyBottomOffset: "--dashboard-galaxy-bottom-offset",
+} as const;
+
+/* ── Layout class names (defined in dashboard-layout.css) ── */
+
+/** Horizontal scroll host wrapping header + pager. */
+export const DASHBOARD_DESKTOP_APP_SHELL_CLASS =
+  "dashboard-desktop-app relative flex h-[100dvh] w-full flex-col";
+
+/** Min-width canvas; header and pager are siblings inside. */
+export const DASHBOARD_DESKTOP_CANVAS_CLASS = "dashboard-desktop-canvas flex min-h-0 flex-col";
+
+/** 3-column responsive grid (bandeau + piste). */
+export const DASHBOARD_DESKTOP_TRACK_CLASS = "dashboard-desktop-track";
+
+/** Grid column cell — enables truncation inside minmax columns. */
+export const DASHBOARD_DESKTOP_COL_CLASS = "dashboard-desktop-col";
+
+/** Horizontal padding aligned with track (token-driven). */
+export const DASHBOARD_DESKTOP_CANVAS_PAD_X_CLASS = "dashboard-desktop-canvas-pad-x";
+
+/** Top padding for header band (token-driven). */
+export const DASHBOARD_DESKTOP_CANVAS_PAD_TOP_CLASS = "dashboard-desktop-canvas-pad-top";
+
+/** Stacks inside hub rails — same gap as grid (4A). */
 export const DASHBOARD_DESKTOP_PANEL_GAP_CLASS = "gap-6";
 
-/**
- * Grille 3 colonnes — **à réutiliser** pour le bandeau et la piste (lignes directrices concordantes).
- * `minmax(0,1fr)` évite le débordement du rail central (carré + contenu).
- */
-export const DASHBOARD_DESKTOP_TRACK_CLASS =
-  "mx-auto grid w-full min-h-0 max-w-[1580px] grid-cols-1 items-start md:grid-cols-[380px_minmax(0,1fr)_380px] lg:grid-cols-[400px_minmax(0,1fr)_400px] " +
-  DASHBOARD_DESKTOP_PANEL_GAP_CLASS;
+/** @deprecated Use DASHBOARD_GRID_GAP_PX / CSS var */
+export const DASHBOARD_DESKTOP_GUTTER_REM = "1.5rem";
 
-/** Aligné en haut ; pas de `pt` ici (le pager aligne le premier pixel utile sous le bandeau). Réserve bas = Galaxy. */
-export const DASHBOARD_DESKTOP_ROOT_CLASS =
-  `flex h-full min-h-0 w-full items-start justify-center overflow-hidden ${DASHBOARD_DESKTOP_CANVAS_PAD_X_CLASS} pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]`;
+/** Page content root inside pager (pad-x + Galaxy reserve 5A). */
+export const DASHBOARD_DESKTOP_PAGE_ROOT_CLASS = "dashboard-desktop-page-root";
 
-/** Colonne latérale dans la grille : largeur imposée par la piste, pas de `w` fixe en double. */
-export const DASHBOARD_DESKTOP_SIDE_COL_CLASS = "flex min-w-0 w-full flex-col";
+/** @deprecated Use DASHBOARD_DESKTOP_PAGE_ROOT_CLASS */
+export const DASHBOARD_DESKTOP_ROOT_CLASS = DASHBOARD_DESKTOP_PAGE_ROOT_CLASS;
 
-/**
- * Cellule centrale de la grille : centre le carré / la carte sur la colonne `1fr`
- * (même axe que Spotlight dans le bandeau).
- */
+/** @deprecated Padding now on DASHBOARD_DESKTOP_PAGE_ROOT_CLASS */
+export const DASHBOARD_DESKTOP_GALAXY_RESERVE_PB_CLASS = "";
+
+/** Bande Galaxy (AiAssistant) — offset + hauteur tokenisés. */
+export const DASHBOARD_DESKTOP_GALAXY_STRIP_CLASS = "dashboard-desktop-galaxy-strip";
+
+export const DASHBOARD_DESKTOP_GALAXY_STRIP_INNER_CLASS = "dashboard-desktop-galaxy-strip-inner";
+
+/** Overlays bas (transcription, historique). */
+export const DASHBOARD_DESKTOP_GALAXY_RAIL_CLASS = "dashboard-desktop-galaxy-rail";
+
+/** Offset bas utilisable en Tailwind arbitraire (carte, contrôles). */
+export const DASHBOARD_DESKTOP_GALAXY_BOTTOM_CLASS =
+  "bottom-[var(--dashboard-galaxy-bottom-offset)]";
+
+/** Même gutter à droite (ex. bouton recentrer carte). */
+export const DASHBOARD_DESKTOP_GALAXY_INSET_END_CLASS =
+  "right-[var(--dashboard-galaxy-bottom-offset)]";
+
+export const DASHBOARD_DESKTOP_SIDE_COL_CLASS =
+  `flex min-h-0 w-full flex-col ${DASHBOARD_DESKTOP_COL_CLASS}`;
+
 export const DASHBOARD_DESKTOP_CENTER_COL_CLASS =
-  "flex min-h-0 min-w-0 w-full flex-col items-center justify-start";
+  `flex min-h-0 w-full flex-col items-stretch justify-start ${DASHBOARD_DESKTOP_COL_CLASS}`;
 
-/**
- * Position `fixed` — bord gauche du rail aligné sur la grille (portails / horloge / transcription).
- * Chaîne complète pour le scanner Tailwind.
- */
-export const DASHBOARD_DESKTOP_FIXED_RAIL_LEFT_CLASS =
-  "left-[max(1.5rem,calc((100vw-min(1580px,calc(100vw-6rem)))/2+3rem))]";
+export const DASHBOARD_DESKTOP_HEADER_WRAPPER_CLASS =
+  `pointer-events-none absolute inset-x-0 top-0 z-[100] flex justify-center ${DASHBOARD_DESKTOP_CANVAS_PAD_X_CLASS} ${DASHBOARD_DESKTOP_CANVAS_PAD_TOP_CLASS}`;
 
-/** Symétrique pour le bord droit (ex. sélecteur de profil). */
-export const DASHBOARD_DESKTOP_FIXED_RAIL_RIGHT_CLASS =
-  "right-[max(1.5rem,calc((100vw-min(1580px,calc(100vw-6rem)))/2+3rem))]";
+/** Pager top offset — clears header + pad + gutter (2B). */
+export const DASHBOARD_DESKTOP_PAGER_OFFSET_CLASS = "dashboard-desktop-pager-offset";
 
-/** Hauteur des rails latéraux = côté du carré central (alignement visuel). */
+/** @deprecated Use DASHBOARD_DESKTOP_PAGER_OFFSET_CLASS */
+export const DASHBOARD_DESKTOP_PAGER_TOP_FOR_HEADER = DASHBOARD_DESKTOP_PAGER_OFFSET_CLASS;
+
 export const DASHBOARD_DESKTOP_RAIL_HEIGHT_CLASS = "h-[min(70dvh,720px)]";
 
-/** Coque verre — rail latéral (ombre / blur inchangés par rapport à l’historique). */
-export const dashboardTripleSideShellClass =
-  `flex ${DASHBOARD_DESKTOP_RAIL_HEIGHT_CLASS} min-h-0 w-full flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/72 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),0_24px_56px_-22px_rgba(15,23,42,0.08)] backdrop-blur-[24px] backdrop-saturate-[180%] transition-all duration-500`;
+export const dashboardHeaderPanelShellClass =
+  `relative z-[1] flex h-[var(--dashboard-header-height)] w-full min-w-0 max-w-full flex-col ${DASHBOARD_PANEL_CHROME_ROUNDED} ${DASHBOARD_PANEL_CHROME_BORDER} ${DASHBOARD_PANEL_SHADOW_CLASS} ${DASHBOARD_PANEL_CHROME_BLUR} transition-all duration-300`;
 
-/** Coque verre — colonne centrale carrée (léger halo bleu conservé). */
-export const dashboardTripleCenterShellClass =
-  `flex w-full ${DASHBOARD_DESKTOP_CENTER_MAX_W_CLASS} shrink-0 aspect-square min-h-0 min-w-0 flex-col overflow-hidden rounded-[24px] border border-black/[0.06] bg-white/76 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),0_28px_58px_-22px_rgba(15,23,42,0.08),0_0_80px_rgba(59,130,246,0.09)] backdrop-blur-[24px] backdrop-saturate-[180%] transition-all duration-500`;
+const dashboardGlassRailShell = (bg: string) =>
+  `flex ${DASHBOARD_DESKTOP_RAIL_HEIGHT_CLASS} min-h-0 w-full max-w-full flex-col ${DASHBOARD_PANEL_CHROME_ROUNDED} ${DASHBOARD_PANEL_CHROME_BORDER} ${bg} ${DASHBOARD_PANEL_SHADOW_CLASS} ${DASHBOARD_PANEL_CHROME_BLUR} transition-all duration-500`;
 
-/** Colonne droite carte (inbox / suivi) — teinte bleue conservée. */
-export const dashboardMapRightShellClass =
-  `flex ${DASHBOARD_DESKTOP_RAIL_HEIGHT_CLASS} min-h-0 w-full flex-col overflow-hidden rounded-[24px] border border-blue-400/20 bg-white/70 shadow-[0_0_60px_-15px_rgba(59,130,246,0.3),0_24px_56px_-22px_rgba(15,23,42,0.08)] backdrop-blur-[24px] backdrop-saturate-[180%] transition-all duration-500`;
+export const dashboardTripleSideShellClass = dashboardGlassRailShell("bg-white/72");
 
-/** Carte : même géométrie carrée que le hub (ombres carte inchangées). */
+export const dashboardTripleCenterShellClass = dashboardGlassRailShell("bg-white/76");
+
+export const dashboardMapRightShellClass = dashboardGlassRailShell("bg-white/72");
+
 export const dashboardMapCenterSquareClass =
-  `relative z-0 w-full ${DASHBOARD_DESKTOP_CENTER_MAX_W_CLASS} shrink-0 aspect-square min-h-0 min-w-0 overflow-hidden rounded-[24px] border border-black/[0.06] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1),0_32px_64px_-24px_rgba(15,23,42,0.07),0_0_100px_rgba(59,130,246,0.1)] transition-all duration-[400ms] ease-[cubic-bezier(0.25,1,0.5,1)]`;
-
-/**
- * Espace réservé sous le bandeau fixe = **70px** (hauteur widgets) + **padding vertical** du wrapper
- * (`p-6` → 3rem, `md:p-8` → 4rem, `lg:p-12` → 6rem), identique à `page.tsx`.
- */
-export const DASHBOARD_DESKTOP_PAGER_TOP_FOR_HEADER =
-  "pt-[calc(70px+3rem)] md:pt-[calc(70px+4rem)] lg:pt-[calc(70px+6rem)]";
+  `relative z-0 flex w-full min-h-0 min-w-0 max-w-full flex-col ${DASHBOARD_PANEL_CHROME_ROUNDED} ${DASHBOARD_PANEL_CHROME_BORDER} ${DASHBOARD_PANEL_SHADOW_CLASS} transition-all duration-[400ms] ease-[cubic-bezier(0.25,1,0.5,1)] ${DASHBOARD_DESKTOP_RAIL_HEIGHT_CLASS}`;

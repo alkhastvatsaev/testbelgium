@@ -18,8 +18,14 @@ export function useAiStripInsetRect(): AiStripInsetRect | null {
       const r = anchor.getBoundingClientRect();
       if (r.width >= 1) {
         const inset = AI_STRIP_EDGE_INSET_PX;
+        const container = document.getElementById("dashboard-root-scroll");
+        let leftOffset = r.left;
+        if (container) {
+          const containerRect = container.getBoundingClientRect();
+          leftOffset = r.left - containerRect.left + container.scrollLeft;
+        }
         setMapPanelRect({
-          left: Math.round(r.left) + inset,
+          left: Math.round(leftOffset) + inset,
           width: Math.max(0, Math.round(r.width) - inset * 2),
         });
       }

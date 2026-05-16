@@ -28,7 +28,10 @@ import DevPreviewAnonymousAuth from "@/features/dev/DevPreviewAnonymousAuth";
 import { RequesterHubProvider } from "@/features/interventions/context/RequesterHubContext";
 import { TechnicianBackofficeReportBridgeProvider } from "@/context/TechnicianBackofficeReportBridgeContext";
 import {
+  DASHBOARD_DESKTOP_APP_SHELL_CLASS,
+  DASHBOARD_DESKTOP_CANVAS_CLASS,
   DASHBOARD_DESKTOP_CENTER_COL_CLASS,
+  DASHBOARD_DESKTOP_HEADER_WRAPPER_CLASS,
   DASHBOARD_DESKTOP_SIDE_COL_CLASS,
   DASHBOARD_DESKTOP_TRACK_CLASS,
 } from "@/core/ui/dashboardDesktopLayout";
@@ -67,34 +70,41 @@ export default function Dashboard() {
                               <TechnicianNotificationBootstrap />
                             </Suspense>
                             <ClientPortalAuthEffects />
-                            <DashboardPager pages={dashboardPages} />
-                            {/* Bandeau global : même grille max-w + rails que le contenu (pas de `fixed` dans les enfants). */}
                             <div
-                              className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex justify-center p-6 md:p-8 lg:p-12"
-                              data-testid="dashboard-global-header"
+                              id="dashboard-root-scroll"
+                              className={DASHBOARD_DESKTOP_APP_SHELL_CLASS}
                             >
-                              <div
-                                className={`pointer-events-auto ${DASHBOARD_DESKTOP_TRACK_CLASS}`}
-                              >
-                                <aside
-                                  className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} pointer-events-auto`}
-                                >
-                                  <ClockCalendar />
-                                </aside>
+                              <div className={DASHBOARD_DESKTOP_CANVAS_CLASS}>
+                                <DashboardPager pages={dashboardPages} />
+                                {/* Bandeau : même grille que la piste ; scroll horizontal synchronisé. */}
                                 <div
-                                  className={`${DASHBOARD_DESKTOP_CENTER_COL_CLASS} pointer-events-auto`}
+                                  className={DASHBOARD_DESKTOP_HEADER_WRAPPER_CLASS}
+                                  data-testid="dashboard-global-header"
                                 >
-                                  <SpotlightSearch />
+                                  <div
+                                    className={`pointer-events-auto ${DASHBOARD_DESKTOP_TRACK_CLASS}`}
+                                  >
+                                    <aside
+                                      className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} pointer-events-auto`}
+                                    >
+                                      <ClockCalendar />
+                                    </aside>
+                                    <div
+                                      className={`${DASHBOARD_DESKTOP_CENTER_COL_CLASS} pointer-events-auto`}
+                                    >
+                                      <SpotlightSearch />
+                                    </div>
+                                    <aside
+                                      className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} pointer-events-auto`}
+                                    >
+                                      <UserProfile />
+                                    </aside>
+                                  </div>
                                 </div>
-                                <aside
-                                  className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} pointer-events-auto`}
-                                >
-                                  <UserProfile />
-                                </aside>
+
+                                <DashboardGalaxyLayer />
                               </div>
                             </div>
-
-                            <DashboardGalaxyLayer />
 
                           </TechnicianFinishJobProvider>
                         </TechnicianBackofficeReportBridgeProvider>

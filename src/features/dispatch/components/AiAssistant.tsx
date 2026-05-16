@@ -8,6 +8,10 @@ import Waveform from "@/core/ui/Waveform/Waveform";
 import { AnimatePresence, motion } from "framer-motion";
 import { Play, Square } from "lucide-react";
 import { AI_STRIP_EDGE_INSET_PX } from "@/features/dispatch/aiStripAnchor";
+import {
+  DASHBOARD_DESKTOP_GALAXY_STRIP_CLASS,
+  DASHBOARD_DESKTOP_GALAXY_STRIP_INNER_CLASS,
+} from "@/core/ui/dashboardDesktopLayout";
 import { useAiStripInsetRect } from "@/features/dispatch/useAiStripInsetRect";
 import { useDashboardPagerOptional } from "@/features/dashboard/dashboardPagerContext";
 
@@ -785,7 +789,7 @@ export default function AiAssistant({
   const mapPanelRect = useAiStripInsetRect();
 
   const stripInsetTotal = AI_STRIP_EDGE_INSET_PX * 2;
-  const stripFallbackWidth = `calc(min(720px, calc(100vw - 4rem)) - ${stripInsetTotal}px)`;
+  const stripFallbackWidth = `calc(min(720px, calc(100vw - 2 * var(--dashboard-canvas-pad-x))) - ${stripInsetTotal}px)`;
 
   const stripPositionStyle: React.CSSProperties =
     mapPanelRect != null
@@ -811,7 +815,7 @@ export default function AiAssistant({
       {!isHidden && (
         <motion.div
           data-testid="ai-assistant-strip"
-          className="fixed bottom-4 z-[10000] box-border flex min-w-0 flex-col items-stretch"
+          className={`${DASHBOARD_DESKTOP_GALAXY_STRIP_CLASS} box-border flex min-w-0 flex-col items-stretch`}
           style={stripPositionStyle}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -819,7 +823,7 @@ export default function AiAssistant({
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
       <div
-        className={`relative h-14 w-full min-w-0 max-w-full shrink-0 transition-all duration-500 ease-out hover:scale-[1.02] ${showBadge ? "scale-[1.02]" : ""}`}
+        className={`relative ${DASHBOARD_DESKTOP_GALAXY_STRIP_INNER_CLASS} shrink-0 transition-all duration-500 ease-out hover:scale-[1.02] ${showBadge ? "scale-[1.02]" : ""}`}
         onContextMenu={(e) => {
           e.preventDefault();
           onUserLongPress?.();

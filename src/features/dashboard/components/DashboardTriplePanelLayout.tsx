@@ -6,6 +6,7 @@ import {
   DASHBOARD_DESKTOP_ROOT_CLASS,
   DASHBOARD_DESKTOP_SIDE_COL_CLASS,
   DASHBOARD_DESKTOP_TRACK_CLASS,
+  DASHBOARD_PANEL_INNER_CLIP_CLASS,
   dashboardTripleCenterShellClass,
   dashboardTripleSideShellClass,
 } from "@/core/ui/dashboardDesktopLayout";
@@ -62,21 +63,25 @@ export default function DashboardTriplePanelLayout({
           data-testid={leftTestId}
           className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} ${dashboardTripleSideShellClass}`}
         >
-          <div className={`${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`}>
-            {left ?? <DashboardTriplePanelSidePlaceholder />}
+          <div className={DASHBOARD_PANEL_INNER_CLIP_CLASS}>
+            <div className={`${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`}>
+              {left ?? <DashboardTriplePanelSidePlaceholder />}
+            </div>
           </div>
         </section>
 
         <section aria-label={centerAriaLabel} data-testid={centerTestId} className={DASHBOARD_DESKTOP_CENTER_COL_CLASS}>
           <div className={dashboardTripleCenterShellClass}>
-            <div
-              className={
-                centerPadding
-                  ? `${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`
-                  : "flex min-h-0 flex-1 flex-col overflow-hidden"
-              }
-            >
-              {center}
+            <div className={DASHBOARD_PANEL_INNER_CLIP_CLASS}>
+              <div
+                className={
+                  centerPadding
+                    ? `${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`
+                    : "flex min-h-0 flex-1 flex-col overflow-hidden"
+                }
+              >
+                {center}
+              </div>
             </div>
           </div>
         </section>
@@ -86,14 +91,16 @@ export default function DashboardTriplePanelLayout({
           data-testid={rightTestId}
           className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} ${dashboardTripleSideShellClass}`}
         >
-          <div
-            className={
-              rightPadding
-                ? `${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`
-                : "flex min-h-0 flex-1 flex-col overflow-hidden"
-            }
-          >
-            {right ?? <DashboardTriplePanelSidePlaceholder />}
+          <div className={DASHBOARD_PANEL_INNER_CLIP_CLASS}>
+            <div
+              className={
+                rightPadding
+                  ? `${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`
+                  : "flex min-h-0 flex-1 flex-col overflow-hidden"
+              }
+            >
+              {right ?? <DashboardTriplePanelSidePlaceholder />}
+            </div>
           </div>
         </section>
       </div>

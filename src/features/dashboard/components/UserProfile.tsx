@@ -4,6 +4,10 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useDashboardPagerOptional } from '@/features/dashboard/dashboardPagerContext';
 
 import { useTranslation } from '@/core/i18n/I18nContext';
+import {
+  dashboardHeaderPanelShellClass,
+  DASHBOARD_PANEL_SHADOW_HOVER_CLASS,
+} from '@/core/ui/dashboardDesktopLayout';
 
 export const appProfiles = [
   { name: "IVANA", roleKey: "back_office" },
@@ -50,7 +54,7 @@ export default function UserProfile() {
 
   return (
     <div
-      className="relative z-[1] flex h-[70px] w-full min-w-0 cursor-pointer items-center justify-center rounded-[24px] border border-black/[0.06] bg-white/70 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1),0_26px_56px_-22px_rgba(15,23,42,0.08)] backdrop-blur-[24px] backdrop-saturate-[180%] transition-all duration-300 ease-out hover:scale-[1.01] hover:bg-white/80 hover:shadow-[0_36px_72px_-18px_rgba(15,23,42,0.14)] active:scale-[0.99]"
+      className={`${dashboardHeaderPanelShellClass} ${DASHBOARD_PANEL_SHADOW_HOVER_CLASS} cursor-pointer items-center justify-center bg-white/70 ease-out hover:scale-[1.01] hover:bg-white/80 active:scale-[0.99]`}
       style={{
         fontFamily: "'Outfit', sans-serif",
       }}

@@ -1,5 +1,27 @@
 /**
- * Vitres glass avec `overflow-hidden` + coins arrondis coupent les box-shadow des enfants
+ * Ombre unique des panneaux dashboard (définition CSS dans `globals.css`).
+ * Toujours en `box-shadow` sur la coque **sans** `overflow-hidden` (sinon clipping).
+ */
+export const DASHBOARD_PANEL_SHADOW_CLASS = "dashboard-panel-shadow";
+
+/** Survol léger (bandeau profil, etc.). */
+export const DASHBOARD_PANEL_SHADOW_HOVER_CLASS = "dashboard-panel-shadow-hover";
+
+/**
+ * Clip scroll / coins — sur un bloc **intérieur** sous la coque vitrée.
+ * Ne pas combiner avec l’ombre sur le même nœud.
+ */
+export const DASHBOARD_PANEL_INNER_CLIP_CLASS =
+  "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[inherit]";
+
+/** Chrome partagé des vitres (bordure, blur, rayon). */
+export const DASHBOARD_PANEL_CHROME_ROUNDED = "rounded-[24px]";
+export const DASHBOARD_PANEL_CHROME_BORDER = "border border-black/[0.06]";
+export const DASHBOARD_PANEL_CHROME_BLUR =
+  "backdrop-blur-[24px] backdrop-saturate-[180%]";
+
+/**
+ * Vitres glass : `overflow-hidden` + coins arrondis coupent les box-shadow des enfants
  * si le contenu colle aux bords. Utiliser ces classes sur un bloc **intérieur** (scroll / flex-1)
  * sous la coque, pas sur la coque elle-même.
  */

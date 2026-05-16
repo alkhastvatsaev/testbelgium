@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './dashboard-layout.css';
 @import './globals-hud.css';
 @import "tw-animate-css";
 
@@ -6,26 +7,25 @@
 
 
 
-        /* Grille flex gérée par `MapboxView` / `DashboardTriplePanelLayout` (`dashboardDesktopLayout.ts`). */
-        .dashboard-layout {
-            display: flex;
-            min-height: 0;
-            height: 100%;
-            width: 100%;
-            background: transparent;
-            overflow: hidden;
+        /* Layout dashboard : `dashboard-layout.css` + `dashboardDesktopLayout.ts` */
+
+        :root {
+            --dashboard-panel-shadow:
+                0 18px 40px -14px rgba(15, 23, 42, 0.1),
+                0 6px 16px -6px rgba(15, 23, 42, 0.06),
+                0 1px 0 rgba(255, 255, 255, 0.55) inset;
+            --dashboard-panel-shadow-hover:
+                0 22px 48px -12px rgba(15, 23, 42, 0.12),
+                0 8px 20px -6px rgba(15, 23, 42, 0.08),
+                0 1px 0 rgba(255, 255, 255, 0.65) inset;
         }
 
-        @media (max-width: 1024px) {
-            .dashboard-layout {
-                display: flex;
-                flex-direction: column;
-                height: auto;
-                min-height: 100vh;
-            }
-            #map-container {
-                min-height: 50vh;
-            }
+        .dashboard-panel-shadow {
+            box-shadow: var(--dashboard-panel-shadow);
+        }
+
+        .dashboard-panel-shadow-hover:hover {
+            box-shadow: var(--dashboard-panel-shadow-hover);
         }
 
         .dashboard-panel {
@@ -34,9 +34,7 @@
             -webkit-backdrop-filter: blur(12px);
             border-radius: 0;
             border: 1px solid rgba(0, 0, 0, 0.06);
-            box-shadow:
-                0 28px 55px -18px rgba(0, 0, 0, 0.1),
-                0 22px 50px -24px rgba(15, 23, 42, 0.08);
+            box-shadow: var(--dashboard-panel-shadow);
             padding: 30px;
             display: flex;
             flex-direction: column;
@@ -239,9 +237,7 @@
             padding: 30px;
             border-radius: 24px;
             border: 1px solid rgba(0, 0, 0, 0.06);
-            box-shadow:
-                0 30px 60px -15px rgba(0, 0, 0, 0.12),
-                0 24px 52px -22px rgba(15, 23, 42, 0.08);
+            box-shadow: var(--dashboard-panel-shadow);
             max-width: 320px;
             transition: all 0.3s ease;
         }
@@ -334,9 +330,7 @@
             backdrop-filter: blur(24px) saturate(180%);
             -webkit-backdrop-filter: blur(24px) saturate(180%);
             border: 1px solid rgba(0, 0, 0, 0.06);
-            box-shadow:
-                0 30px 60px -15px rgba(0, 0, 0, 0.1),
-                0 26px 56px -22px rgba(15, 23, 42, 0.08);
+            box-shadow: var(--dashboard-panel-shadow);
             color: #1e293b;
             font-family: 'Outfit', sans-serif;
             overflow: hidden;
@@ -350,7 +344,7 @@
 
         #dynamic-widget.state-clock {
             width: 100%;
-            height: 70px;
+            height: var(--dashboard-header-height);
             border-radius: 24px;
             padding: 12px 24px;
             cursor: pointer;
@@ -539,8 +533,10 @@
             --font-heading: var(--font-sans); 
             --font-sans: var(--font-geist), 'Inter', sans-serif;
             --font-brand: var(--font-outfit), 'Outfit', sans-serif;
-            --shadow-premium-float: 0 30px 60px -15px rgba(0, 0, 0, 0.5), 0 24px 52px -22px rgba(15, 23, 42, 0.5);
-            --shadow-premium-panel: 0 4px 24px -4px rgba(0, 0, 0, 0.3);
+            --shadow-dashboard-panel: var(--dashboard-panel-shadow);
+            --shadow-dashboard-panel-hover: var(--dashboard-panel-shadow-hover);
+            --shadow-premium-float: var(--dashboard-panel-shadow);
+            --shadow-premium-panel: var(--dashboard-panel-shadow);
             --color-sidebar-ring: var(--sidebar-ring); 
             --color-sidebar-border: var(--sidebar-border); 
             --color-sidebar-accent-foreground: var(--sidebar-accent-foreground); 

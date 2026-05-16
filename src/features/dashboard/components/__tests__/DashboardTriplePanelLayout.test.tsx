@@ -23,4 +23,33 @@ describe("DashboardTriplePanelLayout", () => {
     expect(screen.getByText("centre")).toBeInTheDocument();
     expect(screen.getByText("droite")).toBeInTheDocument();
   });
+
+  it("utilise la grille desktop centralisée", () => {
+    const { container } = render(
+      <DashboardTriplePanelLayout
+        leftTestId="triple-left"
+        centerTestId="triple-center"
+        rightTestId="triple-right"
+      />,
+    );
+
+    expect(container.querySelector(".dashboard-desktop-track")).toBeInTheDocument();
+  });
+
+  it("applique l’ombre dashboard unifiée sur les coques vitrées", () => {
+    render(
+      <DashboardTriplePanelLayout
+        leftTestId="triple-left"
+        centerTestId="triple-center"
+        rightTestId="triple-right"
+      />,
+    );
+
+    expect(screen.getByTestId("triple-left")).toHaveClass("dashboard-panel-shadow");
+    expect(screen.getByTestId("triple-left")).toHaveClass("dashboard-desktop-col");
+    expect(screen.getByTestId("triple-right")).toHaveClass("dashboard-panel-shadow");
+    expect(screen.getByTestId("triple-center").firstElementChild).toHaveClass(
+      "dashboard-panel-shadow",
+    );
+  });
 });

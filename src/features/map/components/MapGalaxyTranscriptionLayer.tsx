@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import AiAssistant, { type AiPlaybackSync, type QueuedClip } from "@/features/dispatch/components/AiAssistant";
 import MapTranscriptionOverlay from "@/features/map/components/MapTranscriptionOverlay";
 import MapTranscriptionActionsPanel from "@/features/map/components/MapTranscriptionActionsPanel";
+import { DASHBOARD_DESKTOP_GALAXY_RAIL_CLASS } from "@/core/ui/dashboardDesktopLayout";
 
 type Props = {
   transcriptionArmed: boolean;
@@ -121,7 +122,7 @@ function HistoryPanel({ queue, onClose }: { queue: QueuedClip[]; onClose: () => 
   return (
     <div
       data-testid="map-history-overlay"
-      className="pointer-events-none fixed inset-x-0 bottom-10 z-[140] flex min-h-[3rem] justify-center px-6"
+      className={`${DASHBOARD_DESKTOP_GALAXY_RAIL_CLASS} z-[140]`}
     >
       <div
         className="max-w-[min(92vw,820px)] w-full flex flex-col items-center gap-4 text-center text-white drop-shadow-[0_3px_18px_rgba(0,0,0,0.75)]"

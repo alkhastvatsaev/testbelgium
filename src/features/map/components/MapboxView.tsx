@@ -34,9 +34,12 @@ import {
   DASHBOARD_DESKTOP_ROOT_CLASS,
   DASHBOARD_DESKTOP_SIDE_COL_CLASS,
   DASHBOARD_DESKTOP_TRACK_CLASS,
+  DASHBOARD_PANEL_INNER_CLIP_CLASS,
   dashboardMapCenterSquareClass,
   dashboardMapRightShellClass,
   dashboardTripleSideShellClass,
+  DASHBOARD_DESKTOP_GALAXY_BOTTOM_CLASS,
+  DASHBOARD_DESKTOP_GALAXY_INSET_END_CLASS,
 } from "@/core/ui/dashboardDesktopLayout";
 import { GLASS_PANEL_BODY_SCROLL } from "@/core/ui/glassPanelChrome";
 
@@ -422,27 +425,29 @@ export default function MapboxView() {
           id="dashboard-left-rail"
           className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} ${dashboardTripleSideShellClass}`}
         >
-          <div className={`${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`}>
-            <DailyMissions
-              missions={visibleMissions}
-              onMissionClick={handleMissionClick}
-              isEmbedded
-            />
+          <div className={DASHBOARD_PANEL_INNER_CLIP_CLASS}>
+            <div className={`${GLASS_PANEL_BODY_SCROLL} flex min-h-0 flex-col`}>
+              <DailyMissions
+                missions={visibleMissions}
+                onMissionClick={handleMissionClick}
+                isEmbedded
+              />
+            </div>
           </div>
         </aside>
 
         <div className={DASHBOARD_DESKTOP_CENTER_COL_CLASS}>
-          <main
-            id="map-container"
-            className={`${dashboardMapCenterSquareClass}`}
-            style={{ userSelect: "none", WebkitUserSelect: "none", background: "#f8fafc" }}
-          >
+          <main id="map-container" className={dashboardMapCenterSquareClass}>
+            <div
+              className={`${DASHBOARD_PANEL_INNER_CLIP_CLASS} relative flex-1`}
+              style={{ userSelect: "none", WebkitUserSelect: "none", background: "#f8fafc" }}
+            >
           <div ref={mapContainerRef} id="map" style={{ position: "absolute", top: 0, bottom: 0, width: "100%" }} />
       
       {/* Premium Recenter Button */}
       <button
         onClick={handleRecenter}
-        className="group absolute bottom-6 right-6 z-[1] flex h-[46px] w-[46px] cursor-pointer items-center justify-center rounded-[14px] border border-white/75 bg-white/95 shadow-[0_8px_30px_rgba(0,0,0,0.076),0_2px_10px_rgba(0,0,0,0.038)] backdrop-blur-2xl backdrop-saturate-[180%] transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_40px_rgba(0,0,0,0.11)] active:translate-y-0 active:scale-95"
+        className={`group absolute z-[1] flex h-[46px] w-[46px] cursor-pointer items-center justify-center rounded-[14px] border border-white/75 bg-white/95 shadow-[0_8px_30px_rgba(0,0,0,0.076),0_2px_10px_rgba(0,0,0,0.038)] backdrop-blur-2xl backdrop-saturate-[180%] transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_40px_rgba(0,0,0,0.11)] active:translate-y-0 active:scale-95 ${DASHBOARD_DESKTOP_GALAXY_BOTTOM_CLASS} ${DASHBOARD_DESKTOP_GALAXY_INSET_END_CLASS}`}
         title="Recentrer la carte"
       >
         <svg
@@ -562,17 +567,20 @@ export default function MapboxView() {
           </motion.div>
         )}
       </AnimatePresence>
+            </div>
           </main>
         </div>
 
         <aside
           className={`${DASHBOARD_DESKTOP_SIDE_COL_CLASS} ${dashboardMapRightShellClass}`}
         >
-          <div className={cn("flex min-h-0 flex-1 flex-col", dashboardPageIndex !== 0 && "hidden")}>
-            <BackOfficeInboxPanel />
-          </div>
-          <div className={cn("flex min-h-0 flex-1 flex-col", dashboardPageIndex === 0 && "hidden")}>
-            <RequesterTrackingPanel />
+          <div className={DASHBOARD_PANEL_INNER_CLIP_CLASS}>
+            <div className={cn("flex min-h-0 flex-1 flex-col", dashboardPageIndex !== 0 && "hidden")}>
+              <BackOfficeInboxPanel />
+            </div>
+            <div className={cn("flex min-h-0 flex-1 flex-col", dashboardPageIndex === 0 && "hidden")}>
+              <RequesterTrackingPanel />
+            </div>
           </div>
         </aside>
       </div>

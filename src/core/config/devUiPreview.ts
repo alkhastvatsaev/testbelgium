@@ -7,8 +7,8 @@
  * Production : toujours désactivé.
  */
 export const devUiPreviewEnabled =
-  // Opt-in only. This prevents the app from creating/showing synthetic "demo" data by default.
-  process.env.NEXT_PUBLIC_FORCE_DEV_UI_PREVIEW === "true" &&
+  (process.env.NODE_ENV === "development" ||
+    process.env.NEXT_PUBLIC_FORCE_DEV_UI_PREVIEW === "true") &&
   process.env.NEXT_PUBLIC_DISABLE_DEV_UI_PREVIEW !== "true";
 
 const inDevOrPreview = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_FORCE_DEV_UI_PREVIEW === "true";

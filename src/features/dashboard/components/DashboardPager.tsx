@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useDashboardPager } from "@/features/dashboard/dashboardPagerContext";
 import DashboardPagerControls from "@/features/dashboard/components/DashboardPagerControls";
-import { DASHBOARD_DESKTOP_PAGER_TOP_FOR_HEADER } from "@/core/ui/dashboardDesktopLayout";
+import { DASHBOARD_DESKTOP_PAGER_OFFSET_CLASS } from "@/core/ui/dashboardDesktopLayout";
 
 type Props = {
   pages: ReactNode[];
@@ -23,28 +23,26 @@ export default function DashboardPager({ pages }: Props) {
     );
   }
 
-  const trackWidthVw = pageCount * 100;
-
   return (
     <div
-      className={`fixed inset-0 z-0 overflow-hidden ${DASHBOARD_DESKTOP_PAGER_TOP_FOR_HEADER}`}
+      className={`absolute inset-0 z-0 overflow-hidden ${DASHBOARD_DESKTOP_PAGER_OFFSET_CLASS}`}
       data-testid="dashboard-pager-root"
     >
       <div
         className="flex h-full flex-row transition-transform duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none"
         style={{
-          width: `${trackWidthVw}vw`,
-          transform: `translate3d(-${pageIndex * 100}vw, 0, 0)`,
+          width: `${pageCount * 100}%`,
+          transform: `translate3d(-${(pageIndex * 100) / pageCount}%, 0, 0)`,
         }}
         data-testid="dashboard-pager-track"
       >
         {pages.map((node, i) => (
           <section
             key={i}
-            className={`relative h-full w-screen shrink-0 overflow-hidden ${
+            className={`relative h-full shrink-0 overflow-hidden ${
               pageIndex !== i ? "pointer-events-none" : ""
             }`}
-            style={{ transform: "translateZ(0)", backfaceVisibility: "hidden" }}
+            style={{ width: `${100 / pageCount}%`, transform: "translateZ(0)", backfaceVisibility: "hidden" }}
             aria-hidden={pageIndex !== i}
             data-testid={
               i === 0
